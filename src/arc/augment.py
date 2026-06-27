@@ -67,3 +67,31 @@ def invert_color_map(mapping: List[int]) -> List[int]:
     for src, dst in enumerate(mapping):
         inv[dst] = src
     return inv
+
+
+# --- Augmentación a nivel de grid y de tarea --------------------------------
+
+def augment_grid(grid: Grid, d4_idx: int, color_map: List[int]) -> Grid:
+    """Aplica una simetría D4 y luego un mapeo de color (en ese orden)."""
+    return apply_color_map(apply_d4(grid, d4_idx), color_map)
+
+
+def invert_grid(grid: Grid, d4_idx: int, color_map: List[int]) -> Grid:
+    """Inversa de `augment_grid`: des-mapea color y luego des-aplica D4."""
+    return invert_d4(apply_color_map(grid, invert_color_map(color_map)), d4_idx)
+
+
+def augment_task(task, d4_idx: int, color_map: List[int]):
+    """Devuelve una copia de `task` con TODOS sus grids (train+test) augmentados
+    de forma consistente. Mantiene la validez de la tarea (es una simetría)."""
+    from .data import Task, TaskPair  # import local para evitar ciclo
+
+    def aug_pair(p):
+        out = augment_grid(p.output, d4_idx, color_map) if p.output is not None else None
+        return TaskPair(augment_grid(p.input, d4_idx, color_map), out)
+
+    return Task(
+        task_id=task.task_id,
+        train=[aug_pair(p) for p in task.train],
+        test=[aug_pair(p) for p in task.test],
+    )
