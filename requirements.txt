@@ -1,0 +1,15 @@
+# Core
+numpy>=1.26
+kaggle>=1.6
+
+# Fine-tuning stack (PEFT). Versiones de Kaggle pueden variar; fijar en el notebook.
+torch>=2.2
+transformers>=4.44
+peft>=0.12
+trl>=0.9
+datasets>=2.20
+accelerate>=0.33
+bitsandbytes>=0.43 ; platform_system != "Windows"
+
+# Dev / utilidades
+tqdm>=4.66

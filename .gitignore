@@ -1,0 +1,31 @@
+__pycache__/
+*.pyc
+submission.tar.gz
+tuning/
+replays/*.json
+cand_*/
+# Local environment and secrets
+.env
+.venv/
+venv/
+env/
+
+# Data (do NOT include competition data in the repo)
+data/
+
+# Kaggle token and cache
+.kaggle/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Submission outputs y artefactos de modelo
+submission.json
+*.zip
+models/
+*.safetensors
+*.bin
+
+# Editor
+.vscode/
+.idea/
