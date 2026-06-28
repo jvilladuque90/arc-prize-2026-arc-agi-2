@@ -10,16 +10,25 @@
 - **ARC-AGI-2 es deliberadamente anti-memorización** → soluciones que solo memorizan patrones
   del train fallan. Hace falta *adaptación por tarea* (test-time training) y razonamiento composicional.
 
-## Por qué Qwen2.5 pequeño y no Llama 4
+## Hardware: Kaggle L4×4 (96GB, offline)
 
-| Criterio | Qwen2.5 0.5B–7B | Llama 4 (MoE) |
+Esta competencia da acceso a **L4×4 = 96GB de VRAM**, pero con condiciones:
+- **Internet OFF obligatorio** en toda sesión L4 (también entrenamiento) → modelo base y deps
+  desde Kaggle Models/Datasets adjuntos; sin descargas HF ni `pip install` con red.
+- Consume **quota al doble** que T4×2/P100; solo para notebooks adjuntos a esta competencia.
+
+No hay GPU local → todo el cómputo va en kernels de Kaggle (`scripts/push_kernels.py`).
+
+## Por qué Qwen2.5 y no Llama 4
+
+| Criterio | Qwen2.5 (hasta 7B–14B en 96GB) | Llama 4 (MoE) |
 |---|---|---|
-| Cabe offline en notebook | ✅ | ❌ (decenas/cientos de GB) |
-| TTT por-tarea en 12 h | ✅ muchas iteraciones | ❌ inviable |
+| Cabe offline en L4×4 | ✅ | ❌ (cientos de GB) |
+| TTT por-tarea en 12 h | ✅ | ❌ inviable |
 | Antecedente ganador ARC | ✅ (familia Qwen usada por top teams 2024) | sin antecedente |
 
-Recomendación: empezar con **Qwen2.5-0.5B-Instruct** para iterar barato; escalar a 1.5B/3B/7B
-según presupuesto de tiempo de inferencia.
+Con 96GB el sweet spot sube: **iterar con Qwen2.5-0.5B/1.5B** (rápido y barato en quota) y
+**escalar a 7B–14B con LoRA** para las corridas finales, manteniendo TTT viable.
 
 ## Pipeline propuesto
 
