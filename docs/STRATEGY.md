@@ -36,12 +36,17 @@ Con 96GB el sweet spot sube: **iterar con Qwen2.5-0.5B/1.5B** (rápido y barato 
 `scripts/make_submission.py` produce `submission.json` válido (identidad + output frecuente).
 Objetivo: confirmar formato, IDs, y que el notebook corre end-to-end.
 
-### Fase 1 — Fine-tune con LoRA (PEFT)
+### Fase 1 — Datos sintéticos + Fine-tune con LoRA (PEFT)  ✅ implementado
 1. Serializar tareas a texto (`src/arc/grid.py::format_task_prompt`).
 2. **Augmentar masivamente** (`src/arc/augment.py`): 8 simetrías D4 × N permutaciones de color
    × reordenamiento de ejemplos. 1000 tareas → cientos de miles de muestras.
-3. Entrenar LoRA sobre Qwen2.5 con `trl` (SFT) prediciendo el grid de salida token a token.
-4. Validar en `evaluation` (120 tareas) con `src/arc/metrics.py`.
+3. **Datos sintéticos** (`src/arc/synth.py`): generador de tareas ARC-style con regla consistente
+   por tarea — 13 reglas (recolor, rotate, flip, transpose, tile, mirror, upscale, border,
+   gravity, crop_bbox, most_frequent, symmetrize). Fue el *edge* del ganador 2025. Escalable a
+   decenas de miles de tareas (`scripts/build_synth_dataset.py`).
+4. Entrenar LoRA sobre Qwen2.5 (`scripts/train_lora.py`, SFT con enmascarado completion-only)
+   prediciendo el grid de salida token a token. Mezcla real (augmentado) + sintético.
+5. Validar en `evaluation` (120 tareas) con `scripts/evaluate.py`.
 
 ### Fase 2 — Test-Time Training (TTT)
 En inferencia, por cada tarea de test:
@@ -62,9 +67,13 @@ Es la técnica que separó a los ganadores 2024 del resto.
 
 ## Backlog técnico
 
-- [ ] `scripts/build_finetune_dataset.py` — materializar dataset augmentado a JSONL.
-- [ ] `src/arc/model.py` — carga de Qwen + LoRA, generación con restricción a dígitos/grid.
-- [ ] `src/arc/ttt.py` — bucle de test-time training por tarea.
-- [ ] `src/arc/infer.py` — AIRV (augment → predict → des-augment → voto).
-- [ ] `notebooks/submit.ipynb` — notebook de entrega que orquesta todo offline.
-- [ ] Validación en `evaluation` y ablations (con/sin TTT, tamaño de modelo, nº augmentaciones).
+- [x] `scripts/build_finetune_dataset.py` — dataset augmentado (D4+color+LOO) a JSONL.
+- [x] `src/arc/synth.py` + `scripts/build_synth_dataset.py` — generador de tareas sintéticas.
+- [x] `src/arc/model.py` — carga de Qwen + LoRA, generación con restricción a dígitos/grid.
+- [x] `scripts/train_lora.py` — SFT con LoRA (enmascarado completion-only).
+- [x] `src/arc/infer.py` — AIRV (augment → predict → des-augment → voto).
+- [x] `scripts/evaluate.py` — validación en `evaluation` con pass@2.
+- [x] `notebooks/{train,submit}.ipynb` + `scripts/push_kernels.py` — kernels Kaggle (L4×4 offline).
+- [ ] `src/arc/ttt.py` — TTT real por tarea (hoy es un sketch en `submit.ipynb`).
+- [ ] Más reglas sintéticas (composición de reglas, objetos/conteo avanzado, denoising).
+- [ ] Ablations: con/sin sintético, con/sin TTT, tamaño de modelo, nº augmentaciones.
