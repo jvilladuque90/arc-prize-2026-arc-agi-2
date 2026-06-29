@@ -71,6 +71,10 @@ def main() -> int:
                     help="Kaggle Models source user/model/...; repetible")
     ap.add_argument("--internet", action="store_true",
                     help="habilita internet (SOLO T4x2/P100; L4x4 lo prohibe)")
+    ap.add_argument("--accelerator", default="NvidiaTeslaT4",
+                    choices=["NvidiaTeslaT4", "NvidiaTeslaP100", "Tpu1VmV38"],
+                    help="GPU/TPU. T4 (default) la soporta torch; P100 (sm_60) NO. "
+                         "L4x4 no está en el enum de esta CLI: selecciónalo en la UI de Kaggle.")
     ap.add_argument("--dry-run", action="store_true", help="solo genera metadata, no publica")
     args = ap.parse_args()
 
@@ -92,6 +96,7 @@ def main() -> int:
         "kernel_type": "notebook",
         "is_private": True,
         "enable_gpu": cfg["gpu"],
+        "machine_shape": args.accelerator,
         "enable_internet": args.internet,
         "dataset_sources": datasets,
         "competition_sources": [COMP],
