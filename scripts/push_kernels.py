@@ -55,9 +55,9 @@ def kaggle_username() -> str:
 
 KERNELS = {
     "train": {"notebook": "notebooks/train.ipynb", "slug": "arc-agi2-train",
-              "title": "ARC-AGI-2 Train LoRA", "gpu": True},
+              "title": "arc agi2 train", "gpu": True},
     "submit": {"notebook": "notebooks/submit.ipynb", "slug": "arc-agi2-submit",
-               "title": "ARC-AGI-2 Submit", "gpu": True},
+               "title": "arc agi2 submit", "gpu": True},
 }
 
 
