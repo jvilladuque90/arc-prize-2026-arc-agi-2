@@ -24,14 +24,15 @@ def load_env(env_path: Path) -> None:
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, val = line.split("=", 1)
-        os.environ.setdefault(key.strip(), val.strip())
+        # .env como fuente de verdad: sobreescribe el entorno (evita tokens obsoletos).
+        os.environ[key.strip()] = val.strip()
 
 
 def main() -> int:
     load_env(ROOT / ".env")
     # La Kaggle CLI acepta KAGGLE_USERNAME/KAGGLE_KEY o KAGGLE_API_TOKEN.
     if "kaggle_username" in os.environ:
-        os.environ.setdefault("KAGGLE_USERNAME", os.environ["kaggle_username"])
+        os.environ["KAGGLE_USERNAME"] = os.environ["kaggle_username"]
     if "KAGGLE_API_TOKEN" not in os.environ and "KAGGLE_KEY" not in os.environ:
         print("ERROR: faltan credenciales Kaggle en .env", file=sys.stderr)
         return 1

@@ -34,13 +34,15 @@ COMP = "arc-prize-2026-arc-agi-2"
 
 
 def load_env(env_path: Path) -> None:
+    # El .env es la fuente de verdad de credenciales: SOBREESCRIBE el entorno del sistema
+    # (que puede tener un KAGGLE_API_TOKEN obsoleto que rompería la autenticación).
     if not env_path.exists():
         return
     for line in env_path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if line and not line.startswith("#") and "=" in line:
             k, v = line.split("=", 1)
-            os.environ.setdefault(k.strip(), v.strip())
+            os.environ[k.strip()] = v.strip()
 
 
 def kaggle_username() -> str:
@@ -74,7 +76,7 @@ def main() -> int:
 
     load_env(ROOT / ".env")
     if "kaggle_username" in os.environ:
-        os.environ.setdefault("KAGGLE_USERNAME", os.environ["kaggle_username"])
+        os.environ["KAGGLE_USERNAME"] = os.environ["kaggle_username"]
 
     cfg = KERNELS[args.kernel]
     user = kaggle_username()
