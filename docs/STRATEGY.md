@@ -48,12 +48,14 @@ Objetivo: confirmar formato, IDs, y que el notebook corre end-to-end.
    prediciendo el grid de salida token a token. Mezcla real (augmentado) + sintético.
 5. Validar en `evaluation` (120 tareas) con `scripts/evaluate.py`.
 
-### Fase 2 — Test-Time Training (TTT)
-En inferencia, por cada tarea de test:
-1. Tomar sus pares `train`, augmentarlos.
-2. Fine-tune ligero de un LoRA *específico de la tarea* (pocos pasos) sobre esos pares.
-3. Predecir el/los test outputs.
-Es la técnica que separó a los ganadores 2024 del resto.
+### Fase 2 — Test-Time Training (TTT)  ✅ implementado
+`src/arc/ttt.py`. En inferencia, por cada tarea de test:
+1. Tomar sus pares `train`, augmentarlos (D4+color, leave-one-out) → `task_ttt_samples`.
+2. Fine-tune ligero del LoRA sobre esos pares (`TTT.adapt`, pocos pasos), restaurando un
+   **snapshot** del adaptador entre tareas (sin fuga de info de una tarea a otra).
+3. Predecir con AIRV (`predict_with_ttt`) y restaurar.
+Es la técnica que separó a los ganadores del resto. Activable en `submit.ipynb` (`ENABLE_TTT`)
+y en `scripts/evaluate.py --ttt`.
 
 ### Fase 3 — Inferencia con augmentación + votación (AIRV)
 1. Para cada test input, generar predicciones sobre varias vistas augmentadas (D4 + color).
@@ -74,6 +76,6 @@ Es la técnica que separó a los ganadores 2024 del resto.
 - [x] `src/arc/infer.py` — AIRV (augment → predict → des-augment → voto).
 - [x] `scripts/evaluate.py` — validación en `evaluation` con pass@2.
 - [x] `notebooks/{train,submit}.ipynb` + `scripts/push_kernels.py` — kernels Kaggle (L4×4 offline).
-- [ ] `src/arc/ttt.py` — TTT real por tarea (hoy es un sketch en `submit.ipynb`).
-- [ ] Más reglas sintéticas (composición de reglas, objetos/conteo avanzado, denoising).
+- [x] `src/arc/ttt.py` — TTT real por tarea (snapshot/restore del LoRA) + `evaluate.py --ttt`.
+- [ ] Más reglas sintéticas (composición de 3+ ops, simetría 4-fold, patrones periódicos).
 - [ ] Ablations: con/sin sintético, con/sin TTT, tamaño de modelo, nº augmentaciones.

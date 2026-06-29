@@ -34,6 +34,9 @@ def main() -> int:
     ap.add_argument("--model-dir", help="modelo base; si falta, usa baseline")
     ap.add_argument("--lora-dir", help="adaptador LoRA opcional")
     ap.add_argument("--n-aug", type=int, default=8)
+    ap.add_argument("--ttt", action="store_true", help="activa Test-Time Training por tarea")
+    ap.add_argument("--ttt-steps", type=int, default=24)
+    ap.add_argument("--ttt-lr", type=float, default=1e-4)
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--data-dir", default=str(ROOT / "data"))
     args = ap.parse_args()
@@ -44,24 +47,40 @@ def main() -> int:
     solutions = {t: [p.output for p in task.test] for t, task in tasks.items()}
 
     predict_fn = None
+    model = tok = ttt = None
     if args.model_dir:
         import torch
 
         from arc.model import generate_grid, load_model
 
-        model, tok = load_model(
-            args.model_dir, device_map="cuda" if torch.cuda.is_available() else "cpu"
-        )
+        if not torch.cuda.is_available():
+            # Regla del proyecto: el modelo SOLO corre en GPU; en CPU es inviable.
+            raise SystemExit("ERROR: se pidio --model-dir pero no hay GPU. Ejecuta en un "
+                             "kernel de Kaggle con GPU (ver scripts/push_kernels.py).")
+        model, tok = load_model(args.model_dir, device_map="cuda")
         if args.lora_dir:
             from peft import PeftModel
 
-            model = PeftModel.from_pretrained(model, args.lora_dir)
+            model = PeftModel.from_pretrained(model, args.lora_dir, is_trainable=args.ttt)
+        elif args.ttt:
+            from arc.model import build_lora
+
+            model = build_lora(model)  # LoRA fresco para adaptar en test-time
         model.eval()
         predict_fn = lambda prompt: generate_grid(model, tok, prompt, constrained=True)
+        if args.ttt:
+            from arc.ttt import TTT
+
+            ttt = TTT(model, tok, steps=args.ttt_steps, lr=args.ttt_lr, n_aug=4)
 
     submission = {}
     for tid, task in tasks.items():
-        if predict_fn is not None:
+        if predict_fn is not None and ttt is not None:
+            from arc.ttt import predict_with_ttt
+
+            submission[tid] = predict_with_ttt(task, model, tok, ttt,
+                                               n_aug_infer=args.n_aug, constrained=True)
+        elif predict_fn is not None:
             submission[tid] = predict_task(task, predict_fn, n_aug=args.n_aug)
         else:
             mc = baseline_fn_factory(task)
