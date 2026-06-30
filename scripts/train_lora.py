@@ -87,8 +87,13 @@ def main() -> int:
     ap.add_argument("--lora-r", type=int, default=16)
     ap.add_argument("--load-4bit", action="store_true")
     ap.add_argument("--max-rows", type=int, default=0, help="limita muestras (debug)")
+    ap.add_argument("--max-steps", type=int, default=-1, help="-1 = usa epochs")
+    ap.add_argument("--save-steps", type=int, default=0, help="0 = guarda al final (epoch)")
+    ap.add_argument("--device-map", default="none",
+                    help="'none' (DDP: cada proceso coloca el modelo) | 'cuda' | 'balanced' | 'auto'")
     args = ap.parse_args()
 
+    import os
     import torch
     from transformers import Trainer, TrainingArguments
 
@@ -97,39 +102,57 @@ def main() -> int:
     rows = list(read_jsonl(args.data))
     if args.max_rows:
         rows = rows[: args.max_rows]
-    print(f"Muestras de entrenamiento: {len(rows)}")
+    # bajo DDP solo el proceso rank 0 imprime
+    local_rank = int(os.environ.get("LOCAL_RANK", 0))
+    if local_rank == 0:
+        print(f"Muestras de entrenamiento: {len(rows)}")
 
-    model, tok = load_model(
-        args.model,
-        load_4bit=args.load_4bit,
-        device_map="cuda" if torch.cuda.is_available() else "cpu",
-    )
+    # En DDP NO se pasa device_map (cada proceso coloca el modelo en su GPU local).
+    dm = None if args.device_map == "none" else args.device_map
+    cap = torch.cuda.get_device_capability(0)[0] if torch.cuda.is_available() else 0
+    bf16 = cap >= 8
+
+    model, tok = load_model(args.model, load_4bit=args.load_4bit, device_map=dm,
+                            dtype="bfloat16" if bf16 else "float16")
+    model.config.use_cache = False
     model = build_lora(model, r=args.lora_r)
-    model.print_trainable_parameters()
+    if local_rank == 0:
+        model.print_trainable_parameters()
+    if getattr(model, "hf_device_map", None) and len(set(model.hf_device_map.values())) > 1:
+        model.is_parallelizable = True
+        model.model_parallel = True
 
     ds = ArcSFTDataset(rows, tok, max_seq_len=args.max_seq_len)
     collator = PadCollator(pad_id=tok.pad_token_id)
 
+    save_kw = ({"save_strategy": "steps", "save_steps": args.save_steps, "save_total_limit": 1}
+               if args.save_steps else {"save_strategy": "epoch"})
     targs = TrainingArguments(
         output_dir=args.out,
         num_train_epochs=args.epochs,
+        max_steps=args.max_steps,
         per_device_train_batch_size=args.batch_size,
         gradient_accumulation_steps=args.grad_accum,
+        gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={"use_reentrant": False},
         learning_rate=args.lr,
         lr_scheduler_type="cosine",
         warmup_ratio=0.03,
         logging_steps=20,
-        save_strategy="epoch",
-        bf16=torch.cuda.is_available(),
+        bf16=bf16, fp16=not bf16,
+        optim="paged_adamw_8bit" if args.load_4bit else "adamw_torch",
+        ddp_find_unused_parameters=False,
         report_to="none",
+        **save_kw,
     )
     trainer = Trainer(model=model, args=targs, train_dataset=ds, data_collator=collator)
     trainer.train()
 
-    Path(args.out).mkdir(parents=True, exist_ok=True)
-    model.save_pretrained(args.out)
-    tok.save_pretrained(args.out)
-    print(f"Adaptador LoRA guardado en {args.out}")
+    if local_rank == 0:
+        Path(args.out).mkdir(parents=True, exist_ok=True)
+        model.save_pretrained(args.out)
+        tok.save_pretrained(args.out)
+        print(f"Adaptador LoRA guardado en {args.out}")
     return 0
 
 
