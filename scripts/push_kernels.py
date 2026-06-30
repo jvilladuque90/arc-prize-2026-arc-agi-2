@@ -58,6 +58,8 @@ KERNELS = {
               "title": "arc agi2 train", "gpu": True},
     "submit": {"notebook": "notebooks/submit.ipynb", "slug": "arc-agi2-submit",
                "title": "arc agi2 submit", "gpu": True},
+    "eval": {"notebook": "notebooks/evaluate.ipynb", "slug": "arc-agi2-eval",
+             "title": "arc agi2 eval", "gpu": True},
 }
 
 
