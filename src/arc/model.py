@@ -106,6 +106,19 @@ def make_grid_logits_processor(tokenizer):
     return _GridProcessor()
 
 
+def _parse_grid(text: str, sep: str = "") -> Optional[Grid]:
+    """Parsea texto a grid; None si no es un grid rectangular no vacío."""
+    from .grid import text_to_grid
+
+    try:
+        grid = text_to_grid(text, sep)
+        if grid and all(len(r) == len(grid[0]) and r for r in grid):
+            return grid
+    except Exception:
+        pass
+    return None
+
+
 def generate_grid(
     model,
     tokenizer,
@@ -119,8 +132,6 @@ def generate_grid(
     """Genera y parsea un grid a partir de un prompt. Devuelve None si no parsea."""
     import torch
     from transformers import LogitsProcessorList
-
-    from .grid import text_to_grid
 
     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
     gen_kwargs = dict(
@@ -138,11 +149,96 @@ def generate_grid(
     with torch.no_grad():
         out = model.generate(**inputs, **gen_kwargs)
     text = tokenizer.decode(out[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True)
-    try:
-        grid = text_to_grid(text, sep)
-        # validación mínima: filas no vacías y rectangular
-        if grid and all(len(r) == len(grid[0]) and r for r in grid):
-            return grid
-    except Exception:
-        pass
-    return None
+    return _parse_grid(text, sep)
+
+
+def generate_grid_candidates(
+    model,
+    tokenizer,
+    prompt: str,
+    sep: str = "",
+    n_candidates: int = 3,
+    temperature: float = 0.7,
+    max_new_tokens: int = 2048,
+    constrained: bool = True,
+) -> List[Grid]:
+    """Genera candidatos diversos para un prompt: 1 greedy + (n-1) por sampling.
+
+    Devuelve grids únicos (dedup por contenido), en orden greedy-primero. Puede
+    devolver menos de `n_candidates` si hay colisiones o salidas no parseables.
+    """
+    import torch
+    from transformers import LogitsProcessorList
+
+    from .grid import grid_to_text
+
+    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+    prompt_len = inputs["input_ids"].shape[1]
+    gen_common = dict(max_new_tokens=max_new_tokens, pad_token_id=tokenizer.pad_token_id)
+    if constrained:
+        gen_common["logits_processor"] = LogitsProcessorList(
+            [make_grid_logits_processor(tokenizer)]
+        )
+
+    cands: List[Grid] = []
+    seen = set()
+
+    def _collect(out) -> None:
+        texts = tokenizer.batch_decode(out[:, prompt_len:], skip_special_tokens=True)
+        for t in texts:
+            g = _parse_grid(t, sep)
+            if g is None:
+                continue
+            key = grid_to_text(g)
+            if key not in seen:
+                seen.add(key)
+                cands.append(g)
+
+    with torch.no_grad():
+        _collect(model.generate(**inputs, do_sample=False, **gen_common))
+        if n_candidates > 1:
+            _collect(model.generate(
+                **inputs, do_sample=True, temperature=temperature,
+                num_return_sequences=n_candidates - 1, **gen_common,
+            ))
+    return cands
+
+
+def score_completions(
+    model,
+    tokenizer,
+    prompt: str,
+    completions: List[str],
+    batch_size: int = 8,
+) -> List[float]:
+    """log P(completion | prompt) para cada completion (suma de log-probs + EOS).
+
+    Un forward pass por batch, sin generación: es la señal de *ranking* de candidatos
+    (técnica de los top ARC 2024/2025: puntuar bajo vistas augmentadas en lugar de
+    solo contar votos).
+    """
+    import torch
+
+    p_ids = tokenizer(prompt, add_special_tokens=False)["input_ids"]
+    eos = tokenizer.eos_token or ""
+    pad = tokenizer.pad_token_id or 0
+    scores: List[float] = []
+
+    for i in range(0, len(completions), batch_size):
+        batch = completions[i:i + batch_size]
+        encs = [p_ids + tokenizer(c + eos, add_special_tokens=False)["input_ids"]
+                for c in batch]
+        maxlen = max(len(e) for e in encs)
+        input_ids = torch.tensor(
+            [e + [pad] * (maxlen - len(e)) for e in encs], device=model.device)
+        attn = torch.tensor(
+            [[1] * len(e) + [0] * (maxlen - len(e)) for e in encs], device=model.device)
+        with torch.no_grad():
+            logits = model(input_ids=input_ids, attention_mask=attn).logits
+        logprobs = torch.log_softmax(logits.float(), dim=-1)
+        # logprob del token t está en la posición t-1
+        tok_lp = logprobs[:, :-1].gather(-1, input_ids[:, 1:].unsqueeze(-1)).squeeze(-1)
+        for b, e in enumerate(encs):
+            lo, hi = len(p_ids) - 1, len(e) - 1  # índices en tok_lp
+            scores.append(tok_lp[b, lo:hi].sum().item())
+    return scores

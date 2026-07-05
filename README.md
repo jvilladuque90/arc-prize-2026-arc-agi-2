@@ -40,8 +40,9 @@ Estructura (en `data/`):
 
 ## Estrategia
 
-La receta dominante en ARC-AGI (ganadores 2024) es un **LLM pequeño fine-tuneado + Test-Time
-Training (TTT)**. Plan en fases:
+La receta dominante en ARC-AGI (ganadores 2024 **y 2025**) es un **LLM pequeño fine-tuneado +
+Test-Time Training (TTT)**. Calibración: el 1º puesto 2025 (NVARC, NVIDIA) logró **24.03%** en
+ARC-AGI-2 con un modelo ~4B + TTT + corpus sintético masivo + ensemble con TRM. Plan en fases:
 
 1. **Baseline sin ML** — heurísticas/identidad + selección por votación, para validar el pipeline
    de submission de punta a punta.
@@ -53,8 +54,11 @@ Training (TTT)**. Plan en fases:
    Esto expande las 1000 tareas en cientos de miles de muestras.
 3. **Test-Time Training (TTT)** — en inferencia, adaptar un LoRA por-tarea sobre los pocos pares
    `train` de cada tarea de test (y sus augmentaciones), luego predecir. Fue **la** clave para ganar.
-4. **Inferencia con augmentación + votación (AIRV)** — predecir sobre varias vistas augmentadas,
-   des-augmentar y elegir los 2 candidatos por consenso.
+4. **Inferencia multi-candidato + scoring por verosimilitud** — generar varios candidatos por
+   vista augmentada (sampling/DFS), des-augmentar, y elegir los 2 attempts **puntuando cada
+   candidato por su log-verosimilitud bajo vistas augmentadas** (voto simple solo como desempate).
+5. **Ingeniería de runtime** — 4 workers (1 por GPU L4), presupuesto de tiempo por tarea y
+   escritura incremental del `submission.json`.
 
 > **Nota sobre el modelo:** Qwen2.5 (0.5B–7B) es preferible a **Llama 4** para esta competencia:
 > Llama 4 es un MoE enorme, inviable para TTT por-tarea dentro del límite de ~12 h offline en GPU

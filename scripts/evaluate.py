@@ -34,6 +34,11 @@ def main() -> int:
     ap.add_argument("--model-dir", help="modelo base; si falta, usa baseline")
     ap.add_argument("--lora-dir", help="adaptador LoRA opcional")
     ap.add_argument("--n-aug", type=int, default=8)
+    ap.add_argument("--selection", choices=["score", "vote"], default="score",
+                    help="score = multi-candidato + ranking por log-verosimilitud")
+    ap.add_argument("--n-cands", type=int, default=2)
+    ap.add_argument("--temperature", type=float, default=0.7)
+    ap.add_argument("--score-views", type=int, default=4)
     ap.add_argument("--ttt", action="store_true", help="activa Test-Time Training por tarea")
     ap.add_argument("--ttt-steps", type=int, default=24)
     ap.add_argument("--ttt-lr", type=float, default=1e-4)
@@ -73,13 +78,22 @@ def main() -> int:
 
             ttt = TTT(model, tok, steps=args.ttt_steps, lr=args.ttt_lr, n_aug=4)
 
+    score_kwargs = dict(n_cands=args.n_cands, temperature=args.temperature,
+                        n_score_views=args.score_views)
     submission = {}
     for tid, task in tasks.items():
         if predict_fn is not None and ttt is not None:
             from arc.ttt import predict_with_ttt
 
+            extra = score_kwargs if args.selection == "score" else {"constrained": True}
             submission[tid] = predict_with_ttt(task, model, tok, ttt,
-                                               n_aug_infer=args.n_aug, constrained=True)
+                                               n_aug_infer=args.n_aug,
+                                               selection=args.selection, **extra)
+        elif predict_fn is not None and args.selection == "score":
+            from arc.infer import predict_task_scored
+
+            submission[tid] = predict_task_scored(task, model, tok,
+                                                  n_aug=args.n_aug, **score_kwargs)
         elif predict_fn is not None:
             submission[tid] = predict_task(task, predict_fn, n_aug=args.n_aug)
         else:

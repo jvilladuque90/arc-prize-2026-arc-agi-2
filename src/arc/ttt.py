@@ -126,15 +126,29 @@ class TTT:
 
 
 def predict_with_ttt(task: Task, model, tokenizer, ttt: TTT,
-                     n_aug_infer: int = 8, sep: str = "", **gen_kwargs) -> List[dict]:
-    """Adapta (TTT) → predice con AIRV → restaura. Devuelve [{attempt_1, attempt_2}, ...]."""
-    from .infer import predict_task
-    from .model import generate_grid
+                     n_aug_infer: int = 8, sep: str = "",
+                     selection: str = "vote", **gen_kwargs) -> List[dict]:
+    """Adapta (TTT) → predice con AIRV → restaura. Devuelve [{attempt_1, attempt_2}, ...].
 
+    `selection`: "vote" (greedy + consenso, legado) o "score" (multi-candidato +
+    ranking por log-verosimilitud augmentada; ver arc.infer.predict_task_scored).
+    `gen_kwargs` se pasan a la generación (p.ej. max_new_tokens, constrained,
+    n_cands/temperature/n_score_views en modo score).
+    """
     ttt.adapt(task)
-    predict_fn = lambda prompt: generate_grid(model, tokenizer, prompt, sep=sep, **gen_kwargs)
     try:
-        results = predict_task(task, predict_fn, n_aug=n_aug_infer, sep=sep)
+        if selection == "score":
+            from .infer import predict_task_scored
+
+            results = predict_task_scored(task, model, tokenizer, sep=sep,
+                                          n_aug=n_aug_infer, **gen_kwargs)
+        else:
+            from .infer import predict_task
+            from .model import generate_grid
+
+            predict_fn = lambda prompt: generate_grid(model, tokenizer, prompt,
+                                                      sep=sep, **gen_kwargs)
+            results = predict_task(task, predict_fn, n_aug=n_aug_infer, sep=sep)
     finally:
         ttt.restore()
     return results
