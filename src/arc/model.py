@@ -42,10 +42,16 @@ def load_model(
             bnb_4bit_quant_type="nf4",
             bnb_4bit_use_double_quant=True,
         )
+        model = AutoModelForCausalLM.from_pretrained(model_name, **kwargs)
     else:
-        kwargs["torch_dtype"] = getattr(torch, dtype)
-
-    model = AutoModelForCausalLM.from_pretrained(model_name, **kwargs)
+        # transformers renombró torch_dtype -> dtype; las versiones nuevas IGNORAN
+        # torch_dtype y cargan en fp32 (un 3B en fp32 = 12.4GB: OOM en T4).
+        try:
+            model = AutoModelForCausalLM.from_pretrained(
+                model_name, dtype=getattr(torch, dtype), **kwargs)
+        except TypeError:
+            model = AutoModelForCausalLM.from_pretrained(
+                model_name, torch_dtype=getattr(torch, dtype), **kwargs)
     return model, tok
 
 

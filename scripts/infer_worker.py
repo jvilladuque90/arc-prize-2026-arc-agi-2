@@ -64,7 +64,12 @@ def main() -> int:
 
         if not torch.cuda.is_available():
             raise SystemExit(f"{tag} ERROR: worker sin GPU visible.")
-        model, tok = load_model(args.model_dir, device_map="cuda")
+        # bf16 solo con soporte nativo (sm>=80); en T4 (sm75) usar fp16
+        cap = torch.cuda.get_device_capability(0)[0]
+        dtype = "bfloat16" if cap >= 8 else "float16"
+        model, tok = load_model(args.model_dir, device_map="cuda", dtype=dtype)
+        log(f"modelo cargado en {dtype} "
+            f"({torch.cuda.memory_allocated() / 2**30:.1f} GiB)")
         if args.lora_dir:
             from peft import PeftModel
 
