@@ -213,6 +213,18 @@ def run_shard(
                 submission[tid] = predict_task(task, predict_fn, n_aug=c.n_aug, sep=c.sep)
         except Exception as e:  # fallback granular: la baseline del prefill queda
             log(f"[{tid}] error -> baseline: {e}")
+        # liberar memoria entre tareas: tras un OOM, la caché CUDA retenida hace
+        # fallar todas las tareas siguientes (observado en Kaggle T4)
+        import gc
+
+        gc.collect()
+        try:
+            import torch
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except ImportError:
+            pass
         dt = time.monotonic() - t0
         # normaliza la medición a "tiempo equivalente full" para calibrar tiers
         full_eq = dt / TIER_SPEED[tier]

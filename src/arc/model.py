@@ -209,36 +209,36 @@ def score_completions(
     tokenizer,
     prompt: str,
     completions: List[str],
-    batch_size: int = 8,
+    batch_size: int = 1,  # firma retro-compatible; se procesa de a 1 (ver nota de memoria)
 ) -> List[float]:
     """log P(completion | prompt) para cada completion (suma de log-probs + EOS).
 
-    Un forward pass por batch, sin generación: es la señal de *ranking* de candidatos
-    (técnica de los top ARC 2024/2025: puntuar bajo vistas augmentadas en lugar de
-    solo contar votos).
+    Forward passes sin generación: es la señal de *ranking* de candidatos (técnica de
+    los top ARC 2024/2025: puntuar bajo vistas augmentadas en lugar de solo contar votos).
+
+    Nota de memoria: los logits completos son [L, vocab≈152k] — a L~3k eso son ~0.9GB en
+    bf16 y el doble en float32. Por eso se procesa UNA secuencia a la vez y el log_softmax
+    float32 se aplica SOLO a las posiciones de la completion (no al prompt); de lo
+    contrario un batch revienta una T4 de 14GB (OOM observado en Kaggle).
     """
     import torch
 
     p_ids = tokenizer(prompt, add_special_tokens=False)["input_ids"]
     eos = tokenizer.eos_token or ""
-    pad = tokenizer.pad_token_id or 0
     scores: List[float] = []
 
-    for i in range(0, len(completions), batch_size):
-        batch = completions[i:i + batch_size]
-        encs = [p_ids + tokenizer(c + eos, add_special_tokens=False)["input_ids"]
-                for c in batch]
-        maxlen = max(len(e) for e in encs)
-        input_ids = torch.tensor(
-            [e + [pad] * (maxlen - len(e)) for e in encs], device=model.device)
-        attn = torch.tensor(
-            [[1] * len(e) + [0] * (maxlen - len(e)) for e in encs], device=model.device)
+    for comp in completions:
+        c_ids = tokenizer(comp + eos, add_special_tokens=False)["input_ids"]
+        ids = torch.tensor([p_ids + c_ids], device=model.device)
         with torch.no_grad():
-            logits = model(input_ids=input_ids, attention_mask=attn).logits
-        logprobs = torch.log_softmax(logits.float(), dim=-1)
-        # logprob del token t está en la posición t-1
-        tok_lp = logprobs[:, :-1].gather(-1, input_ids[:, 1:].unsqueeze(-1)).squeeze(-1)
-        for b, e in enumerate(encs):
-            lo, hi = len(p_ids) - 1, len(e) - 1  # índices en tok_lp
-            scores.append(tok_lp[b, lo:hi].sum().item())
+            logits = model(input_ids=ids).logits
+        # logprob del token t sale de la posición t-1: solo necesitamos las posiciones
+        # que predicen la completion -> [len(c_ids), vocab]
+        lo, hi = len(p_ids) - 1, len(p_ids) + len(c_ids) - 1
+        comp_logits = logits[0, lo:hi].float()
+        del logits
+        logprobs = torch.log_softmax(comp_logits, dim=-1)
+        targets = torch.tensor(c_ids, device=model.device)
+        scores.append(logprobs.gather(-1, targets.unsqueeze(-1)).sum().item())
+        del comp_logits, logprobs
     return scores

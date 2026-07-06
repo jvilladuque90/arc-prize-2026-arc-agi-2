@@ -40,6 +40,8 @@ def main() -> int:
     ap.add_argument("--ttt", action="store_true")
     ap.add_argument("--ttt-steps", type=int, default=24)
     ap.add_argument("--ttt-lr", type=float, default=1e-4)
+    ap.add_argument("--ttt-max-seq-len", type=int, default=1024,
+                    help="límite de secuencia en TTT (memoria: CE aloca logits fp32)")
     ap.add_argument("--time-budget-s", type=float, default=0,
                     help="presupuesto de pared del shard; 0 = sin límite")
     ap.add_argument("--limit", type=int, default=0,
@@ -79,6 +81,7 @@ def main() -> int:
         temperature=args.temperature, n_score_views=args.score_views,
         max_new_tokens=args.max_new_tokens, ttt=args.ttt,
         ttt_steps=args.ttt_steps, ttt_lr=args.ttt_lr,
+        ttt_max_seq_len=args.ttt_max_seq_len,
     )
     run_shard(tasks, shard_ids, model=model, tokenizer=tok, cfg=cfg,
               time_budget_s=args.time_budget_s or None, out_path=args.out, log=log)
