@@ -32,6 +32,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 COMP = "arc-prize-2026-arc-agi-2"
 
+# Imagen Docker pinneada (la de los runs buenos de arc-agi2-eval). La imagen "latest"
+# de Kaggle (jul-2026) trae transformers que exige torchao>=0.16 pero incluye 0.10 ->
+# ImportError al cargar el modelo. Pinnear tambien hace reproducible el rerun de submission.
+DOCKER_IMAGE = ("gcr.io/kaggle-private-byod/python@sha256:"
+                "57e612b484cf3df5026ee4dcc3cb176974b22b2bc0937fb1e16132a8be4cb13c")
+
 
 def load_env(env_path: Path) -> None:
     # El .env es la fuente de verdad de credenciales: SOBREESCRIBE el entorno del sistema
@@ -77,6 +83,8 @@ def main() -> int:
                     choices=["NvidiaTeslaT4", "NvidiaTeslaP100", "NvidiaL4", "Tpu1VmV38"],
                     help="GPU/TPU. NvidiaL4 = L4x4 (96GB, 4 GPUs; quota al DOBLE, "
                          "internet OFF obligatorio). Tag verificado via kernels pull -m.")
+    ap.add_argument("--docker-image", default=DOCKER_IMAGE,
+                    help="imagen del kernel; '' = dejar que Kaggle asigne la última")
     ap.add_argument("--dry-run", action="store_true", help="solo genera metadata, no publica")
     args = ap.parse_args()
 
@@ -105,6 +113,8 @@ def main() -> int:
         "model_sources": args.model,
         "kernel_sources": [],
     }
+    if args.docker_image:
+        meta["docker_image"] = args.docker_image
 
     tmp = Path(tempfile.mkdtemp(prefix="arc_kernel_"))
     shutil.copy(ROOT / cfg["notebook"], tmp / meta["code_file"])
