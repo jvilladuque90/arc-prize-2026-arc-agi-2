@@ -101,7 +101,11 @@ class TTT:
                 torch.tensor(attn, device=dev))
 
     def adapt(self, task: Task) -> int:
-        """Restaura el snapshot y adapta el LoRA a `task`. Devuelve nº de muestras usadas."""
+        """Restaura el snapshot y adapta el LoRA a `task`. Devuelve nº de muestras usadas.
+
+        Usa gradient checkpointing durante el fine-tune: sin él, las activaciones del
+        backward de un 3B a seq~1024 (~4GB) no caben junto al modelo fp16 en una T4
+        (OOM asíncrono observado en Kaggle, que además deja memoria retenida)."""
         import torch
 
         self.restore()
@@ -113,15 +117,37 @@ class TTT:
             [p for p in self.model.parameters() if p.requires_grad], lr=self.lr
         )
         rng = random.Random(self.seed)
+        use_cache_prev = getattr(self.model.config, "use_cache", None)
+        gc_on = hasattr(self.model, "gradient_checkpointing_enable")
+        if gc_on:
+            try:
+                self.model.gradient_checkpointing_enable(
+                    gradient_checkpointing_kwargs={"use_reentrant": False})
+            except TypeError:  # transformers viejo sin kwargs
+                self.model.gradient_checkpointing_enable()
+            # con la base congelada (LoRA), los inputs de los bloques checkpointeados
+            # necesitan requires_grad para que el backward fluya
+            if hasattr(self.model, "enable_input_require_grads"):
+                self.model.enable_input_require_grads()
+        self.model.config.use_cache = False
         self.model.train()
-        for _ in range(self.steps):
-            batch = [samples[rng.randrange(len(samples))] for _ in range(self.batch_size)]
-            input_ids, labels, attn = self._batch([self._encode(p, c) for p, c in batch])
-            out = self.model(input_ids=input_ids, attention_mask=attn, labels=labels)
-            out.loss.backward()
-            opt.step()
-            opt.zero_grad()
-        self.model.eval()
+        try:
+            for _ in range(self.steps):
+                batch = [samples[rng.randrange(len(samples))]
+                         for _ in range(self.batch_size)]
+                input_ids, labels, attn = self._batch(
+                    [self._encode(p, c) for p, c in batch])
+                out = self.model(input_ids=input_ids, attention_mask=attn, labels=labels)
+                out.loss.backward()
+                opt.step()
+                opt.zero_grad(set_to_none=True)
+                del out, input_ids, labels, attn
+        finally:
+            self.model.eval()
+            if gc_on:
+                self.model.gradient_checkpointing_disable()
+            if use_cache_prev is not None:
+                self.model.config.use_cache = use_cache_prev
         return len(samples)
 
 

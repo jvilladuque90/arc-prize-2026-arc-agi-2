@@ -128,6 +128,33 @@ def pick_tier(ema_full_s: Optional[float], allowance_s: float) -> int:
     return len(TIER_SPEED) - 1
 
 
+def _release_cuda(log: Callable[[str], None] = print) -> None:
+    """Libera memoria entre tareas y detecta memoria retenida tras un OOM.
+
+    Un OOM asíncrono puede dejar tensores vivos referenciados por el ciclo de la
+    excepción; sin esta limpieza todas las tareas siguientes fallan (visto en Kaggle)."""
+    import gc
+
+    gc.collect()
+    try:
+        import torch
+
+        if not torch.cuda.is_available():
+            return
+        torch.cuda.empty_cache()
+        alloc = torch.cuda.memory_allocated() / 2**30
+        if not hasattr(_release_cuda, "baseline"):
+            _release_cuda.baseline = alloc
+        elif alloc > _release_cuda.baseline + 2.0:
+            log(f"AVISO: {alloc:.1f} GiB retenidos (baseline "
+                f"{_release_cuda.baseline:.1f}); reintentando limpieza")
+            torch.cuda.synchronize()
+            gc.collect()
+            torch.cuda.empty_cache()
+    except ImportError:
+        pass
+
+
 # --- Loop principal por shard ---------------------------------------------------
 
 def run_shard(
@@ -172,6 +199,7 @@ def run_shard(
             log("TTT pedido pero el modelo no tiene parámetros entrenables (¿falta LoRA "
                 "con is_trainable=True?); continúo sin TTT.")
 
+    _release_cuda(log)  # fija el baseline de VRAM (modelo cargado, sin tareas)
     budget = TimeBudget(time_budget_s, len(order))
     ema_full: Optional[float] = None
     for n, tid in enumerate(order):
@@ -213,18 +241,7 @@ def run_shard(
                 submission[tid] = predict_task(task, predict_fn, n_aug=c.n_aug, sep=c.sep)
         except Exception as e:  # fallback granular: la baseline del prefill queda
             log(f"[{tid}] error -> baseline: {e}")
-        # liberar memoria entre tareas: tras un OOM, la caché CUDA retenida hace
-        # fallar todas las tareas siguientes (observado en Kaggle T4)
-        import gc
-
-        gc.collect()
-        try:
-            import torch
-
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-        except ImportError:
-            pass
+        _release_cuda(log)
         dt = time.monotonic() - t0
         # normaliza la medición a "tiempo equivalente full" para calibrar tiers
         full_eq = dt / TIER_SPEED[tier]
