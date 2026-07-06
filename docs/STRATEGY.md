@@ -41,9 +41,17 @@ Esta competencia da acceso a **L4×4 = 96GB de VRAM**, pero con condiciones:
 - **Internet OFF obligatorio** en toda sesión L4 (también entrenamiento) → modelo base y deps
   desde Kaggle Models/Datasets adjuntos; sin descargas HF ni `pip install` con red.
 - Consume **quota al doble** que T4×2/P100; solo para notebooks adjuntos a esta competencia.
+- Desde CLI se selecciona con `machine_shape: "NvidiaL4"` (`push_kernels.py --accelerator NvidiaL4`).
 - No hay GPU local → todo el cómputo va en kernels de Kaggle (`scripts/push_kernels.py`),
   en **sesiones ≤12h con checkpoint-resume** (el adapter se versiona en el dataset
   `arc-agi2-model` y se retoma en la siguiente sesión).
+
+**Quota y submissions (truco importante):** el **rerun de scoring de una submission NO gasta
+quota GPU** — corre en cómputo de Kaggle aunque el notebook tenga GPU asociada. Solo la fase
+"Save & Run All" (guardar la versión del notebook) consume quota propia. Estrategia: pagar la
+quota una vez para guardar una versión correcta del `submit`, y **enviar 1 submission por día**
+(límite de la competencia) para medir en el leaderboard gratis. Reservar siempre ~2h de quota
+de holgura antes del reset semanal para poder guardar una versión de submission.
 
 ⚠️ Estado actual: `train.ipynb` y `submit.ipynb` usan **1 sola GPU** (el intento de DDP se
 revirtió por cuelgues). En inferencia esto regala un **~4× de throughput**: TTT es
