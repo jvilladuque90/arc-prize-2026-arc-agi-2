@@ -74,9 +74,9 @@ def main() -> int:
     ap.add_argument("--internet", action="store_true",
                     help="habilita internet (SOLO T4x2/P100; L4x4 lo prohibe)")
     ap.add_argument("--accelerator", default="NvidiaTeslaT4",
-                    choices=["NvidiaTeslaT4", "NvidiaTeslaP100", "Tpu1VmV38"],
-                    help="GPU/TPU. T4 (default) la soporta torch; P100 (sm_60) NO. "
-                         "L4x4 no está en el enum de esta CLI: selecciónalo en la UI de Kaggle.")
+                    choices=["NvidiaTeslaT4", "NvidiaTeslaP100", "NvidiaL4", "Tpu1VmV38"],
+                    help="GPU/TPU. NvidiaL4 = L4x4 (96GB, 4 GPUs; quota al DOBLE, "
+                         "internet OFF obligatorio). Tag verificado via kernels pull -m.")
     ap.add_argument("--dry-run", action="store_true", help="solo genera metadata, no publica")
     args = ap.parse_args()
 
