@@ -55,9 +55,15 @@ def predict_test_input(
 
 
 def two_attempts(candidates: List[Grid], fallback: Grid) -> dict:
-    """Construye {attempt_1, attempt_2} a partir de candidatos ordenados por voto."""
+    """Construye {attempt_1, attempt_2} a partir de candidatos ordenados.
+
+    pass@2 regala un segundo intento: duplicar attempt_1 lo desperdicia. Si solo hay
+    un candidato, attempt_2 usa el fallback (identidad) cuando es distinto."""
     a1 = candidates[0] if candidates else fallback
-    a2 = candidates[1] if len(candidates) > 1 else a1
+    if len(candidates) > 1:
+        a2 = candidates[1]
+    else:
+        a2 = fallback if fallback != a1 else a1
     return {"attempt_1": a1, "attempt_2": a2}
 
 

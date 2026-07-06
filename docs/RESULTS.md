@@ -10,7 +10,7 @@ MindsAI 12.64%. La baseline sin ML ronda ~0%.
 | Fecha | Modelo | LoRA (datos) | Selección | TTT | n_aug | Tareas | Score | Kernel/notas |
 |---|---|---|---|---|---|---|---|---|
 | 2026-07-05 | Qwen2.5-0.5B | adapter viejo 0.5B | score | ✔ steps=16 | 4 | 24 | 0.000 | eval v4 (T4×2): **inválido** — OOM en `score_completions` (logits fp32 de vocab completo) dejó todas las tareas en baseline. Fix en commit `30577ba`; relanzado como eval v5. |
-| _en curso_ | Qwen2.5-0.5B | adapter viejo 0.5B | score | ✔ steps=16 | 4 | 24 | — | eval v5: smoke del pipeline con fix de memoria |
+| 2026-07-06 | Qwen2.5-0.5B | adapter viejo 0.5B | score | ✔ steps=16 | 4 | 24 | 0.000 | eval v5 (T4×2): **pipeline OK** (sin OOM; 45/74 attempts fueron predicciones reales del modelo, ~10 min/tarea). El 0.5B no acierta ninguna exacta pero hay near-misses (98.9%, 90%, 89% de celdas correctas con shape OK) → el 3B debería convertir varias. |
 | _pendiente_ | Qwen2.5-3B | real aug ×4 + synth 8k (train v10) | score | ✔ | 4–8 | 48–120 | — | primera medición real del pipeline nuevo |
 
 ## Cómo registrar

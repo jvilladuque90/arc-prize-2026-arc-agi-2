@@ -66,10 +66,13 @@ def test_two_attempts_distinct_when_possible():
     c1, c2 = [[1]], [[2]]
     att = two_attempts([c1, c2], fallback=[[0]])
     assert att["attempt_1"] == c1 and att["attempt_2"] == c2
+    # con 1 solo candidato, attempt_2 aprovecha el fallback (no duplica)
     att = two_attempts([c1], fallback=[[0]])
-    assert att["attempt_1"] == c1 and att["attempt_2"] == c1
+    assert att["attempt_1"] == c1 and att["attempt_2"] == [[0]]
+    att = two_attempts([c1], fallback=c1)
+    assert att["attempt_2"] == c1  # fallback igual al candidato -> duplica
     att = two_attempts([], fallback=[[0]])
-    assert att["attempt_1"] == [[0]]
+    assert att["attempt_1"] == [[0]] and att["attempt_2"] == [[0]]
 
 
 def test_format_task_prompt_contains_examples_and_test():
