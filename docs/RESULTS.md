@@ -7,6 +7,16 @@ medido no se prioriza nada). El score es **pass@2** sobre el split `evaluation`
 Referencia externa (set privado, Kaggle 2025): NVARC 24.03% · ARChitects 16.53% ·
 MindsAI 12.64%. La baseline sin ML ronda ~0%.
 
+**Leaderboard 2026 (observado 2026-07-07):** líder 55.14%; pelotón enorme en ~33%
+(aparentemente un notebook público compartido, "LB33"). El listón de "competitivo" este
+año es mucho más alto que el SOTA 2025.
+
+## Leaderboard (submissions reales)
+
+| Fecha | Versión | Score LB | Notas |
+|---|---|---|---|
+| 2026-07-07 | submit v3 (3B v10, TTT+scoring, budget 1h) | **0.83%** | ~2/240 outputs exactos en el set oculto. Primera submission; valida el camino completo. |
+
 | Fecha | Modelo | LoRA (datos) | Selección | TTT | n_aug | Tareas | Score | Kernel/notas |
 |---|---|---|---|---|---|---|---|---|
 | 2026-07-05 | Qwen2.5-0.5B | adapter viejo 0.5B | score | ✔ steps=16 | 4 | 24 | 0.000 | eval v4 (T4×2): **inválido** — OOM en `score_completions` (logits fp32 de vocab completo) dejó todas las tareas en baseline. Fix en commit `30577ba`; relanzado como eval v5. |
@@ -14,6 +24,13 @@ MindsAI 12.64%. La baseline sin ML ronda ~0%.
 | 2026-07-06 | Qwen2.5-3B | v10: real aug ×4 + synth 8k, 2000 steps, loss 0.94→0.08 | score | ✔ steps=16 | 4 | 24 | 0.000 | eval v6: **inválido** — transformers ignora `torch_dtype` (deprecado) y cargó el 3B en fp32 (14.3GB → OOM total en T4). Fix en `837e716`; relanzado como v7 con fp16. |
 | 2026-07-06 | Qwen2.5-3B | v10 (ídem) | score | ✔ steps=16 | 4 | 24 | 0.000 | eval v7/v8: **inválidos** — OOM en TTT (backward sin gradient checkpointing no cabe en T4 + memoria retenida). Fix `041d225`. |
 | 2026-07-06 | Qwen2.5-3B | v10 (ídem) | score | ✔ steps=16 | 4 | 24 | 0.000 | eval v9 (**L4×4, 4 workers, bf16, 1.4h**): pipeline limpio, sin OOM. 62/74 attempts = predicciones reales (vs 45 del 0.5B); near-misses 90–95% de celdas en ~8 tareas pero ninguna exacta. Diagnóstico: el cuello es el **entrenamiento** (0.56 epochs, sintético débil), no la inferencia. |
+
+## Entrenamientos
+
+| Fecha | Run | Config | Resultado |
+|---|---|---|---|
+| 2026-07-05/06 | train v10 (T4, ~7h) | 3B, real aug×4 + synth 8k (57k muestras), 2000 steps | loss 0.94→0.083; adaptador publicado |
+| 2026-07-06/07 | train v11 (L4, ~4.9h de pared, 2× quota) | ídem, **desde cero** (el resume falló en silencio: ckpt no montado), llegó a 3900 steps (epoch 1.09) antes de que la quota matara el kernel | loss 1.00→**0.043**; checkpoint-3900 rescatado y publicado como `arc-agi2-model`. Lecciones → `REQUIRE_RESUME` + `TimeLimitCallback` en train.ipynb |
 
 ## Cómo registrar
 
