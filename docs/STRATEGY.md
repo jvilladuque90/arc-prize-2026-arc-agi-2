@@ -46,12 +46,16 @@ Esta competencia da acceso a **L4×4 = 96GB de VRAM**, pero con condiciones:
   en **sesiones ≤12h con checkpoint-resume** (el adapter se versiona en el dataset
   `arc-agi2-model` y se retoma en la siguiente sesión).
 
-**Quota y submissions (truco importante):** el **rerun de scoring de una submission NO gasta
-quota GPU** — corre en cómputo de Kaggle aunque el notebook tenga GPU asociada. Solo la fase
-"Save & Run All" (guardar la versión del notebook) consume quota propia. Estrategia: pagar la
-quota una vez para guardar una versión correcta del `submit`, y **enviar 1 submission por día**
-(límite de la competencia) para medir en el leaderboard gratis. Reservar siempre ~2h de quota
-de holgura antes del reset semanal para poder guardar una versión de submission.
+**Quota y submissions (trucos importantes):**
+- El **rerun de scoring de una submission NO gasta quota GPU** — corre en cómputo de Kaggle
+  aunque el notebook tenga GPU asociada. Solo la fase "Save & Run All" (guardar la versión)
+  consume quota propia. Estrategia: pagar la quota una vez para guardar una versión correcta
+  del `submit`, y **enviar 1 submission por día** (límite) para medir en el leaderboard gratis.
+  Reservar siempre ~2h de holgura antes del reset semanal para poder guardar una versión.
+- **Nunca abrir sesiones interactivas con GPU**: el editor quema quota mientras esté abierto,
+  aunque esté idle. Todo por "Save & Run All" headless (`scripts/push_kernels.py` via CLI) y
+  luego inspeccionar el output (`kaggle kernels output`) sin sesión activa — pesos,
+  checkpoints y logs quedan en la salida de la versión guardada.
 
 ⚠️ Estado actual: `train.ipynb` y `submit.ipynb` usan **1 sola GPU** (el intento de DDP se
 revirtió por cuelgues). En inferencia esto regala un **~4× de throughput**: TTT es
