@@ -40,31 +40,82 @@ Estructura (en `data/`):
 
 ## Estrategia
 
-La receta dominante en ARC-AGI (ganadores 2024 **y 2025**) es un **LLM pequeño fine-tuneado +
-Test-Time Training (TTT)**. Calibración: el 1º puesto 2025 (NVARC, NVIDIA) logró **24.03%** en
-ARC-AGI-2 con un modelo ~4B + TTT + corpus sintético masivo + ensemble con TRM. Plan en fases:
+Estrategia de **dos vías convergentes** (desde 2026-07-11; detalle en
+[`docs/STRATEGY.md`](docs/STRATEGY.md) y auditoría en [`docs/LB33_AUDIT.md`](docs/LB33_AUDIT.md)):
 
-1. **Baseline sin ML** — heurísticas/identidad + selección por votación, para validar el pipeline
-   de submission de punta a punta.
-2. **LLM + LoRA (PEFT)** — fine-tune de un modelo pequeño (recomendado **Qwen2.5-0.5B…7B**)
-   sobre tareas ARC serializadas a texto, con **augmentación masiva**:
-   - 8 simetrías del grupo diédrico D4 (rotaciones + reflexiones).
-   - Permutaciones de colores (preservando estructura).
-   - Reordenamiento de los pares de ejemplo; transposición.
-   Esto expande las 1000 tareas en cientos de miles de muestras.
-3. **Test-Time Training (TTT)** — en inferencia, adaptar un LoRA por-tarea sobre los pocos pares
-   `train` de cada tarea de test (y sus augmentaciones), luego predecir. Fue **la** clave para ganar.
-4. **Inferencia multi-candidato + scoring por verosimilitud** — generar varios candidatos por
-   vista augmentada (sampling/DFS), des-augmentar, y elegir los 2 attempts **puntuando cada
-   candidato por su log-verosimilitud bajo vistas augmentadas** (voto simple solo como desempate).
-5. **Ingeniería de runtime** — 4 workers (1 por GPU L4), presupuesto de tiempo por tarea y
-   escritura incremental del `submission.json`.
+- **Vía A — Baseline LB33/NVARC (~33% LB):** el checkpoint open-source del 1º puesto 2025
+  (`sorokin/qwen3_4b_grids15_sft139`, Apache 2.0) con su pipeline público de TTT + DFS,
+  **auditado limpio** de hardcode/leakage. Es el control a superar, no solo a igualar.
+- **Vía B — Pipeline propio (`src/arc/`):** LLM pequeño + LoRA SFT + TTT por tarea +
+  inferencia multi-candidato con **scoring por log-verosimilitud augmentada** + runner
+  multi-GPU con presupuesto por tiers. Aporta los *injertos* que LB33 no tiene (cobertura
+  bajo presupuesto, selección de attempts) y, a medio plazo, un segundo modelo limpio para
+  ensemble y validación.
 
-> **Nota sobre el modelo:** Qwen2.5 (0.5B–7B) es preferible a **Llama 4** para esta competencia:
-> Llama 4 es un MoE enorme, inviable para TTT por-tarea dentro del límite de ~12 h offline en GPU
-> de Kaggle. Modelos pequeños permiten muchas iteraciones de TTT y caben en el notebook.
+```mermaid
+flowchart TB
+    subgraph VIA_A["Vía A — Baseline LB33 (auditada, ~33% LB)"]
+        NV["Checkpoint NVARC<br/>Qwen3-4B sft139 · Apache 2.0"] --> LB33["lb33_baseline.ipynb<br/>TTT LoRA r=256 + DFS determinista<br/>+ re-scoring augmentado"]
+    end
+    subgraph VIA_B["Vía B — Pipeline propio (src/arc)"]
+        Q3["Qwen2.5-3B-Instruct"] --> SFT["LoRA SFT r=16<br/>aug D4×color + sintético"]
+        SFT --> TTT["TTT por tarea<br/>snapshot/restore"]
+        TTT --> SCORE["Multi-candidato +<br/>scoring por verosimilitud"]
+    end
+    SCORE -- "injertos: tiers, cobertura, attempts" --> INJ["LB33 + injertos"]
+    LB33 -- "motor de candidatos" --> INJ
+    INJ --> ENS["Ensemble: pool conjunto de candidatos,<br/>re-scoring único"]
+    ENS --> SUB["submission.json → leaderboard"]
+```
 
-Detalle ampliado en [`docs/STRATEGY.md`](docs/STRATEGY.md).
+> ⚠️ **Validación:** el checkpoint NVARC **incluyó el eval público en su SFT** → nunca medir
+> mejoras contra `arc-agi_evaluation_challenges.json` con ese modelo. Held-out limpio: split
+> reservado del training set + tareas sintéticas propias + leaderboard (1 submission/día gratis).
+
+## Arquitectura y conectores en Kaggle
+
+Sin GPU local: todo corre **headless** en kernels de Kaggle (sin sesiones interactivas, que
+queman quota). El repo se conecta a Kaggle vía datasets/kernels; el rerun de la submission
+sobre el set oculto es gratis.
+
+```mermaid
+flowchart LR
+    subgraph LOCAL["Local (sin GPU)"]
+        REPO["repo git<br/>src/ · scripts/ · notebooks/"]
+    end
+    subgraph FUENTES["Kaggle Datasets / Models"]
+        CODE["dataset arc-agi2-code<br/>src + scripts"]
+        MODEL["dataset arc-agi2-model<br/>adaptador LoRA"]
+        CKPT["dataset arc-agi2-ckpt<br/>checkpoint p/ resume"]
+        QWEN["Kaggle Models:<br/>Qwen2.5-3B · NVARC 4B"]
+    end
+    subgraph KGPU["Kernels GPU · L4×4 headless"]
+        TR["arc-agi2-train"]
+        EV["arc-agi2-eval"]
+        SM["arc-agi2-submit"]
+        LB["arc-agi2-lb33-baseline"]
+    end
+    REPO -- "push_code_dataset.py" --> CODE
+    REPO -- "push_kernels.py" --> KGPU
+    CODE --> TR
+    CODE --> EV
+    CODE --> SM
+    QWEN --> KGPU
+    MODEL --> EV
+    MODEL --> SM
+    CKPT -- "resume" --> TR
+    TR -- "kernels output" --> REPO
+    REPO -- "push_model_dataset.py" --> MODEL
+    REPO -- "push (checkpoint)" --> CKPT
+    SM -- "submission.json" --> COMP["Competencia:<br/>rerun oculto GRATIS · 1 sub/día"]
+    LB -- "kaggle competitions submit" --> COMP
+```
+
+Kernels definidos en `scripts/push_kernels.py` (`train`/`eval`/`submit`/`lb33`), todos
+pusheados headless por CLI con la imagen Docker pineada y `machine_shape: NvidiaL4`.
+
+> **Nota sobre el modelo:** modelos pequeños (3B–4B) son los viables aquí: MoEs grandes no
+> caben offline ni permiten TTT por-tarea dentro de las ~12 h. El ganador 2025 usó ~4B.
 
 ## Estructura del repo
 

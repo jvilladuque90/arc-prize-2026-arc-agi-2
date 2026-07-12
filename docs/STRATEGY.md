@@ -57,17 +57,85 @@ Esta competencia da acceso a **L4×4 = 96GB de VRAM**, pero con condiciones:
   luego inspeccionar el output (`kaggle kernels output`) sin sesión activa — pesos,
   checkpoints y logs quedan en la salida de la versión guardada.
 
-⚠️ Estado actual: `train.ipynb` y `submit.ipynb` usan **1 sola GPU** (el intento de DDP se
-revirtió por cuelgues). En inferencia esto regala un **~4× de throughput**: TTT es
-independiente por tarea → la solución correcta es **4 procesos worker, uno por GPU, con
-sharding de tareas** (sin DDP, sin comunicación entre GPUs). Ver Fase 4.
+Estado actual: la **inferencia ya corre con 4 workers × 1 GPU** (`arc/runner.py` +
+`scripts/infer_worker.py`, sharding de tareas, sin DDP) — ver "Presupuesto de tiempo por
+tiers". `train.ipynb` sigue deliberadamente en **1 GPU** (DataParallel/DDP revertidos por
+OOM/cuelgues; el resume entre sesiones cubre el throughput de entrenamiento).
 
-## Modelo
+## Modelo (por vías)
 
-- **Iterar** con Qwen2.5-0.5B/1.5B (barato en quota, ciclos rápidos).
-- **Final**: apuntar a la clase **~4B** (lo que usó NVARC). Candidatos: **Qwen3-4B**
-  (thinking desactivado) vs Qwen2.5-3B/7B — decidir con una ablation en las 120 de evaluación.
+- **Vía A (baseline):** `Qwen3-4B sft139` de NVARC — **fijo, no se reentrena** (su SFT ya
+  incluye el eval público; ver [LB33_AUDIT.md](LB33_AUDIT.md)).
+- **Vía B (propio):** **Qwen2.5-3B-Instruct** actual (iterando con LoRA SFT + TTT).
+  Ablation pendiente Qwen3-4B vs Qwen2.5-3B/7B (backlog P1); 0.5B/1.5B solo para smokes baratos.
 - Llama 4 y MoEs grandes descartados: no caben offline ni permiten TTT por-tarea en 12h.
+
+## Pivote a dos vías (2026-07-11)
+
+Tras medir retornos decrecientes del SFT propio (evals v9/v10: 0 exactas con near-misses
+95–97%) y auditar el notebook público **LB33** ([LB33_AUDIT.md](LB33_AUDIT.md) — limpio),
+la estrategia pasa a dos vías convergentes: **LB33/NVARC como baseline (~33% LB)** y el
+pipeline propio como fuente de *injertos* (cobertura por tiers, selección de attempts) y
+de un segundo modelo limpio para ensemble/validación. Diagrama general en el
+[README](../README.md#estrategia).
+
+### Modelo y adaptadores (Vía B)
+
+Tres capas de pesos: la base congelada, el adaptador SFT entrenado offline (versionado en
+`arc-agi2-model`/`arc-agi2-ckpt`), y la adaptación efímera de TTT que vive solo durante
+una tarea (snapshot/restore garantiza cero fuga entre tareas):
+
+```mermaid
+flowchart TB
+    BASE["Qwen2.5-3B-Instruct<br/>congelada · bf16 en L4 / fp16 en T4"]
+    LORA["Adaptador LoRA SFT r=16<br/>entrenado offline (train.ipynb)<br/>linaje: v10 2000 steps → v11 ckpt-3900"]
+    SNAP["Snapshot de pesos LoRA<br/>(TTT.__init__)"]
+    TASK["LoRA adaptado a la tarea<br/>(efímero)"]
+    BASE --- LORA
+    LORA -- "snapshot al crear TTT" --> SNAP
+    LORA -- "adapt(): 8–24 steps sobre pares<br/>train de la tarea (LOO, D4×color)" --> TASK
+    TASK -- "predicción de la tarea" --> OUT["candidatos"]
+    SNAP -- "restore() en finally" --> LORA
+```
+
+En la Vía A (LB33/NVARC) el esquema difiere: no hay adaptador SFT separado (el SFT está
+fundido en el checkpoint Qwen3-4B) y el TTT entrena un LoRA **r=256 desde cero por tarea**
+(1 época, 128 augmentaciones) — más pesado pero más plástico.
+
+### Inferencia por tarea (Vía B: `src/arc/infer.py` + `runner.py`)
+
+```mermaid
+flowchart TD
+    T["Tarea de test"] --> TTTS["TTT: fine-tune ligero del LoRA<br/>sobre sus pares train (LOO, D4×color)"]
+    TTTS --> GEN["Generación en N_AUG vistas augmentadas:<br/>1 greedy + sampling por vista (n_cands)"]
+    GEN --> INV["Des-augmentar al espacio original<br/>(transformaciones invertibles) + dedup"]
+    INV --> SC["Scoring: log P(candidato | prompt)<br/>bajo K vistas (forward, sin generar)"]
+    SC --> RK["Ranking por score total;<br/>votos como desempate"]
+    RK --> AT["attempt_1 / attempt_2<br/>(si hay 1 solo candidato, attempt_2 = fallback)"]
+    AT --> FLUSH["Escritura incremental del shard<br/>+ restore del LoRA"]
+```
+
+### Presupuesto de tiempo por tiers (`runner.py`)
+
+El shard arranca pre-llenado con la baseline (un crash nunca deja submission inválida) y
+ordena tareas de barata a cara. Antes de cada tarea, el *allowance* restante decide el tier
+(`allowance` = tiempo restante ÷ tareas restantes; `ema_full` = media móvil exponencial del
+costo observado de una tarea en Tier 0):
+
+```mermaid
+flowchart LR
+    IN["cada tarea"] -- "por defecto" --> T0
+    T0["Tier 0 · completo<br/>n_aug=8 · n_cands=2<br/>TTT 24 steps · score 4 vistas"]
+    T1["Tier 1 · reducido<br/>n_aug=4 · n_cands=1<br/>TTT 12 · score 2 vistas"]
+    T2["Tier 2 · mínimo<br/>1 vista greedy · sin TTT<br/>selección por voto"]
+    BL["Baseline del prefill<br/>identidad + output más frecuente"]
+    T0 -- "ema_full &gt; allowance" --> T1
+    T1 -- "ema_full×0.4 &gt; allowance" --> T2
+    T2 -- "restante &lt; 30 s" --> BL
+```
+
+Esta pieza es el injerto de mayor valor sobre LB33: sus caps fijos dejan `[[0]]` en lo que
+no alcanza; con tiers, cada tarea recibe *algo* mejor que un cero seguro.
 
 ## Pipeline por fases (re-priorizado tras 2025)
 
@@ -91,80 +159,72 @@ sharding de tareas** (sin DDP, sin comunicación entre GPUs). Ver Fase 4.
 5. Entrenar LoRA (`scripts/train_lora.py`, completion-only masking); mezcla real + sintético
    + externos. Validar en `evaluation` (120 tareas) con `scripts/evaluate.py`.
 
-### Fase 2 — Test-Time Training (TTT)  ✅ implementado → **activarlo (P0)**
+### Fase 2 — Test-Time Training (TTT)  ✅ implementado y activo
 `src/arc/ttt.py`: fine-tune ligero del LoRA por tarea sobre sus pares `train` augmentados
 (leave-one-out), con snapshot/restore entre tareas. Es la técnica común a los 3 ganadores 2025.
-⚠️ `submit.ipynb` tiene `ENABLE_TTT=False` — encenderlo por defecto una vez medido su costo
-por tarea, y calibrar `steps`/`n_aug` contra el presupuesto de 12h.
+✅ `submit.ipynb` corre con `ENABLE_TTT=True`; el costo por tarea se gobierna con los tiers
+del runner (ver "Presupuesto de tiempo por tiers"), no con un flag global.
 
-### Fase 3 — Inferencia: de "voto simple" a **generación multi-candidato + scoring por verosimilitud (P0)**
-Hoy `src/arc/infer.py` genera 1 predicción greedy por vista y vota con un `Counter`. Los
-ganadores hacen algo más fuerte, en dos pasos:
-1. **Generar candidatos diversos**: por vista augmentada, extraer varios candidatos — sampling
-   con temperatura baja o **DFS con umbral de probabilidad acumulada** (técnica ARChitects:
-   recorre el árbol de tokens y devuelve *todas* las salidas cuya probabilidad supere el umbral,
-   más barato que muestrear N veces).
-2. **Puntuar, no contar**: para cada candidato único (des-augmentado), calcular su
-   **log-verosimilitud promedio bajo K vistas augmentadas** (un forward pass por vista, sin
-   generación). `attempt_1`/`attempt_2` = los 2 candidatos distintos con mayor score.
-   El voto por mayoría queda como desempate.
-Esto convierte pass@2 en lo que realmente es: un problema de *ranking* de candidatos.
+### Fase 3 — Inferencia multi-candidato + scoring por verosimilitud  ✅ implementado
+`src/arc/infer.py::predict_task_scored`: por vista augmentada genera 1 greedy + sampling,
+des-augmenta y deduplica; puntúa cada candidato único por su **log-verosimilitud bajo K
+vistas** (`score_completions`, un forward pass por vista, sin generar) y rankea por score
+total con voto como desempate (`rank_keys`). Esto convierte pass@2 en un problema de *ranking*.
+Pendiente (P2): **DFS con umbral de probabilidad acumulada** como generador de candidatos
+(portable de LB33: `turbo_dfs`), más barato que muestrear N veces.
 
-### Fase 4 — Ingeniería de runtime (P0; "bottlenecked by engineering")
-1. **4 workers × 1 GPU**: proceso independiente por GPU con shard de tareas (TTT + inferencia
-   son por-tarea). Sin DDP → sin cuelgues. ~4× más steps de TTT y augmentaciones por tarea.
-2. **Presupuesto por tarea**: estimar costo (nº celdas/tokens), ordenar tareas de barata a cara,
-   y degradar con elegancia (menos `n_aug`, menos steps TTT, greedy puro) si el reloj aprieta.
-3. **Escritura incremental** de `submission.json` tras cada tarea + fallback baseline por tarea
-   (ya existe el fallback global; hacerlo granular).
+### Fase 4 — Ingeniería de runtime  ✅ implementada (`arc/runner.py` + `infer_worker.py`)
+4 workers × 1 GPU (shard por tarea, sin DDP), presupuesto por tarea con degradación por tiers
+(ver diagrama arriba), y escritura incremental de cada shard con fallback baseline granular.
+Es el injerto de mayor valor sobre LB33 (que deja `[[0]]` en lo no alcanzado).
 
 ### Fase 5 — Ensemble (stretch, P2)
 NVARC ensambló su LLM-TTT con componentes **TRM** (7M params, open source, barato en
 inferencia). Opción: entrenar un TRM en sesiones Kaggle y usarlo donde el LLM tiene baja
 confianza (score bajo del top-candidato). Solo abordar si las Fases 1–4 están saturadas.
 
-## Disciplina experimental (hoy no hay ningún número medido)
+## Disciplina experimental
 
-- **Registrar resultados en `docs/RESULTS.md`** (commiteado): fecha, modelo, dataset, flags,
-  score en las 120 de evaluación. Sin esto no se puede priorizar nada.
-- Nunca entrenar con el split `evaluation`.
-- Ablations mínimas (en este orden de valor): scoring-vs-voto, ±TTT, ±sintético/±externos,
-  n_aug, tamaño de modelo (1.5B vs 3B vs 4B).
+- Resultados en [`RESULTS.md`](RESULTS.md) (v9/v10/v11 medidos; primera submission LB 0.83%).
+  Registrar cada corrida: fecha, modelo, dataset, flags, score.
+- **Validación con el modelo NVARC:** su SFT incluyó el eval público → medir mejoras contra
+  `arc-agi_evaluation_challenges.json` mide **memorización**. Usar held-out limpio: split
+  reservado del training + sintético propio + leaderboard (1 sub/día). Ver [LB33_AUDIT.md](LB33_AUDIT.md).
+- Nunca entrenar (Vía B) con el split `evaluation`.
+- Ablations mínimas: scoring-vs-voto, ±TTT, ±sintético/±externos, n_aug, tamaño de modelo.
 
 ## Hitos (deadline estimado ~nov 2026 — confirmar en las reglas)
 
 | Mes | Objetivo |
 |---|---|
-| Jul | Fase 3 (scoring) + TTT activo + primer score real medido en eval y en el leaderboard |
-| Ago | Fase 4 (4×GPU + presupuesto de tiempo) + corpus RE-ARC/BARC integrados |
-| Sep–Oct | Escalar a ~4B (Qwen3-4B vs Qwen2.5) + ablations + iterar sintético propio |
+| Jul | ✅ Pipeline propio (scoring+TTT+runner) + 1ª submission (0.83%). **Reproducir control LB33 (~33%)** con metadata corregida (L4×4) |
+| Ago | Injertos sobre LB33: presupuesto por tiers/cobertura, portar `turbo_dfs`/`calc_scores` a `src/arc` con tests; held-out limpio |
+| Sep–Oct | Segundo modelo propio (sin eval público) para ensemble + validación; corpus RE-ARC/BARC; ablations |
 | Nov | Writeup para el Grand Prize (6 criterios) + submissions finales |
 
 ## Backlog priorizado
 
-**P0 — impacto directo en score, bajo riesgo:**
-- [x] `src/arc/infer.py` + `src/arc/model.py`: generación multi-candidato (greedy + sampling)
-      y **scoring por log-verosimilitud augmentada** (`predict_task_scored`); voto como
-      desempate. Pendiente: DFS con umbral de probabilidad como generador de candidatos.
-- [x] `submit.ipynb`: `ENABLE_TTT=True`, presupuesto de tiempo con degradación por tiers,
-      escritura incremental de `submission.json`, fallback granular (via `arc/runner.py`).
-- [x] Runner multi-proceso 4×L4 (`src/arc/runner.py` + `scripts/infer_worker.py`;
-      usado por `submit.ipynb` y `evaluate.ipynb`).
-- [ ] `docs/RESULTS.md`: medir y commitear el score actual en las 120 de evaluación (baseline
-      de todo lo demás) y hacer la primera submission real al leaderboard.
+**P0 — reproducir el control LB33:**
+- [x] Auditar LB33 ([LB33_AUDIT.md](LB33_AUDIT.md)) y pushear el fork con metadata corregida
+      (L4×4, imagen BYOD propia, kernel de wheels de sorokin).
+- [x] Smoke de 4 tareas (2.5/4) + primera submission del baseline al leaderboard.
+- [ ] Confirmar el score del rerun (~33% esperado) y fijarlo como línea base.
 
-**P1 — datos y modelo:**
-- [ ] Integrar RE-ARC + BARC/ARC-Heavy + ARC-AGI-1 como Kaggle Datasets y mezclarlos en el SFT.
-- [ ] Checkpoint-resume de entrenamiento entre sesiones Kaggle (quota L4 = 2×).
-- [ ] Ablation Qwen3-4B vs Qwen2.5-3B/7B; elegir el modelo de las corridas finales.
-- [ ] Más reglas sintéticas: composición de 3+ ops, simetría 4-fold, patrones periódicos,
-      conteo/aritmética de objetos (debilidades típicas de ARC-AGI-2).
+**P1 — held-out limpio + injertos (superar 33%):**
+- [ ] Held-out no contaminado: split reservado del training + sintético propio (el eval
+      público quedó invalidado para el modelo NVARC).
+- [ ] Injertar `runner.py` (tiers/cobertura) en el worker de LB33: cada tarea no alcanzada
+      es un `[[0]]` = cero seguro; subir cobertura es la vía más directa a &gt;33%.
+- [ ] Portar `turbo_dfs`/`calc_scores` de LB33 a `src/arc/` con tests contra `augment.py`/`grid.py`.
+- [ ] Benchmark de selección attempt_1/2 (`rank_keys` vs `score_kgmon`) sobre el held-out limpio.
 
-**P2 — stretch:**
-- [ ] Ensemble con TRM para tareas de baja confianza.
-- [ ] Trucos MindsAI: tokenizer dropout, TTFT.
-- [ ] Ablations completas y material del writeup.
+**P2 — segundo modelo y datos (medio plazo):**
+- [ ] SFT propio 3B/4B **excluyendo el eval público** → validador limpio + 2ª fuente de
+      candidatos para ensemble (unir pools y re-puntuar con `calc_scores`).
+- [ ] Integrar RE-ARC + BARC/ARC-Heavy + ARC-AGI-1 como Kaggle Datasets en ese SFT.
+- [ ] Ablation Qwen3-4B vs Qwen2.5-3B/7B; más reglas sintéticas (conteo/aritmética/periódicos).
 
-**Hecho:**
-- [x] Pipeline de entrega, dataset augmentado, generador sintético (22 reglas), LoRA SFT,
-      AIRV, TTT con snapshot/restore, kernels Kaggle offline, evaluación pass@2.
+**Hecho (Vía B):**
+- [x] `predict_task_scored` (multi-candidato + scoring por verosimilitud), `arc/runner.py`
+      (4×GPU + tiers + escritura incremental), TTT snapshot/restore, kernels offline,
+      LoRA SFT (train v10→v11 ckpt-3900), evaluación pass@2. 1ª submission propia: 0.83%.

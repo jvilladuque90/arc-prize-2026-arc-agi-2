@@ -66,6 +66,15 @@ KERNELS = {
                "title": "arc agi2 submit", "gpu": True},
     "eval": {"notebook": "notebooks/evaluate.ipynb", "slug": "arc-agi2-eval",
              "title": "arc agi2 eval", "gpu": True},
+    # Baseline LB33/NVARC (Vía A): notebook autocontenido, NO usa src/arc; requiere el
+    # kernel de wheels de sorokin (--kernel-source) y el modelo NVARC (--model). Ver LB33_AUDIT.md.
+    # Trae su propia imagen BYOD (unsloth) — override del docker por defecto.
+    "lb33": {"notebook": "notebooks/lb33_baseline.ipynb", "slug": "arc-agi2-lb33-baseline",
+             "title": "arc agi2 lb33 baseline", "gpu": True,
+             "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                        "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+             "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                          "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
 }
 
 
@@ -77,6 +86,8 @@ def main() -> int:
                     help="dataset adicional (p.ej. modelo entrenado); repetible")
     ap.add_argument("--model", action="append", default=[],
                     help="Kaggle Models source user/model/...; repetible")
+    ap.add_argument("--kernel-source", action="append", default=[],
+                    help="kernel adjunto (p.ej. wheels offline user/kernel); repetible")
     ap.add_argument("--internet", action="store_true",
                     help="habilita internet (SOLO T4x2/P100; L4x4 lo prohibe)")
     ap.add_argument("--accelerator", default="NvidiaTeslaT4",
@@ -98,6 +109,12 @@ def main() -> int:
     if args.code_dataset:
         datasets.insert(0, args.code_dataset)
 
+    # defaults por-kernel (p.ej. lb33 trae su kernel de wheels y su modelo)
+    defaults = cfg.get("defaults", {})
+    models = args.model or defaults.get("model", [])
+    kernel_sources = args.kernel_source or defaults.get("kernel_source", [])
+    docker = args.docker_image if args.docker_image != DOCKER_IMAGE else cfg.get("docker", DOCKER_IMAGE)
+
     meta = {
         "id": f"{user}/{cfg['slug']}",
         "title": cfg["title"],
@@ -110,11 +127,11 @@ def main() -> int:
         "enable_internet": args.internet,
         "dataset_sources": datasets,
         "competition_sources": [COMP],
-        "model_sources": args.model,
-        "kernel_sources": [],
+        "model_sources": models,
+        "kernel_sources": kernel_sources,
     }
-    if args.docker_image:
-        meta["docker_image"] = args.docker_image
+    if docker:
+        meta["docker_image"] = docker
 
     tmp = Path(tempfile.mkdtemp(prefix="arc_kernel_"))
     shutil.copy(ROOT / cfg["notebook"], tmp / meta["code_file"])
