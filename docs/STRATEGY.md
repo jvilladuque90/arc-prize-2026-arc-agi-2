@@ -208,7 +208,7 @@ confianza (score bajo del top-candidato). Solo abordar si las Fases 1–4 están
 - [x] Auditar LB33 ([LB33_AUDIT.md](LB33_AUDIT.md)) y pushear el fork con metadata corregida
       (L4×4, imagen BYOD propia, kernel de wheels de sorokin).
 - [x] Smoke de 4 tareas (2.5/4) + primera submission del baseline al leaderboard.
-- [ ] Confirmar el score del rerun (~33% esperado) y fijarlo como línea base.
+- [x] Score del rerun confirmado: **28.47%** (línea base establecida; ver RESULTS.md).
 
 **P1 — held-out limpio + injertos (superar 33%):**
 - [ ] Held-out no contaminado: split reservado del training + sintético propio (el eval

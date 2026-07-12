@@ -15,7 +15,8 @@ año es mucho más alto que el SOTA 2025.
 
 | Fecha | Versión | Score LB | Notas |
 |---|---|---|---|
-| 2026-07-07 | submit v3 (3B v10, TTT+scoring, budget 1h) | **0.83%** | ~2/240 outputs exactos en el set oculto. Primera submission; valida el camino completo. |
+| 2026-07-07 | submit v3 (Vía B: 3B v10, TTT+scoring, budget 1h) | 0.83% | ~2/240 outputs exactos. Primera submission propia; valida el camino completo. |
+| 2026-07-11 | **LB33 baseline** (Vía A: checkpoint NVARC, TTT r=256 + DFS) | **28.47%** | Control establecido. Auditado limpio ([LB33_AUDIT.md](LB33_AUDIT.md)); smoke 2.5/4. Es la línea base sobre la que injertar (tiers/cobertura, selección). Esperar caída público→privado de varios puntos (24.03% fue el privado de NVARC en 2025). |
 
 | Fecha | Modelo | LoRA (datos) | Selección | TTT | n_aug | Tareas | Score | Kernel/notas |
 |---|---|---|---|---|---|---|---|---|
