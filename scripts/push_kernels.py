@@ -75,6 +75,13 @@ KERNELS = {
                         "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
              "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                           "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # Injerto de cobertura (cheap-first) sobre el baseline; mismo entorno. Ver LB33_AUDIT.md.
+    "lb33-graft": {"notebook": "notebooks/lb33_graft.ipynb", "slug": "arc-agi2-lb33-graft",
+                   "title": "arc agi2 lb33 graft", "gpu": True,
+                   "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                              "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+                   "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                                "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
 }
 
 
