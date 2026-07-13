@@ -17,6 +17,7 @@ año es mucho más alto que el SOTA 2025.
 |---|---|---|---|
 | 2026-07-07 | submit v3 (Vía B: 3B v10, TTT+scoring, budget 1h) | 0.83% | ~2/240 outputs exactos. Primera submission propia; valida el camino completo. |
 | 2026-07-11 | **LB33 baseline** (Vía A: checkpoint NVARC, TTT r=256 + DFS) | **28.47%** | Control establecido. Auditado limpio ([LB33_AUDIT.md](LB33_AUDIT.md)); smoke 2.5/4. Es la línea base sobre la que injertar (tiers/cobertura, selección). Esperar caída público→privado de varios puntos (24.03% fue el privado de NVARC en 2025). |
+| 2026-07-13 | LB33 + **cheap-first** (injerto de cobertura, id 54657220) | _pendiente_ | A/B vs 28.47%. Único cambio: cola ordenada barata→cara (drena más tareas antes de end_time). Smoke 2.5/4 idéntico al baseline (no rompe el pipeline). Validación local: la mitad barata = 20% del costo → headroom de cobertura si el baseline no drena las 240. |
 
 | Fecha | Modelo | LoRA (datos) | Selección | TTT | n_aug | Tareas | Score | Kernel/notas |
 |---|---|---|---|---|---|---|---|---|
