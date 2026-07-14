@@ -221,10 +221,13 @@ confianza (score bajo del top-candidato). Solo abordar si las Fases 1–4 están
 - [x] Held-out no contaminado: `src/arc/holdout.py` (split determinista 105/1000 del training,
       limpio para Vía B) + `--eval-set synth` (limpio para ambas). Cableado en
       `evaluate.py` y `build_finetune_dataset.py --exclude-holdout`.
-- [~] Injertar cobertura en LB33: **cheap-first** enviado (`lb33_graft`, A/B en curso vs
-      28.47%). Siguiente: presupuesto de tiempo adaptativo si cheap-first confirma el cuello.
-- [ ] Portar `turbo_dfs`/`calc_scores` de LB33 a `src/arc/` con tests contra `augment.py`/`grid.py`.
-- [ ] Benchmark de selección attempt_1/2 (`rank_keys` vs `score_kgmon`) sobre el held-out limpio.
+- [x] Injertar cobertura en LB33: **cheap-first → 30.14% (+1.67)**. Injerto 2 (presupuesto
+      de decodificación adaptativo) enviado, A/B pendiente vs 30.14%.
+- [x] Portar los **scorers de selección** de LB33 a `src/arc/select.py` (kgmon, full_probmul_3)
+      con tests que verifican paridad con la matemática numpy original + 2 variantes propias
+      (kgmon_minaug, votes_only) para benchmarkear. (El `turbo_dfs` es GPU-only → no se porta.)
+- [ ] Benchmark de selección (`arc.select.GETTERS`) sobre decodificaciones del held-out limpio
+      (requiere una corrida GPU de LB33 sobre `synth`; pendiente del resultado del injerto 2).
 
 **P2 — segundo modelo y datos (medio plazo):**
 - [ ] SFT propio 3B/4B **excluyendo el eval público** → validador limpio + 2ª fuente de
