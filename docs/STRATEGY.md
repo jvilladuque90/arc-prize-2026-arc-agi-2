@@ -185,12 +185,19 @@ confianza (score bajo del top-candidato). Solo abordar si las Fases 1–4 están
 
 ## Disciplina experimental
 
-- Resultados en [`RESULTS.md`](RESULTS.md) (v9/v10/v11 medidos; primera submission LB 0.83%).
-  Registrar cada corrida: fecha, modelo, dataset, flags, score.
-- **Validación con el modelo NVARC:** su SFT incluyó el eval público → medir mejoras contra
-  `arc-agi_evaluation_challenges.json` mide **memorización**. Usar held-out limpio: split
-  reservado del training + sintético propio + leaderboard (1 sub/día). Ver [LB33_AUDIT.md](LB33_AUDIT.md).
-- Nunca entrenar (Vía B) con el split `evaluation`.
+- Resultados en [`RESULTS.md`](RESULTS.md). Registrar cada corrida: fecha, modelo, datos, flags, score.
+- **Held-out limpio (`src/arc/holdout.py`):** el SFT del checkpoint NVARC incluyó el eval
+  público (y casi seguro el training) → medir ahí mide **memorización**. Política por vía:
+
+  | Set (`evaluate.py --eval-set`) | Limpio para Vía B | Limpio para Vía A (NVARC) |
+  |---|---|---|
+  | `evaluation` (público) | ❌ (no entrenar ahí) | ❌ contaminado |
+  | `holdout` (105/1000 del training, split determinista md5) | ✅ **si** la Vía B excluye esos IDs del SFT (`build_finetune_dataset.py --exclude-holdout`) | ❌ probablemente contaminado |
+  | `synth` (tareas propias jamás publicadas) | ✅ | ✅ (baja señal; solo sanity-check) |
+
+  Señal final para ambas vías: **leaderboard, 1 submission/día**.
+- El adaptador Vía B actual (v10/v11) se entrenó con TODO el training → ya "gastado" para
+  validación; el próximo SFT debe usar `--exclude-holdout` para habilitar el set `holdout`.
 - Ablations mínimas: scoring-vs-voto, ±TTT, ±sintético/±externos, n_aug, tamaño de modelo.
 
 ## Hitos (deadline estimado ~nov 2026 — confirmar en las reglas)
@@ -210,11 +217,12 @@ confianza (score bajo del top-candidato). Solo abordar si las Fases 1–4 están
 - [x] Smoke de 4 tareas (2.5/4) + primera submission del baseline al leaderboard.
 - [x] Score del rerun confirmado: **28.47%** (línea base establecida; ver RESULTS.md).
 
-**P1 — held-out limpio + injertos (superar 33%):**
-- [ ] Held-out no contaminado: split reservado del training + sintético propio (el eval
-      público quedó invalidado para el modelo NVARC).
-- [ ] Injertar `runner.py` (tiers/cobertura) en el worker de LB33: cada tarea no alcanzada
-      es un `[[0]]` = cero seguro; subir cobertura es la vía más directa a &gt;33%.
+**P1 — held-out limpio + injertos (superar 28.47%):**
+- [x] Held-out no contaminado: `src/arc/holdout.py` (split determinista 105/1000 del training,
+      limpio para Vía B) + `--eval-set synth` (limpio para ambas). Cableado en
+      `evaluate.py` y `build_finetune_dataset.py --exclude-holdout`.
+- [~] Injertar cobertura en LB33: **cheap-first** enviado (`lb33_graft`, A/B en curso vs
+      28.47%). Siguiente: presupuesto de tiempo adaptativo si cheap-first confirma el cuello.
 - [ ] Portar `turbo_dfs`/`calc_scores` de LB33 a `src/arc/` con tests contra `augment.py`/`grid.py`.
 - [ ] Benchmark de selección attempt_1/2 (`rank_keys` vs `score_kgmon`) sobre el held-out limpio.
 

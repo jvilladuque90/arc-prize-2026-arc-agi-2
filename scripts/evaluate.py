@@ -44,9 +44,27 @@ def main() -> int:
     ap.add_argument("--ttt-lr", type=float, default=1e-4)
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--data-dir", default=str(ROOT / "data"))
+    ap.add_argument("--eval-set", default="evaluation",
+                    choices=["evaluation", "holdout", "synth"],
+                    help="'evaluation'=set público (CONTAMINADO para el modelo NVARC); "
+                         "'holdout'=split reservado del training (limpio para la Vía B si "
+                         "se excluyó del SFT); 'synth'=tareas sintéticas propias (limpio "
+                         "para ambas vías, bajo señal). Ver docs/STRATEGY.md.")
+    ap.add_argument("--synth-n", type=int, default=100, help="nº de tareas si --eval-set synth")
+    ap.add_argument("--synth-seed", type=int, default=12345, help="semilla del held-out sintético")
     args = ap.parse_args()
 
-    tasks = load_split("evaluation", data_dir=args.data_dir)
+    if args.eval_set == "synth":
+        from arc.synth import generate_dataset
+
+        tasks = {t.task_id: t for t in generate_dataset(args.synth_n, seed=args.synth_seed)}
+    else:
+        tasks = load_split("training" if args.eval_set == "holdout" else "evaluation",
+                           data_dir=args.data_dir)
+        if args.eval_set == "holdout":
+            from arc.holdout import is_holdout
+
+            tasks = {t: task for t, task in tasks.items() if is_holdout(t)}
     if args.limit:
         tasks = dict(list(tasks.items())[: args.limit])
     solutions = {t: [p.output for p in task.test] for t, task in tasks.items()}
@@ -101,7 +119,10 @@ def main() -> int:
             submission[tid] = [{"attempt_1": p.input, "attempt_2": mc} for p in task.test]
 
     score = score_submission(submission, solutions)
-    print(f"Score en evaluation ({len(tasks)} tareas): {score:.4f}")
+    print(f"Score en {args.eval_set} ({len(tasks)} tareas): {score:.4f}")
+    if args.eval_set == "evaluation" and args.model_dir:
+        print("AVISO: el set 'evaluation' está CONTAMINADO para el checkpoint NVARC "
+              "(estuvo en su SFT). Para la Vía A usa --eval-set synth o el leaderboard.")
     return 0
 
 

@@ -78,9 +78,17 @@ def main() -> int:
     ap.add_argument("--sep", default="", help="separador de celdas en la serializacion")
     ap.add_argument("--out", default=str(ROOT / "data" / "finetune_train.jsonl"))
     ap.add_argument("--limit", type=int, default=0, help="limita nº de tareas (debug)")
+    ap.add_argument("--exclude-holdout", action="store_true",
+                    help="excluye del SFT el split de held-out (arc.holdout) para que la "
+                         "Vía B tenga validación local limpia (ver docs/STRATEGY.md)")
     args = ap.parse_args()
 
     tasks = load_split(args.split)
+    if args.exclude_holdout and args.split == "training":
+        from arc.holdout import is_holdout
+
+        tasks = {t: task for t, task in tasks.items() if not is_holdout(t)}
+
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -93,7 +101,8 @@ def main() -> int:
                 f.write(json.dumps(s) + "\n")
                 n_samples += 1
 
-    print(f"Escritas {n_samples} muestras de {len(tasks)} tareas -> {out_path}")
+    print(f"Escritas {n_samples} muestras de {len(tasks)} tareas -> {out_path}"
+          + (" (holdout excluido)" if args.exclude_holdout else ""))
     return 0
 
 
