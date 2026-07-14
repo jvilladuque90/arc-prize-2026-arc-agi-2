@@ -137,6 +137,29 @@ flowchart LR
 Esta pieza es el injerto de mayor valor sobre LB33: sus caps fijos dejan `[[0]]` en lo que
 no alcanza; con tiers, cada tarea recibe *algo* mejor que un cero seguro.
 
+### Cobertura vs calidad — regla de decisión
+
+Pensar el score como **`score ≈ C × q`**: `C` = fracción de tareas con intento real (no
+`[[0]]`); `q` = tasa de acierto pass@2 media de las tareas intentadas. Las palancas de
+**cobertura** (cheap-first, presupuesto adaptativo, cap de decodificación) suben `C`; las de
+**calidad** (selección de attempts `arc.select`, umbral de generación de candidatos del DFS,
+el modelo) suben `q`.
+
+Estimación al 2026-07-14: con 30.14% y `q ≈ 0.33` (nivel del pelotón), `C ≈ 0.91` → ~9% de
+tareas aún en `[[0]]`. Techo de cobertura ≈ 3 puntos, pero **decreciente** (el residuo son las
+tareas caras = grids grandes = `q` baja) y **acotado** (C≤1). La calidad no tiene ese techo y
+**multiplica sobre toda la cobertura**: subir `q` 0.33→0.36 con C=0.91 da +2.7; subir C
+0.91→0.95 con q=0.33 da solo +1.3.
+
+**Regla (no por el signo del delta, sino por su magnitud):**
+- Un injerto de cobertura que da un **salto grande (≈+1.5 o más)** → aún queda mucha cobertura
+  sin drenar; vale otra palanca de cobertura.
+- Un injerto de cobertura que da **poco (≈+0.3) o nada** → cobertura casi saturada → **pivotar
+  a calidad** (selección, generación de candidatos), que es donde queda techo real.
+
+Corolario: NO encadenar palancas de cobertura solo porque "la anterior subió"; cada una ataca
+un residuo menor y de peor `q`. Bancar la cobertura barata y mover el esfuerzo a `q`.
+
 ## Pipeline por fases (re-priorizado tras 2025)
 
 ### Fase 0 — Pipeline de entrega (sin ML)  ✅ implementado
