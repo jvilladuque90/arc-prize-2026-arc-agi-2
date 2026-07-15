@@ -21,6 +21,8 @@ año es mucho más alto que el SOTA 2025.
 | 2026-07-14 | LB33 + cheap-first + **presupuesto decode adaptativo** (id 54698030) | **28.06%** | ❌ **REGRESIÓN -2.08 vs 30.14%**. Causa: medir el presupuesto desde el *fin del TTT* (no desde el inicio de la tarea) dio a cada tarea MÁS tiempo total (TTT + hasta 1200s decode) que el baseline (1200s totales) → menos tareas completadas → menos cobertura. Lección: **el tiempo por tarea es la perilla de throughput; más tiempo = menos cobertura**. Revertido; campeón sigue cheap-first (30.14%). |
 | 2026-07-15 | LB33 + cheap-first + **cap 600s** | **NO enviado** | El smoke bajó a 1.5/3 (vs 2.5/4) con la mitad de subkeys (14 vs 36): el cap de 600s, combinado con el cap interno del DFS (540s/llamada), deja pasar solo ~1 batch de decodificación por tarea (baseline: ~2) → pérdida de calidad severa. Una tarea produjo cero salida. Descartado sin gastar submission. |
 
+| 2026-07-15 | **NVARC Qwen3-2B solo** (cheap-first, id 54733478) | _pendiente_ | 2º checkpoint NVARC (`sft141`) como candidato de ensemble. Smoke **4.0/4** (vs 2.5/4 del 4B) con 57 subkeys (vs 36) — modelo fuerte y más rápido (2B). El 2B es más pequeño → menos tiempo/tarea → mejor cobertura potencial. |
+
 **Conclusión — la perilla de tiempo por tarea está agotada.** Tres puntos: 1200+TTT (injerto 2)
 → 28.06% (menos cobertura); 1200 (cheap-first) → **30.14%** [óptimo]; 600 (injerto 3) → smoke
 muestra pérdida severa de calidad. Ambas direcciones desde 1200 empeoran → **cheap-first

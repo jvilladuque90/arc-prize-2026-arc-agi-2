@@ -160,6 +160,34 @@ tareas caras = grids grandes = `q` baja) y **acotado** (C≤1). La calidad no ti
 Corolario: NO encadenar palancas de cobertura solo porque "la anterior subió"; cada una ataca
 un residuo menor y de peor `q`. Bancar la cobertura barata y mover el esfuerzo a `q`.
 
+## Ensemble de dos modelos NVARC (frente de calidad, 2026-07-15)
+
+Con la cobertura agotada (cheap-first 30.14% óptimo), el frente de mayor techo es **calidad
+por tarea (`q`)** vía **ensemble** — la receta ganadora de NVARC 2025. Hallazgo que lo hace
+viable sin entrenar: hay **dos checkpoints NVARC públicos en Kaggle**, misma familia "grids15",
+publicados 2025-11-02 (limpios):
+- `sorokin/qwen3_4b_grids15_sft139` (el del baseline LB33, 30.14%).
+- `sorokin/qwen3_2b_grids15_sft141` (Qwen3-2B, más pequeño/rápido, distinto SFT → errores
+  distintos = diversidad). Smoke solo: 4.0/4 (vs 2.5/4 del 4B).
+
+**Mecánica de ensemble (aprovecha la máquina de LB33, sin tocar DFS/TTT/scoring):** el decoder
+`ArcDecoder.load_decoded_results(store, run_name)` ya soporta unir varios conjuntos de
+candidatos por `base_key`. Correr cada modelo escribiendo a su propio `inference_outputs_{A,B}`,
+luego `load_decoded_results(dir_A, "_A")` + `load_decoded_results(dir_B, "_B")` une los pools;
+la selección (`score_kgmon`) elige top-2 del **pool combinado**. Bajo re-scoring, ampliar el
+pool rara vez perjudica → el ensemble sube `q` si los modelos aciertan tareas distintas.
+
+**El reto es preservar cobertura** (dos modelos = más cómputo; la perilla sensible). Opciones,
+a decidir con el score solo del 2B y su velocidad:
+1. **Split de GPUs por velocidad:** 4B en 2 GPUs + 2B en 2 GPUs en paralelo. El 2B (~2-3× más
+   rápido) con 2 workers puede cubrir ~todas las tareas (base de cobertura); el 4B con 2
+   workers añade diversidad en las ~45% más baratas (cheap-first). Cobertura ≈ la del 2B.
+2. **Base + gating:** el modelo más fuerte cubre todo (4 workers); el otro corre solo en
+   tareas de baja confianza del primero. Más complejo, máxima cobertura base.
+3. Si el 2B solo > 4B: el 2B pasa a ser el **base** (mejor Y más rápido) y el 4B es diversidad.
+
+Decisión pendiente del score solo del 2B (submission 54733478).
+
 ## Pipeline por fases (re-priorizado tras 2025)
 
 ### Fase 0 — Pipeline de entrega (sin ML)  ✅ implementado
