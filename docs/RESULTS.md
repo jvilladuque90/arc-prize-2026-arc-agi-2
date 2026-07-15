@@ -19,7 +19,13 @@ año es mucho más alto que el SOTA 2025.
 | 2026-07-11 | **LB33 baseline** (Vía A: checkpoint NVARC, TTT r=256 + DFS) | **28.47%** | Control establecido. Auditado limpio ([LB33_AUDIT.md](LB33_AUDIT.md)); smoke 2.5/4. Es la línea base sobre la que injertar (tiers/cobertura, selección). Esperar caída público→privado de varios puntos (24.03% fue el privado de NVARC en 2025). |
 | 2026-07-13 | LB33 + **cheap-first** (injerto de cobertura, id 54657220) | **30.14%** | ✅ **+1.67 vs 28.47%**. Único cambio: cola ordenada barata→cara. Confirma que la **cobertura era el cuello** (el baseline dejaba tareas en `[[0]]`). Nuevo control. |
 | 2026-07-14 | LB33 + cheap-first + **presupuesto decode adaptativo** (id 54698030) | **28.06%** | ❌ **REGRESIÓN -2.08 vs 30.14%**. Causa: medir el presupuesto desde el *fin del TTT* (no desde el inicio de la tarea) dio a cada tarea MÁS tiempo total (TTT + hasta 1200s decode) que el baseline (1200s totales) → menos tareas completadas → menos cobertura. Lección: **el tiempo por tarea es la perilla de throughput; más tiempo = menos cobertura**. Revertido; campeón sigue cheap-first (30.14%). |
-| 2026-07-15 | LB33 + cheap-first + **cap de decode más corto (600s desde inicio)** | _pendiente_ | Test limpio motivado por la lección anterior: si MÁS tiempo/tarea bajó cobertura, MENOS tiempo/tarea (más throughput) debería subirla — si aún hay cobertura por drenar. Un solo cambio (1200→600). Resuelve el confound del injerto 2. |
+| 2026-07-15 | LB33 + cheap-first + **cap 600s** | **NO enviado** | El smoke bajó a 1.5/3 (vs 2.5/4) con la mitad de subkeys (14 vs 36): el cap de 600s, combinado con el cap interno del DFS (540s/llamada), deja pasar solo ~1 batch de decodificación por tarea (baseline: ~2) → pérdida de calidad severa. Una tarea produjo cero salida. Descartado sin gastar submission. |
+
+**Conclusión — la perilla de tiempo por tarea está agotada.** Tres puntos: 1200+TTT (injerto 2)
+→ 28.06% (menos cobertura); 1200 (cheap-first) → **30.14%** [óptimo]; 600 (injerto 3) → smoke
+muestra pérdida severa de calidad. Ambas direcciones desde 1200 empeoran → **cheap-first
+(30.14%) es el punto de operación óptimo del presupuesto de tiempo**. Siguiente frontera:
+**calidad** (selección de attempts, sin costo de tiempo). Ver regla C×q en STRATEGY.md.
 
 | Fecha | Modelo | LoRA (datos) | Selección | TTT | n_aug | Tareas | Score | Kernel/notas |
 |---|---|---|---|---|---|---|---|---|
