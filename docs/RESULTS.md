@@ -23,6 +23,15 @@ año es mucho más alto que el SOTA 2025.
 
 | 2026-07-15 | **NVARC Qwen3-2B solo** (cheap-first, id 54733478) | **18.33%** | Mucho más débil que el 4B (30.14%). **Lección: el smoke (4.0/4) es INÚTIL para juzgar fuerza de modelo** — las 4 tareas de smoke están contaminadas (ambos modelos las memorizaron), así que dan ~perfecto y no discriminan. Solo el LB oculto revela la verdad: 4B (30.14) >> 2B (18.33). El 2B queda como partner de ensemble DÉBIL. |
 
+| 2026-07-16 | Ensemble 4B+2B neutro (4B campeón + 2B sobrante) | **NO enviado** | Smoke OK (4.0/4, **90 subkeys** unidos vs 36 del 4B / 57 del 2B — la unión funciona). PERO el timing revela el 4B en ~600–1250s/tarea → 60 tareas/worker × ~900s ≈ 15h > 12h → el 4B está **coverage-limited**, nunca drena su cola → el 2B nunca corre en sobrante → ensemble = 30.14% garantizado. No se gasta submission. |
+
+**Conclusión ensemble 4B+2B: no puede superar 30.14%.** El 4B es coverage-limited (no tiene
+holgura para el 2B en diseño neutro); y en diseño compartido, quitarle cobertura al 4B fuerte
+por el 2B débil es ~break-even. Para climbing real hace falta un **base más fuerte a velocidad
+similar** (Qwen3.5-4B `raist321/qwen3-5-4b`, misma talla → sin penalización de cobertura) o un
+**partner de arquitectura distinta** (ARChitects difusión, semanas). Bigger Qwen (8B/14B) =
+más lento = riesgo de cobertura (la razón por la que NVARC eligió 4B).
+
 **Conclusión — la perilla de tiempo por tarea está agotada.** Tres puntos: 1200+TTT (injerto 2)
 → 28.06% (menos cobertura); 1200 (cheap-first) → **30.14%** [óptimo]; 600 (injerto 3) → smoke
 muestra pérdida severa de calidad. Ambas direcciones desde 1200 empeoran → **cheap-first
