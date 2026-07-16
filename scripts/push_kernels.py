@@ -89,6 +89,14 @@ KERNELS = {
                            "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                 "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                              "model": ["sorokin/qwen3_2b_grids15_sft141/Transformers/bfloat16/1"]}},
+    # Ensemble 4B+2B neutro en cobertura (4B campeón, luego 2B en sobrante). Ambos modelos.
+    "lb33-ensemble": {"notebook": "notebooks/lb33_ensemble.ipynb", "slug": "arc-agi2-lb33-ensemble",
+                      "title": "arc agi2 lb33 ensemble", "gpu": True,
+                      "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                                 "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+                      "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                                   "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1",
+                                             "sorokin/qwen3_2b_grids15_sft141/Transformers/bfloat16/1"]}},
 }
 
 
