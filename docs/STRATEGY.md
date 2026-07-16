@@ -188,6 +188,23 @@ a decidir con el score solo del 2B y su velocidad:
 
 Decisión pendiente del score solo del 2B (submission 54733478).
 
+### Viabilidad de un partner de arquitectura distinta (investigado 2026-07-16)
+
+**ARChitects (LLaDA-8B difusión, 2º puesto): INVIABLE para nosotros.** Investigación del
+reporte técnico + repo (github.com/LambdaLabsML/ARC2025_Solution_by_the_ARChitects):
+1. **No publicaron los pesos fine-tuned** — solo código (`pretraining_code`). En HF/Kaggle
+   solo está el base `GSAI-ML/LLaDA-8B-Base` (sin fine-tune ARC → ~0%).
+2. **Reproducirlo requiere cómputo que no tenemos:** su pretraining fue *39h en 8×H100*
+   (175k steps) + semanas de SDG en clusters A100/H100. Kaggle es L4×4 offline, 12h/sesión.
+   Off por ~2 órdenes de magnitud → **no se puede reproducir**.
+3. **Aunque se pudiera, su modelo solo puntuó 21.67%** en el LB público — POR DEBAJO de
+   nuestro campeón (30.14%, NVARC 4B). Su valor sería solo como diversidad de ensemble, pero
+   los pesos no existen para nosotros.
+
+**Conclusión:** el partner de ensemble debe ser un checkpoint **publicado y ARC-fine-tuned**.
+Los únicos así son los Qwen de NVARC (4B, 2B) y terceros (8B/14B/Qwen3.5, sin probar, misma
+arquitectura Qwen → menos diversos). El partner realmente diverso (difusión) no está disponible.
+
 ## Pipeline por fases (re-priorizado tras 2025)
 
 ### Fase 0 — Pipeline de entrega (sin ML)  ✅ implementado
