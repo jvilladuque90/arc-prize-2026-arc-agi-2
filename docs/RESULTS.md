@@ -47,6 +47,12 @@ muestra pérdida severa de calidad. Ambas direcciones desde 1200 empeoran → **
 | 2026-07-06 | Qwen2.5-3B | v10 (ídem) | score | ✔ steps=16 | 4 | 24 | 0.000 | eval v9 (**L4×4, 4 workers, bf16, 1.4h**): pipeline limpio, sin OOM. 62/74 attempts = predicciones reales (vs 45 del 0.5B); near-misses 90–95% de celdas en ~8 tareas pero ninguna exacta. Diagnóstico: el cuello es el **entrenamiento** (0.56 epochs, sintético débil), no la inferencia. |
 | 2026-07-11 | Qwen2.5-3B | **v11 ckpt-3900** (loss 0.043, epoch 1.09) | score | ✔ steps=16 | 4 | 48 | 0.000 | eval v10 (L4×4, 2.1h): 115/163 attempts reales; shape_ok ~51% (antes ~40%); near-misses 95–97% en ~8 tareas; **cero exactas**. +1900 steps del mismo corpus mejoran celdas pero no convierten exactas → **retornos decrecientes: el cuello es la calidad/diversidad de datos y el método, no más steps**. Refuerza la vía LB33/NVARC como baseline. |
 
+## Ensemble — TRM (partner diverso)
+
+| Fecha | Versión | Score LB | Notas |
+|---|---|---|---|
+| 2026-07-17 | **TRM solo** (NVARC, recursivo 7M) | _pendiente_ | Pipeline del TRM (`cpmpml/arc2-trm-v31`) adaptado a 2026. Smoke OK: 12/12 attempts reales, pipeline validado offline (3 iteraciones de fix de rutas). Rerun = 240 tareas, epochs=4000. Mide fuerza + timing como partner de ensemble diverso. |
+
 ## Entrenamientos
 
 | Fecha | Run | Config | Resultado |
