@@ -205,6 +205,26 @@ reporte técnico + repo (github.com/LambdaLabsML/ARC2025_Solution_by_the_ARChite
 Los únicos así son los Qwen de NVARC (4B, 2B) y terceros (8B/14B/Qwen3.5, sin probar, misma
 arquitectura Qwen → menos diversos). El partner realmente diverso (difusión) no está disponible.
 
+### TRM como partner diverso (investigado 2026-07-16) — VIABLE
+
+La solución ganadora de NVARC fue un **ensemble Qwen 4B + TRM** (Tiny Recursive Model, 7M
+params, recursivo no-autoregresivo). Solo usamos el Qwen. El TRM está **todo público y
+Kaggle-ready**: notebook `cpmpml/arc2-trm-v31`, pesos `cpmpml/arc-prize-trm-031/step_220708`,
+código `TinyRecursiveModels`, wheels de install — datasets offline.
+
+- **Diverso de verdad** (arquitectura recursiva → errores descorrelacionados con el Qwen),
+  a diferencia del 2B (mismo Qwen, correlacionado, ensemble sin ganancia).
+- **NO es gratis:** corre TTT+inferencia completa en las 4 GPUs (torchrun, 4000 épocas sobre
+  test aug×128) → compite por las 12h → ensamblar = partir presupuesto (ambos se degradan).
+  Pero la diversidad puede superar la pérdida de cobertura (a diferencia del 2B).
+- Formato TTT distinto: un modelo entrenado sobre TODAS las tareas augmentadas juntas (no
+  per-tarea como el Qwen). Framework hydra/PuzzleDataset/torchrun, submission.json propia.
+
+**Plan:** (1) medir el TRM solo en 2026 (adaptar el notebook público: rutas 2025→2026 +
+adjuntar los 3 datasets) → su fuerza y su consumo de tiempo; (2) si es decente, ensemble con
+split de presupuesto (combinar las dos submissions). Datasets de soporte a localizar:
+`trm-code` (TinyRecursiveModels-main) y `trm-arcprize-install` (whls).
+
 ## Pipeline por fases (re-priorizado tras 2025)
 
 ### Fase 0 — Pipeline de entrega (sin ML)  ✅ implementado
