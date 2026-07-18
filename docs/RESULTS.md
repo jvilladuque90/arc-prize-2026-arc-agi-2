@@ -51,7 +51,14 @@ muestra pérdida severa de calidad. Ambas direcciones desde 1200 empeoran → **
 
 | Fecha | Versión | Score LB | Notas |
 |---|---|---|---|
-| 2026-07-17 | **TRM solo** (NVARC, recursivo 7M) | _pendiente_ | Pipeline del TRM (`cpmpml/arc2-trm-v31`) adaptado a 2026. Smoke OK: 12/12 attempts reales, pipeline validado offline (3 iteraciones de fix de rutas). Rerun = 240 tareas, epochs=4000. Mide fuerza + timing como partner de ensemble diverso. |
+| 2026-07-17 | **TRM solo** (NVARC, recursivo 7M) | **8.33%** | Coincide con el ~8% del paper. Débil solo, pero **arquitectónicamente diverso** (recursivo, no LLM) → sus aciertos probablemente NO se solapan con los del Qwen (a diferencia del 2B correlacionado). **Dato clave: el run completo (epochs=4000, 240 tareas) CUPO en ≤12h** → timing viable. Pipeline validado offline. |
+
+**Análisis del ensemble Qwen(30.14%)+TRM(8.33%):** el techo (unión si fueran disjuntos) = 38.5%.
+La pregunta es cuántas tareas resuelve el TRM que el Qwen NO (diversidad real por arquitectura).
+Requiere UN kernel con ambos modelos → split de las 12h. El Qwen es coverage-limited, PERO
+cheap-first hace que las tareas que perdería al recortar tiempo sean la cola cara/de bajo
+rendimiento → su degradación es sub-lineal. Net: **incierto pero plausiblemente positivo**
+(a diferencia del 2B claramente negativo). Es el último camino con techo real.
 
 ## Entrenamientos
 
