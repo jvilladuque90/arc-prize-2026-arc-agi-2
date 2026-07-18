@@ -53,6 +53,12 @@ muestra pérdida severa de calidad. Ambas direcciones desde 1200 empeoran → **
 |---|---|---|---|
 | 2026-07-17 | **TRM solo** (NVARC, recursivo 7M) | **8.33%** | Coincide con el ~8% del paper. Débil solo, pero **arquitectónicamente diverso** (recursivo, no LLM) → sus aciertos probablemente NO se solapan con los del Qwen (a diferencia del 2B correlacionado). **Dato clave: el run completo (epochs=4000, 240 tareas) CUPO en ≤12h** → timing viable. Pipeline validado offline. |
 
+**Gate de entorno combinado: VERDE (2026-07-18).** El TRM corre en la imagen BYOD del Qwen
+(convivencia en un kernel confirmada). 7 iteraciones de integración: pydantic_settings (wheels
+propios `trm-extra-whls`), torch.compile incompat → **eager + strip del prefijo `_orig_mod.`
+del checkpoint** (desacople de raíz), stub de numba (BYOD lo tiene roto). El conflicto
+estructural de torch está resuelto; el resto fueron deps faltantes.
+
 **Análisis del ensemble Qwen(30.14%)+TRM(8.33%):** el techo (unión si fueran disjuntos) = 38.5%.
 La pregunta es cuántas tareas resuelve el TRM que el Qwen NO (diversidad real por arquitectura).
 Requiere UN kernel con ambos modelos → split de las 12h. El Qwen es coverage-limited, PERO
