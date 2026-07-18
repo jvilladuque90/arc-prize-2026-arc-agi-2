@@ -53,6 +53,12 @@ muestra pérdida severa de calidad. Ambas direcciones desde 1200 empeoran → **
 |---|---|---|---|
 | 2026-07-17 | **TRM solo** (NVARC, recursivo 7M) | **8.33%** | Coincide con el ~8% del paper. Débil solo, pero **arquitectónicamente diverso** (recursivo, no LLM) → sus aciertos probablemente NO se solapan con los del Qwen (a diferencia del 2B correlacionado). **Dato clave: el run completo (epochs=4000, 240 tareas) CUPO en ≤12h** → timing viable. Pipeline validado offline. |
 
+**Timing del TRM (eager BYOD, 48 tareas):** epochs=1000 → 30.8 min → extrapolado a 240
+tareas: **~2.6h (epochs=1000), ~10.3h (epochs=4000)**. El full TTT no cabe con el Qwen;
+epochs reducidas sí. Split viable: Qwen ~10h (cobertura ~85%, ~28-29%) + TRM epochs~500
+(~1.5h, diversidad). EV: break-even a positivo si la diversidad del TRM supera la pérdida
+de cobertura del Qwen. Palanca clave (idea del usuario): minimizar épocas/augs del TRM.
+
 **Gate de entorno combinado: VERDE (2026-07-18).** El TRM corre en la imagen BYOD del Qwen
 (convivencia en un kernel confirmada). 7 iteraciones de integración: pydantic_settings (wheels
 propios `trm-extra-whls`), torch.compile incompat → **eager + strip del prefijo `_orig_mod.`
