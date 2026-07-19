@@ -97,6 +97,20 @@ KERNELS = {
                       "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                    "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1",
                                              "sorokin/qwen3_2b_grids15_sft141/Transformers/bfloat16/1"]}},
+    # Ensemble ARQUITECTÓNICAMENTE diverso: Qwen 4B (cheap-first, cap ~10h) + TRM recursivo
+    # (épocas reducidas ~1.5h) + merge pass@2. Un kernel, imagen BYOD del Qwen (TRM corre ahí).
+    # Adjunta el Qwen 4B (model), unsloth (kernel_source) y los 4 datasets del TRM.
+    "lb33-ensemble-trm": {"notebook": "notebooks/lb33_ensemble_trm.ipynb",
+                          "slug": "arc-agi2-lb33-ensemble-trm", "title": "arc agi2 lb33 ensemble trm",
+                          "gpu": True,
+                          "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                                     "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+                          "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                                       "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"],
+                                       "dataset": ["chanhainguyen/trm-code",
+                                                   "cpmpml/arc-prize-trm-031",
+                                                   "limyenwee/arc-agi2-trm-pydeps",
+                                                   "juliancamilovilla/trm-extra-whls"]}},
 }
 
 
@@ -127,12 +141,12 @@ def main() -> int:
 
     cfg = KERNELS[args.kernel]
     user = kaggle_username()
-    datasets = list(args.dataset)
+    defaults = cfg.get("defaults", {})
+    datasets = list(args.dataset) or list(defaults.get("dataset", []))
     if args.code_dataset:
         datasets.insert(0, args.code_dataset)
 
     # defaults por-kernel (p.ej. lb33 trae su kernel de wheels y su modelo)
-    defaults = cfg.get("defaults", {})
     models = args.model or defaults.get("model", [])
     kernel_sources = args.kernel_source or defaults.get("kernel_source", [])
     docker = args.docker_image if args.docker_image != DOCKER_IMAGE else cfg.get("docker", DOCKER_IMAGE)
