@@ -65,6 +65,16 @@ propios `trm-extra-whls`), torch.compile incompat → **eager + strip del prefij
 del checkpoint** (desacople de raíz), stub de numba (BYOD lo tiene roto). El conflicto
 estructural de torch está resuelto; el resto fueron deps faltantes.
 
+**Kernel combinado ensamblado (2026-07-18).** `notebooks/lb33_ensemble_trm.ipynb` (22 celdas):
+Fase 1 Qwen (LB33 cheap-first, cap `QWEN_H`) → `submission_qwen.json`; **red de seguridad**
+(`submission.json = Qwen` por si la fase 2 no termina); Fase 2 TRM (epochs=500) →
+`submission_trm.json`; Fase 3 merge pass@2 (a1=Qwen o TRM si no cubre; a2=diversidad del TRM).
+Aislamiento por subproceso: el Qwen corre vía `python starter.py` (libera GPU al salir) → el
+TRM arranca con GPUs limpias. **Smoke v1: la fase Qwen funcionó en el kernel combinado**
+(120 tareas del eval, 4 con attempt real); el ERROR fue el reload de `submission.json` de la
+rama no-rerun (relee un fichero ya renombrado) — arreglado en v2. Deps TRM (wheels) y unsloth
+**coexisten** sin romperse. Pendiente: v2 valida fases TRM+merge; luego submit A/B vs 30.14%.
+
 **Análisis del ensemble Qwen(30.14%)+TRM(8.33%):** el techo (unión si fueran disjuntos) = 38.5%.
 La pregunta es cuántas tareas resuelve el TRM que el Qwen NO (diversidad real por arquitectura).
 Requiere UN kernel con ambos modelos → split de las 12h. El Qwen es coverage-limited, PERO
