@@ -52,6 +52,7 @@ muestra pérdida severa de calidad. Ambas direcciones desde 1200 empeoran → **
 | Fecha | Versión | Score LB | Notas |
 |---|---|---|---|
 | 2026-07-17 | **TRM solo** (NVARC, recursivo 7M) | **8.33%** | Coincide con el ~8% del paper. Débil solo, pero **arquitectónicamente diverso** (recursivo, no LLM) → sus aciertos probablemente NO se solapan con los del Qwen (a diferencia del 2B correlacionado). **Dato clave: el run completo (epochs=4000, 240 tareas) CUPO en ≤12h** → timing viable. Pipeline validado offline. |
+| 2026-07-19 | **Ensemble Qwen 4B + TRM** (kernel combinado, ref 54836768) | **PENDING** | Enviado (rerun ~11h). Fase 1 Qwen cheap-first cap 9.5h → Fase 2 TRM epochs=500 (~1.7h) → Fase 3 merge. **Merge Diseño B (decisión clave):** el TRM **solo rellena huecos** (tareas que el Qwen dejó en `[[0]]` por tiempo, o un 2º intento faltante) — **nunca** sacrifica un intento real del Qwen. Diseño A (a2=TRM en tareas cubiertas) se descartó: con TRM débil (8.33%) sacrificar el `attempt_2` probado del Qwen es regresión probable (−6..9% por att2-correctos perdidos > +2..4% diversidad). **Red de seguridad:** `submission.json = Qwen` tras fase 1 (piso ~30% si el kernel muere antes del merge). A/B vs 30.14%. |
 
 **Timing del TRM (eager BYOD, 48 tareas):** epochs=1000 → 30.8 min → extrapolado a 240
 tareas: **~2.6h (epochs=1000), ~10.3h (epochs=4000)**. El full TTT no cabe con el Qwen;
