@@ -179,7 +179,13 @@ def main() -> int:
         return 0
 
     print(f"\nPublicando kernel '{meta['id']}' ...")
-    r = subprocess.run(["kaggle", "kernels", "push", "-p", str(tmp)])
+    # PYTHONUTF8=1: el CLI de Kaggle en Windows lee el ipynb con cp1252 y CHOCA con bytes
+    # UTF-8 (acentos/guiones de los comentarios) -> falla en silencio (exit!=0, sin mensaje).
+    env = {**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}
+    r = subprocess.run(["kaggle", "kernels", "push", "-p", str(tmp)], env=env)
+    if r.returncode != 0:
+        print(f"\n[ERROR] 'kaggle kernels push' devolvió {r.returncode} — el push FALLÓ "
+              f"(la versión committeada NO cambió). Revisa encoding/rate-limit/auth.")
     return r.returncode
 
 

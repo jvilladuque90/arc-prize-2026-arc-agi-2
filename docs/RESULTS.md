@@ -94,6 +94,24 @@ Qwen pierde a 9.5h NO era tan estéril (rinde ~3%); (2) el TRM es demasiado déb
 tareas caras para reponer nada. Lección: **no confiar en el argumento de "cola sub-lineal" sin
 medir — el punto de operación del Qwen (30.14%) ya es su óptimo de tiempo.**
 
+## Análisis del leaderboard (2026-07-20)
+
+**Estructura de scoring:** LB público = ~50% del test (semi-privado); ranking final = el otro
+~50% (privado, oculto). No sobre-optimizar el semi-privado. Frontier APIs (GPT-5.5 ~85%) no
+comparables (online/sin cap); SOTA privado offline 2025 = 24%.
+
+**Líder `nvbanana` 57.22%:** opaco (sin kernels/datasets públicos). Método desconocido. 2º
+rabbithole 38.6. **Pelotón ~33-34%** = notebook público `mikelou-lb3389` sobre `failed-in-aimo`.
+
+**HALLAZGO (diff directo):** nuestro `lb33_graft` es **byte-idéntico** a la mikelou 33.89 en los
+4 ficheros core + config + **entorno** (misma imagen BYOD `320043`, mismo modelo sorokin, misma
+kernel_source, misma L4×4 — verificado en su `kernel-metadata.json`), salvo que **nosotros
+añadimos cheap-first**. Aun así medimos 30.14 vs su 33.89. → el gap de ~3-4pt **NO es método ni
+entorno**, es **varianza/cobertura run-to-run** (qué tareas terminan antes del `end_time` de 12h).
+No hay fix de entorno; el pelotón mismo está esparcido 32.6-33.9 con el mismo notebook.
+**Frontera real = subir el techo del Qwen sin tocar cobertura** (base más fuerte a igual talla).
+Ver [[arc-leaderboard-landscape]].
+
 ## Entrenamientos
 
 | Fecha | Run | Config | Resultado |
