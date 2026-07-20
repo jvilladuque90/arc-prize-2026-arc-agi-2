@@ -52,7 +52,17 @@ muestra pérdida severa de calidad. Ambas direcciones desde 1200 empeoran → **
 | Fecha | Versión | Score LB | Notas |
 |---|---|---|---|
 | 2026-07-17 | **TRM solo** (NVARC, recursivo 7M) | **8.33%** | Coincide con el ~8% del paper. Débil solo, pero **arquitectónicamente diverso** (recursivo, no LLM) → sus aciertos probablemente NO se solapan con los del Qwen (a diferencia del 2B correlacionado). **Dato clave: el run completo (epochs=4000, 240 tareas) CUPO en ≤12h** → timing viable. Pipeline validado offline. |
-| 2026-07-19 | **Ensemble Qwen 4B + TRM** (kernel combinado, ref 54836768) | **PENDING** | Enviado (rerun ~11h). Fase 1 Qwen cheap-first cap 9.5h → Fase 2 TRM epochs=500 (~1.7h) → Fase 3 merge. **Merge Diseño B (decisión clave):** el TRM **solo rellena huecos** (tareas que el Qwen dejó en `[[0]]` por tiempo, o un 2º intento faltante) — **nunca** sacrifica un intento real del Qwen. Diseño A (a2=TRM en tareas cubiertas) se descartó: con TRM débil (8.33%) sacrificar el `attempt_2` probado del Qwen es regresión probable (−6..9% por att2-correctos perdidos > +2..4% diversidad). **Red de seguridad:** `submission.json = Qwen` tras fase 1 (piso ~30% si el kernel muere antes del merge). A/B vs 30.14%. |
+| 2026-07-19 | **Ensemble Qwen 4B + TRM** (kernel combinado, ref 54836768) | **27.22%** | ❌ **REGRESIÓN −2.92 vs 30.14%.** Rerun completó en ~7.5h (red de seguridad NO se activó → score real del merge Diseño B). Fase 1 Qwen cheap-first cap 9.5h → Fase 2 TRM epochs=500 → Fase 3 merge Diseño B (TRM **solo rellena huecos**, nunca sacrifica un intento real del Qwen). **Diagnóstico:** como el merge no arriesga nada del Qwen, la caída es 100% el **tradeoff de tiempo**: dar al Qwen 9.5h en vez de ~11.4h costó ~2.9% de cobertura, y el relleno del TRM en el tail no-cubierto aportó ~0 neto (el TRM 8.33% es demasiado débil justo en las tareas más caras/difíciles que el Qwen no alcanzó). **Confirma que el Qwen NO está saturado de cobertura a 9.5h** — esas 2h finales aún rinden ~3%. |
+
+**Conclusión — la vía de ENSEMBLE está agotada (ambos partners débiles regresan).** El 2B (18.33%)
+en diseño compartido era break-even; el TRM (8.33%) en split temporal es −2.92%. La razón es
+airtight y la misma en ambos: **el Qwen es fuerte y coverage-limited → quiere TODO el cómputo
+por TODO el tiempo; cualquier cómputo cedido a un partner más débil es net-negativo** porque el
+partner no puede reponer la cobertura que desplaza. Correr en paralelo tampoco ayuda (el Qwen ya
+satura las 4 GPUs). Para climbing real solo queda **subir el techo del propio Qwen sin tocar su
+cobertura**: (a) **base más fuerte a igual talla/velocidad** (Qwen3.5-4B SFT'd en grids, misma
+penalización de cobertura = cero), o (b) **mejor calidad por tarea sin costo de tiempo**
+(selección de attempts, TTT). Bigger model = más lento = peor cobertura (dominado).
 
 **Timing del TRM (eager BYOD, 48 tareas):** epochs=1000 → 30.8 min → extrapolado a 240
 tareas: **~2.6h (epochs=1000), ~10.3h (epochs=4000)**. El full TTT no cabe con el Qwen;
@@ -76,12 +86,13 @@ TRM arranca con GPUs limpias. **Smoke v1: la fase Qwen funcionó en el kernel co
 rama no-rerun (relee un fichero ya renombrado) — arreglado en v2. Deps TRM (wheels) y unsloth
 **coexisten** sin romperse. Pendiente: v2 valida fases TRM+merge; luego submit A/B vs 30.14%.
 
-**Análisis del ensemble Qwen(30.14%)+TRM(8.33%):** el techo (unión si fueran disjuntos) = 38.5%.
-La pregunta es cuántas tareas resuelve el TRM que el Qwen NO (diversidad real por arquitectura).
-Requiere UN kernel con ambos modelos → split de las 12h. El Qwen es coverage-limited, PERO
-cheap-first hace que las tareas que perdería al recortar tiempo sean la cola cara/de bajo
-rendimiento → su degradación es sub-lineal. Net: **incierto pero plausiblemente positivo**
-(a diferencia del 2B claramente negativo). Es el último camino con techo real.
+**Análisis a priori (FALSIFICADO por el resultado):** el techo (unión si fueran disjuntos) = 38.5%.
+Se hipotetizó que la degradación del Qwen por recortar tiempo sería sub-lineal (cheap-first deja
+caer la cola cara) y que la diversidad del TRM lo compensaría → "incierto pero plausiblemente
+positivo". **El rerun lo refutó: −2.92%.** La hipótesis falló en dos puntos: (1) la cola que el
+Qwen pierde a 9.5h NO era tan estéril (rinde ~3%); (2) el TRM es demasiado débil justo en esas
+tareas caras para reponer nada. Lección: **no confiar en el argumento de "cola sub-lineal" sin
+medir — el punto de operación del Qwen (30.14%) ya es su óptimo de tiempo.**
 
 ## Entrenamientos
 
