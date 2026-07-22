@@ -82,6 +82,14 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # Ensemble de SELECCION (calidad, sin costo de tiempo): campeon + attempt_2 por confianza
+    # (probmul) cuando discrepa del consenso (kgmon). Founded en trace-judging (arxiv 2606.31543).
+    "lb33-selens": {"notebook": "notebooks/lb33_selens.ipynb", "slug": "arc-agi2-lb33-selens",
+                    "title": "arc agi2 lb33 selens", "gpu": True,
+                    "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # 2º modelo NVARC (Qwen3-2B) con la config campeona (cheap-first) — miembro de ensemble.
     "lb33-2b": {"notebook": "notebooks/lb33_2b.ipynb", "slug": "arc-agi2-lb33-2b",
                 "title": "arc agi2 lb33 2b", "gpu": True,
