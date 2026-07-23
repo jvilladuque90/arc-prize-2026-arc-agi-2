@@ -90,9 +90,11 @@ KERNELS = {
     # rate + generalizacion. Save&Run (no submission). Imagen BYOD (transformers+bitsandbytes).
     "barc-probe": {"notebook": "notebooks/barc_probe.ipynb", "slug": "arc-agi2-barc-probe",
                    "title": "arc agi2 barc probe", "gpu": True,
-                   "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
-                              "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
-                   "defaults": {"model": ["ironbar/barc0llama-3.1-arc-potpourri-induction-8b/Transformers/default/2"]}},
+                   # imagen ESTANDAR de Kaggle (docker="") — trae bitsandbytes+transformers para el
+                   # 4-bit; la BYOD de unsloth NO tiene bitsandbytes. El probe no necesita unsloth.
+                   "docker": "",
+                   # copia propia del BARC (output del kernel de descarga) — evita la gated de ironbar
+                   "defaults": {"kernel_source": ["juliancamilovilla/arc-agi2-barc-download"]}},
     # Ensemble de SELECCION (calidad, sin costo de tiempo): campeon + attempt_2 por confianza
     # (probmul) cuando discrepa del consenso (kgmon). Founded en trace-judging (arxiv 2606.31543).
     "lb33-selens": {"notebook": "notebooks/lb33_selens.ipynb", "slug": "arc-agi2-lb33-selens",
