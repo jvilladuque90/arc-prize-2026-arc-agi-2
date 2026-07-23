@@ -1,0 +1,232 @@
+# Standing on the Winner's Shoulders: an Honest Transduction Baseline, an Exhausted Lever Space, and a Verifiable-Program Bet — Working Note (ARC Prize 2026 / ARC-AGI-2)
+
+*Working Note — ARC Prize 2026, ARC-AGI-2 (Kaggle, offline track).*
+**Author:** Julian Camilo Villa Duque.
+
+> Living document. Goal: **win**, not merely participate. Updated with every experiment —
+> problem, features, successful/failed strategies, results, metrics, process. Hard numbers in
+> [RESULTS.md](RESULTS.md); companion docs [PROGRAM_SYNTHESIS.md](PROGRAM_SYNTHESIS.md),
+> [LB33_AUDIT.md](LB33_AUDIT.md), [STRATEGY.md](STRATEGY.md).
+
+---
+
+## The problem in plain terms (a 60-second primer)
+
+**ARC-AGI-2** gives, per task, a few input→output **grid** pairs (cells colored 0–9) that
+exemplify an abstract transformation; you must infer the rule and apply it to a held-out test
+input. It is built to be **easy for humans (~60%) and hard for machines** — it rewards
+compositional generalization, not memorization.
+
+**Competition constraints (Kaggle offline track):**
+
+| Constraint | Value |
+|---|---|
+| Internet | none (offline); model + deps from attached Kaggle Models/Datasets |
+| Hardware / time | L4×4 (96 GB), **12 h** per submission |
+| Metric | **pass@2** (2 attempts/test), exact match |
+| Scoring split | **~50% semi-private** (public LB, shown each submit) + **~50% private** (hidden, decides ranking) |
+| Cadence | **1 submission/day**; the scoring rerun does **not** consume GPU quota (only Save&Run does) |
+
+**Reference points.** 2025 private SOTA = **NVARC 24.03%**. Frontier APIs (GPT-5.5 ~85%) are
+**not** comparable — they run online and uncapped; this track is offline and compute-capped.
+
+**What "winning" requires.** The 2025 champion reached the top with **synthetic data at scale +
+SFT + test-time training (TTT) + ensembling**. That is the reference recipe we replicate and
+push past. There is no cheap shortcut above ~30%.
+
+---
+
+## Abstract
+
+Our final-to-date system is the **LB33/NVARC transduction pipeline** (Qwen3-4B ARC-SFT checkpoint
++ TTT LoRA + DFS decoding) with one graft — **cheap-first task ordering** — that lifts it from
+28.47% to **30.14%** semi-private by draining more tasks before the 12 h wall. We establish, by
+four leaderboard draws (28.47 / 30.14 / 29.72 / 29.31), that **~30% is a firm systematic ceiling
+for us with this pipeline**, and that it coincides with the level of the 2025 private winner
+whose checkpoint we reuse — our score *is* the winner's level. This note is deliberately weighted
+toward **what failed**, because the negative results define the frontier. Every cheap/medium lever
+inside the transduction paradigm is now **exhausted with measurement**: architecturally-diverse
+ensembling (a Qwen3-2B partner is break-even; a 7M recursive TRM under a time-split *regresses* to
+27.22%, because the strong Qwen is coverage-limited and any weaker partner that displaces its
+compute loses more coverage than it adds); per-task time-budget tuning (adaptive budget −2.08,
+600 s cap severely degraded); and selection quality (a SOTA-founded "holistic-judge" selection
+ensemble is **neutral** at 29.31%, because our two scorers are correlated heuristics, not a strong
+reasoning judge). A full SOTA review explains the wall: the 2026 survey places **pure transduction
+at a 5–40% ceiling** and shows the winners are **hybrids** (induction + transduction + TTT,
+50–79%); the leaderboard's top scores are either frontier-API (banned offline) or opaque. The
+disciplined conclusion is that meaningful gains require a **paradigm change**, not more tuning —
+so we commit to the winner's full recipe in three staged steps: (1) a hybrid of two *frozen*
+already-SFT'd models — **BARC verifiable program synthesis** (generate Python solvers → execute →
+keep those that reproduce **all** training pairs → apply to test) merged with our NVARC
+transduction, whose verified hits *add* coverage without sacrificing the 30%; (2) **TTT** on top;
+and (3) the long, decisive work — **our own SFT with 100–266K synthetic puzzles**, the core of
+what made NVARC win, which we defer until steps 1–2 plateau and which we flag honestly as our
+weakest capability (our 8K-synthetic SFT attempts produced zero exact solutions). We report each
+component's measured contribution and are candid that we currently sit at the public-fork level,
+not at the board head.
+
+*A note on scope: we share the full reasoning, data insights, and every negative result — that is
+where the value is. Exact constants/features are kept in-repo while the competition is live.*
+
+---
+
+## 1. The task, and what it reduces to
+
+Each task is a set of demonstration grid pairs plus one (or few) test inputs; predict each test
+output exactly, two attempts allowed. Two facts shape the whole approach:
+
+- **It is knowledge-bound.** ARC reasoning is tied to what the model already knows about grid
+  transformations. A base LLM *without ARC-specific SFT* scores ≈0 exact (measured: our train
+  v10/v11 with 8K synthetic examples → zero exact). NVARC needed **266K synthetic puzzles** to
+  reach 24%. The SFT — not the base generation — is where the skill lives.
+- **Score ≈ Coverage × quality.** The pipeline is time-bounded (TTT + DFS per task under 12 h across
+  4 workers). Which tasks finish before the wall is as decisive as per-task accuracy — this is why
+  our one successful graft is a *coverage* lever, and why any compute given to a weaker model is a
+  coverage tax.
+
+---
+
+## 2. Insights (paradigms, and the shape of the ceiling)
+
+- **The paradigm hierarchy (2026 survey).** Pure neural transduction: **5–40%** (weakest, our
+  family). Program synthesis: 26–79% but with a severe **AGI-1→AGI-2 cliff**. **Hybrid** (induction
+  + transduction + TTT): **50–79%, dominant.** Every system above ~70% on AGI-1 uses TTT, generates
+  ≥10 hypotheses, and verifies.
+- **What separates ~55% from ~30%:** multiple hypotheses, robust perception, **hybrid reasoning
+  with verification**, iterative refinement, TTT (+20–30 pt). The ~30% systems are static,
+  frozen-after-training, single-representation.
+- **The winners' numbers are SFT-driven.** NVARC's 266K synthetic + SFT is the moat; ARChitects
+  used 102 recursive-refinement steps; MindsAI used TTFT + augmentation voting. None is a light tweak.
+- **The offline ceiling is real.** Frontier-API hybrids reach 72.9% (e.g. holistic trace-judging
+  over GPT-5.2/Gemini-3/Opus, $39/task) — **inapplicable offline**. The compute-capped ceiling is
+  much lower; matching NVARC (~24% private / ~30% semi-private) is already "winner level," and
+  beating it needs out-R&D-ing the winner or a genuinely new offline method.
+
+---
+
+## 3. Method (current deployed pipeline)
+
+A frozen ARC-SFT transduction tracker with a coverage graft:
+
+```
+  test task ─▶ cheap-first queue (cheap→expensive by grid-cell cost)
+             ─▶ per task, 4 GPU workers:
+                  TTT: LoRA r=256, 16 augmentations, 1 epoch on the task's own pairs
+                  DECODE: turbo-DFS (cumulative-prob threshold) → candidates
+                  SCORE: augmented-consistency re-scoring (calc_scores)
+             ─▶ SELECT top-2 (score_kgmon) ─▶ submission (attempt_1, attempt_2)
+```
+
+We adopted the public LB33 fork of the NVARC recipe (audited clean — no hardcoding/leakage; see
+LB33_AUDIT.md), reusing the `sorokin/qwen3_4b_grids15_sft139` checkpoint. The **only** change that
+survived the public test is **cheap-first ordering** (§4): sort the task queue cheap→expensive so
+more tasks are drained before `end_time`, cutting `[[0]]` placeholders. Everything else (DFS math,
+re-scoring, TTT, seeds, selection) is kept verbatim from the audited baseline.
+
+---
+
+## 4. Breadth and depth of exploration (negatives valued equally)
+
+**What worked (transferred to the semi-private LB):**
+
+- **cheap-first ordering.** 28.47 → **30.14** (+1.67). The task queue was alphabetical; sorting by
+  a grid-cell cost proxy drains cheaper tasks first, so fewer are left unfinished. Pure throughput,
+  no per-task compute change. **Confirms coverage was the binding constraint.**
+
+**What did NOT transfer (with analysis — these define the wall):**
+
+- **Ensemble with a weaker LLM (Qwen3-2B).** Break-even. The 4B is coverage-limited (~900 s/task,
+  cannot drain 240 tasks in 12 h), so in a shared design the 2B never runs on the surplus, and in a
+  time-split design it displaces strong-model coverage. Net ≈ 30%.
+- **Ensemble with an architecturally-diverse TRM (7M recursive).** 30.14 → **27.22** (−2.92). A
+  single-kernel time split (Qwen 9.5 h + TRM epochs=500 + a "fill-gaps" merge that never sacrifices
+  a Qwen attempt) still lost: giving the Qwen 9.5 h instead of ~11.4 h cost ~3% of coverage, and the
+  TRM (8.3% solo) filled essentially none of the expensive uncovered tail. **Airtight lesson: the
+  strong coverage-limited model wants *all* the compute; any weaker partner is net-negative.**
+- **Adaptive per-task decode budget.** 30.14 → 28.06 (−2.08). Measuring the budget from the *end of
+  TTT* gave each task more total time → fewer tasks finished → less coverage.
+- **600 s per-task cap.** Smoke degraded severely (quality loss); not submitted.
+- **Selection ensemble (holistic-judge idea, arXiv 2606.31543).** 29.72 → **29.31** (neutral). The
+  paper's judge is GPT-5.2 reading reasoning traces to recover minority-correct answers; ours is two
+  correlated scoring formulas (kgmon consensus vs probmul confidence) over the same beam/aug signals
+  — when they disagree, neither is reliably better. **Selection is not the offline lever.** (The
+  same paper contraindicates refinement loops — they collapse diversity — so we did not build one.)
+- **Our own SFT with 8K synthetic (train v10/v11).** Zero exact solutions. Data far below the
+  266K NVARC scale; **SFT is our weakest capability.**
+
+**A phantom gap, resolved.** We are **byte-identical** (all four core files + config + Docker image
++ model + sources, verified) to the public 33.89% pelotón notebook, yet draw ~30%. Three fresh
+draws (28.47/30.14/29.72) stay below the tight pelotón band — a **systematic**, not variance, gap,
+whose cause we could not identify remotely (likely exact source-version differences or unpublished
+tweaks the pelotón carries). We stopped chasing it: **~30% is this pipeline's honest score for us.**
+
+**The recurring meta-lesson:** inside the transduction paradigm, every cheap lever is spent; adding
+a *weaker* model always subtracts (coverage tax); the score is at a measured local optimum in
+coverage, time-budget, and selection. **Only a paradigm change (hybrid verification) or the full
+SFT recipe can move it.**
+
+---
+
+## 5. Contribution of individual ideas
+
+Honest semi-private-LB progression:
+
+| Step | Change | LB (pass@2) | Δ |
+|---|---|---|---|
+| 0 | LB33/NVARC baseline (audited clean) | 28.47% | — |
+| 1 | + cheap-first ordering | **30.14%** | **+1.67** |
+| — | + adaptive decode budget | 28.06% | −2.08 (reverted) |
+| — | ensemble + Qwen3-2B | ≈30% | break-even |
+| — | ensemble + TRM (time-split) | 27.22% | −2.92 |
+| — | re-draw of the champion (variance test) | 29.72% | ±noise |
+| — | selection ensemble (kgmon+probmul) | 29.31% | neutral |
+
+Everything after step 1 is a **negative result**. That is the finding: the transduction paradigm
+is saturated for us at ~30%, and the four independent draws bound its run-to-run noise at ±~1%.
+
+---
+
+## 6. The plan to win — the full recipe in three staged steps (committed)
+
+Winning is not a tweak; it is the champion's recipe: **load an SFT → adapt with TTT → continue
+SFT'ing those weights with our own synthetic data.** We take the three in order, cheapest first,
+measuring at each gate.
+
+**Step 1 — Frozen hybrid (in progress).** Combine two already-SFT'd models without training:
+**BARC verifiable program synthesis** + **NVARC transduction**.
+- *Phase 0 (probe):* measure BARC-8B's **verifiable-hit rate** on ARC-AGI-2 — the fraction of tasks
+  for which it generates a Python program that reproduces **all** training pairs (high-precision,
+  because exact-match-on-train is a real verification), and whether those generalize to the test.
+- *Phase 1:* if viable, the full induction system + a **hybrid merge** where verified programs *add*
+  coverage on tasks the transduction misses, never displacing the proven 30%.
+- *Threshold:* if the frozen hybrid clears ~30%, we win without touching weights.
+
+**Step 2 — TTT (test-time training).** Light per-task LoRA fine-tuning at inference — the lever
+worth +20–30 pt in the winning recipe. Automatic, cheap, per-task; applied to induction and/or
+transduction as measurements dictate.
+
+**Step 3 — Own SFT with synthetic data (the long, decisive work).** Replicate NVARC's core:
+**generate 100–266K synthetic puzzles** (RE-ARC / BARC-Potpourri / concept-mixing, validated
+against specs) and **continue-SFT** the weights (starting from an already-ARC-SFT'd checkpoint, not
+from scratch) to exceed the public models' ceiling.
+- *Known risks:* our weakest area (v10/v11 hit "zero exact"); GPU-heavy (plan around the weekly
+  reset and the 2 h submission-holdover rule); hard to beat NVARC's own SFT.
+- *Mitigations:* start from an SFT'd checkpoint + add data (don't train from scratch); measure
+  coverage and exact-solve count per iteration; never chain data-gen without a signal.
+- *Status:* deferred until steps 1–2 plateau; data-gen, config, and metrics to be logged here.
+
+---
+
+## 7. Living log (results · metrics · process)
+
+- **2026-07-11..16.** Adopted LB33/NVARC → 28.47% → cheap-first **30.14%** (champion). Weak-partner
+  ensembles (2B, TRM) and time-budget tweaks: exhausted / regressive.
+- **2026-07-20.** Confirmed ~30% is systematic (re-draw 29.72%); we are byte-identical to the public
+  33.89% notebook — the gap is not method.
+- **2026-07-21.** SOTA review → transduction caps ~40%, hybrids win. Selection ensemble 29.31%
+  (neutral) → transduction levers exhausted. Decision: pursue **verifiable program synthesis**.
+- **2026-07-22.** Located BARC-8B (only ARC induction model; Llama-3.1). Recipe + `common.py`
+  vendored; probe built (multiple offline-integration gates). ironbar's Kaggle copy is Llama-gated
+  (403); the HF repo is open → downloading our own copy. **Committed to the full 3-step recipe,
+  including Step 3 (synthetic-data SFT), to win.**
+- *(next: run probe → verifiable-hit rate → decide Step 1 build-out)*
