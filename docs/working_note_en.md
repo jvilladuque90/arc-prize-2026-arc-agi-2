@@ -229,4 +229,11 @@ from scratch) to exceed the public models' ceiling.
   vendored; probe built (multiple offline-integration gates). ironbar's Kaggle copy is Llama-gated
   (403); the HF repo is open → downloading our own copy. **Committed to the full 3-step recipe,
   including Step 3 (synthetic-data SFT), to win.**
-- *(next: run probe → verifiable-hit rate → decide Step 1 build-out)*
+- **2026-07-23.** Phase-0 probe completed after ~8 offline-integration gates + one key bug
+  (master's `common.py` uses TEAL/MAROON; the model uses PURPLE/BROWN → false 0%, patched).
+  **Verifiable-hit rate = 6.25%** (1/16, K=16) and that hit **generalized** (1/1). Validated: the
+  generate→execute→verify→apply pipeline works and generalizes. But **frozen BARC ≈6% on AGI-2**
+  (the cliff) and expensive (485 s/task) → as a *frozen* partner it faces the same coverage tax as
+  the TRM. **Confirms Step 3 (AGI-2 SFT) is needed** for induction to be competitive — as anticipated.
+- *(next: decide — frozen-hybrid test (measures overlap, 1 submission) vs. straight to Step 3 (SFT
+  the induction model on AGI-2 synthetic data))*

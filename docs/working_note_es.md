@@ -238,4 +238,12 @@ para superar el techo de los modelos públicos.
   vendorizadas; probe construido (varios gates de integración offline). La copia de ironbar en Kaggle
   está gated por Llama (403); el repo HF es abierto → descargando copia propia. **Comprometidos con
   la receta completa de 3 pasos, incluyendo el Paso 3 (SFT con data sintética), para ganar.**
-- *(siguiente: correr el probe → verifiable-hit rate → decidir la construcción del Paso 1)*
+- **2026-07-23.** Probe FASE 0 completado tras ~8 gates de integración offline + un bug clave
+  (`common.py` de master usa TEAL/MAROON; el modelo usa PURPLE/BROWN → 0% falso, parcheado).
+  **Verifiable-hit rate = 6.25%** (1/16, K=16) y ese acierto **generalizó** (1/1). Validado: el
+  pipeline generar→ejecutar→verificar→aplicar funciona y generaliza. Pero **BARC congelado ≈6% en
+  AGI-2** (el cliff) y caro (485s/tarea) → como partner *congelado* enfrenta el mismo impuesto de
+  cobertura que el TRM. **Confirma que el Paso 3 (SFT en AGI-2) es necesario** para que la inducción
+  sea competitiva — como se anticipó.
+- *(siguiente: decidir — test del híbrido congelado (mide solapamiento, 1 submission) vs. ir directo
+  al Paso 3 (SFT de la inducción en data sintética AGI-2))*

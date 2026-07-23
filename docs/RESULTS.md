@@ -121,6 +121,21 @@ No hay fix de entorno; el pelotón mismo está esparcido 32.6-33.9 con el mismo 
 **Frontera real = subir el techo del Qwen sin tocar cobertura** (base más fuerte a igual talla).
 Ver [[arc-leaderboard-landscape]].
 
+## Síntesis de programas — FASE 0 (probe de viabilidad)
+
+| Fecha | Prueba | Resultado | Notas |
+|---|---|---|---|
+| 2026-07-23 | **BARC-8B inducción, verifiable-hit rate en ARC-AGI-2** (N=16, K=16, eval) | **6.25%** (1/16), y ese 1 **generalizó** (1/1) | Copia propia del modelo (repo HF abierto; la de ironbar en Kaggle está gated por Llama). ~8 gates de integración offline + un bug clave: `common.py` de master usa TEAL/MAROON pero el modelo usa PURPLE/BROWN → 0% falso; parcheado. **Validado:** el pipeline generar→ejecutar→verificar-en-train→aplicar FUNCIONA y **generaliza** (train-pass → test-correct). **Pero:** BARC congelado ≈6% en AGI-2 (el "cliff"; es un modelo 2024/AGI-1) y **caro** (485s/tarea a K=16). |
+
+**Conclusión FASE 0.** La síntesis de programas verificable **funciona offline y su verificación es
+fiable** (train-pass generalizó). Pero el modelo BARC **congelado** es débil en AGI-2 (~6%) y caro,
+así que como partner de híbrido *congelado* enfrenta el MISMO impuesto de cobertura que el TRM
+(485s/tarea × 240 no cabe junto al Qwen sin quitarle sus ~11h). La incógnita clave para el híbrido
+congelado es el **solapamiento** de los ~6% verificables de BARC con el 30% del Qwen (si disjuntos,
++6%; medible solo con una submission, porque el eval está contaminado para el Qwen). **El valor real
+requiere el Paso 3 (SFT):** subir el hit rate de la inducción en AGI-2 con data sintética — que es
+justo lo que el usuario anticipó y comprometió. Ver [[arc-program-synthesis]], `working_note_es.md`.
+
 ## Entrenamientos
 
 | Fecha | Run | Config | Resultado |
