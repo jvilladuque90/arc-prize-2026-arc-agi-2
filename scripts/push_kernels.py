@@ -93,10 +93,9 @@ KERNELS = {
     # (unsloth+trl); adjunta el modelo (barc-download) y la data (barc-data-dl) como kernel_sources.
     "barc-sft": {"notebook": "notebooks/barc_sft.ipynb", "slug": "arc-agi2-barc-sft",
                  "title": "arc agi2 barc sft", "gpu": True,
-                 "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
-                            "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
-                 "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch",
-                                                "juliancamilovilla/arc-agi2-barc-download",
+                 # imagen ESTANDAR (docker="") - transformers+peft, captura logs (la BYOD los vacia)
+                 "docker": "",
+                 "defaults": {"kernel_source": ["juliancamilovilla/arc-agi2-barc-download",
                                                 "juliancamilovilla/arc-agi2-barc-data-dl"]}},
     # PROBE de sintesis de programas (FASE 0): BARC-8B (4-bit) sobre eval, mide verifiable-hit
     # rate + generalizacion. Save&Run (no submission). Imagen BYOD (transformers+bitsandbytes).
