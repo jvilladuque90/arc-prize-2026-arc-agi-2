@@ -86,6 +86,9 @@ KERNELS = {
     # como kernel_source (evita la copia gated de ironbar). Internet ON -> T4, sin docker pin.
     "barc-download": {"notebook": "notebooks/barc_download.ipynb", "slug": "arc-agi2-barc-download",
                       "title": "arc agi2 barc download", "gpu": True},
+    # Descarga un slice de la data de induccion BARC desde HF (para de-risk del SFT). T4+internet.
+    "barc-data-dl": {"notebook": "notebooks/barc_data_dl.ipynb", "slug": "arc-agi2-barc-data-dl",
+                     "title": "arc agi2 barc data dl", "gpu": False},
     # PROBE de sintesis de programas (FASE 0): BARC-8B (4-bit) sobre eval, mide verifiable-hit
     # rate + generalizacion. Save&Run (no submission). Imagen BYOD (transformers+bitsandbytes).
     "barc-probe": {"notebook": "notebooks/barc_probe.ipynb", "slug": "arc-agi2-barc-probe",
