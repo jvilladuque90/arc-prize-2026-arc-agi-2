@@ -245,5 +245,8 @@ para superar el techo de los modelos públicos.
   AGI-2** (el cliff) y caro (485s/tarea) → como partner *congelado* enfrenta el mismo impuesto de
   cobertura que el TRM. **Confirma que el Paso 3 (SFT en AGI-2) es necesario** para que la inducción
   sea competitiva — como se anticipó.
-- *(siguiente: decidir — test del híbrido congelado (mide solapamiento, 1 submission) vs. ir directo
-  al Paso 3 (SFT de la inducción en data sintética AGI-2))*
+- **2026-07-24.** Usuario elige el **Paso 3 (SFT de la inducción)**. Localizado el pipeline completo
+  de data-gen+SFT de BARC (seeds ejecutables + config). **Fase A (de-risk de infra) COMPLETA:** SFT
+  LoRA del BARC-8B validado offline (loss 1.65→1.08). Config clave: imagen estándar, transformers+peft,
+  `device_map=auto` (reparte el 8B en 4 L4s, sin bitsandbytes), `DevTrainer` device-aware para el loss.
+  Siguiente: **Fase B** — data-gen compositiva (componer seeds → tareas AGI-2 de 2 pasos).

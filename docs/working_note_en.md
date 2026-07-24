@@ -235,5 +235,8 @@ from scratch) to exceed the public models' ceiling.
   generate→execute→verify→apply pipeline works and generalizes. But **frozen BARC ≈6% on AGI-2**
   (the cliff) and expensive (485 s/task) → as a *frozen* partner it faces the same coverage tax as
   the TRM. **Confirms Step 3 (AGI-2 SFT) is needed** for induction to be competitive — as anticipated.
-- *(next: decide — frozen-hybrid test (measures overlap, 1 submission) vs. straight to Step 3 (SFT
-  the induction model on AGI-2 synthetic data))*
+- **2026-07-24.** User chose **Step 3 (SFT the induction model)**. Located BARC's full data-gen+SFT
+  pipeline (executable seeds + config). **Phase A (infra de-risk) COMPLETE:** BARC-8B LoRA SFT
+  validated offline (loss 1.65→1.08). Key config: standard image, transformers+peft, `device_map=auto`
+  (spreads the 8B across 4 L4s, no bitsandbytes), device-aware `DevTrainer` for the loss. Next:
+  **Phase B** — compositional data-gen (compose seeds → 2-step AGI-2-style tasks).

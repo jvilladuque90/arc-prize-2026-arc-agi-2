@@ -54,8 +54,20 @@ ejecutar programas compuestos y validar (consistencia en train pairs, no-trivial
 - Calidad de la composición: no toda composición da tarea válida/sensata. Validar duro; empezar con
   composiciones de 2 pasos de seeds compatibles.
 
-## Primer paso concreto (Fase A)
+## Estado
 
-Reproducir el formato de training example de BARC (`make_dataset.py` / `gen_dataset_both.py`) y
-montar un SFT LoRA mínimo del BARC-8B sobre un slice de `barc-arc-potpourri-ds`, validado en Kaggle
-GPU offline. Sin esto, la data-gen no tiene dónde entrenar.
+- **Fase A — COMPLETA (2026-07-24).** Infra de SFT LoRA del BARC-8B validada offline (loss
+  1.65→1.08 en 40 steps sobre 4338 ejemplos). Config que FUNCIONA (reusar en Fase C):
+  `notebooks/barc_sft.ipynb` + kernel `barc-sft`.
+  - **Imagen ESTANDAR** (docker="") — captura logs; la BYOD los vacía. transformers+peft (sin
+    unsloth/trl → portable).
+  - **Sin bitsandbytes** (no está en las imágenes): NO se puede 4-bit/QLoRA ni adamw_8bit. Solución:
+    **`device_map="auto"`** reparte el 8B bf16 en las 4 L4s (88GB) → sin OOM, sin necesidad de
+    gradient-checkpointing. `attn_implementation="sdpa"`.
+  - **`DevTrainer`** (subclase de `Trainer`) con `compute_loss` que mueve las `labels` al device de
+    los `logits` → arregla el mismatch cuda:0/cuda:3 del pipeline paralelo. `optim="adamw_torch"`.
+  - Formato: chat `messages` [system,user,assistant] → `tok.apply_chat_template`; masking manual del
+    prompt (labels=-100 hasta el header del assistant). LoRA r=16 en q/k/v/o/gate/up/down.
+  - Data slice: `barc-data-dl` baja N de `barc0/induction_heavy_100k_jsonl` (HF, abierto) a un kernel
+    output, adjuntado como kernel_source.
+- **Siguiente: Fase B** (data-gen compositiva).
