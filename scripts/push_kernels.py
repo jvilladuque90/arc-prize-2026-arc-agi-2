@@ -89,6 +89,14 @@ KERNELS = {
     # Descarga un slice de la data de induccion BARC desde HF (para de-risk del SFT). T4+internet.
     "barc-data-dl": {"notebook": "notebooks/barc_data_dl.ipynb", "slug": "arc-agi2-barc-data-dl",
                      "title": "arc agi2 barc data dl", "gpu": False},
+    # Fase A: SFT LoRA del BARC-8B sobre el slice de data (de-risk de la infra). Imagen BYOD
+    # (unsloth+trl); adjunta el modelo (barc-download) y la data (barc-data-dl) como kernel_sources.
+    "barc-sft": {"notebook": "notebooks/barc_sft.ipynb", "slug": "arc-agi2-barc-sft",
+                 "title": "arc agi2 barc sft", "gpu": True,
+                 "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                            "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+                 "defaults": {"kernel_source": ["juliancamilovilla/arc-agi2-barc-download",
+                                                "juliancamilovilla/arc-agi2-barc-data-dl"]}},
     # PROBE de sintesis de programas (FASE 0): BARC-8B (4-bit) sobre eval, mide verifiable-hit
     # rate + generalizacion. Save&Run (no submission). Imagen BYOD (transformers+bitsandbytes).
     "barc-probe": {"notebook": "notebooks/barc_probe.ipynb", "slug": "arc-agi2-barc-probe",
