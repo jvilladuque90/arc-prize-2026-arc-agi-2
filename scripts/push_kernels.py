@@ -93,6 +93,12 @@ KERNELS = {
     # CPU + internet (NO gasta quota GPU). Output jsonl -> se adjunta al SFT de la Fase C.
     "barc-datagen": {"notebook": "notebooks/barc_datagen.ipynb", "slug": "arc-agi2-barc-datagen",
                      "title": "arc agi2 barc datagen", "gpu": False},
+    # Fase C.2: probe del modelo SFT'd (base + adapter de la Fase C) -> A/B del hit rate vs 6.25%.
+    "barc-probe-lora": {"notebook": "notebooks/barc_probe_lora.ipynb",
+                        "slug": "arc-agi2-barc-probe-lora", "title": "arc agi2 barc probe lora",
+                        "gpu": True, "docker": "",
+                        "defaults": {"kernel_source": ["juliancamilovilla/arc-agi2-barc-download",
+                                                       "juliancamilovilla/arc-agi2-barc-sft-c"]}},
     # Fase C: SFT REAL de la induccion sobre la data compositiva (Fase B) + mezcla con la original.
     "barc-sft-c": {"notebook": "notebooks/barc_sft_c.ipynb", "slug": "arc-agi2-barc-sft-c",
                    "title": "arc agi2 barc sft c", "gpu": True, "docker": "",
