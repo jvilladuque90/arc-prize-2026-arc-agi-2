@@ -96,12 +96,14 @@ KERNELS = {
     # Fase C.2: probe del modelo SFT'd (base + adapter de la Fase C) -> A/B del hit rate vs 6.25%.
     "barc-probe-lora": {"notebook": "notebooks/barc_probe_lora.ipynb",
                         "slug": "arc-agi2-barc-probe-lora", "title": "arc agi2 barc probe lora",
-                        "gpu": True, "docker": "",
+                        "gpu": True,
                         "defaults": {"kernel_source": ["juliancamilovilla/arc-agi2-barc-download",
                                                        "juliancamilovilla/arc-agi2-barc-sft-c"]}},
     # Fase C: SFT REAL de la induccion sobre la data compositiva (Fase B) + mezcla con la original.
+    # docker: usa la imagen PINNEADA (DOCKER_IMAGE). La "latest" de Kaggle roto a py3.12 con
+    # torchao 0.10 incompatible con peft (>0.16) -> ImportError al aplicar LoRA.
     "barc-sft-c": {"notebook": "notebooks/barc_sft_c.ipynb", "slug": "arc-agi2-barc-sft-c",
-                   "title": "arc agi2 barc sft c", "gpu": True, "docker": "",
+                   "title": "arc agi2 barc sft c", "gpu": True,
                    "defaults": {"kernel_source": ["juliancamilovilla/arc-agi2-barc-download",
                                                   "juliancamilovilla/arc-agi2-barc-data-dl",
                                                   "juliancamilovilla/arc-agi2-barc-datagen"]}},
