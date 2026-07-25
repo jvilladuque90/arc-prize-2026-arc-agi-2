@@ -93,6 +93,12 @@ KERNELS = {
     # CPU + internet (NO gasta quota GPU). Output jsonl -> se adjunta al SFT de la Fase C.
     "barc-datagen": {"notebook": "notebooks/barc_datagen.ipynb", "slug": "arc-agi2-barc-datagen",
                      "title": "arc agi2 barc datagen", "gpu": False},
+    # Fase C: SFT REAL de la induccion sobre la data compositiva (Fase B) + mezcla con la original.
+    "barc-sft-c": {"notebook": "notebooks/barc_sft_c.ipynb", "slug": "arc-agi2-barc-sft-c",
+                   "title": "arc agi2 barc sft c", "gpu": True, "docker": "",
+                   "defaults": {"kernel_source": ["juliancamilovilla/arc-agi2-barc-download",
+                                                  "juliancamilovilla/arc-agi2-barc-data-dl",
+                                                  "juliancamilovilla/arc-agi2-barc-datagen"]}},
     # Fase A: SFT LoRA del BARC-8B sobre el slice de data (de-risk de la infra). Imagen BYOD
     # (unsloth+trl); adjunta el modelo (barc-download) y la data (barc-data-dl) como kernel_sources.
     "barc-sft": {"notebook": "notebooks/barc_sft.ipynb", "slug": "arc-agi2-barc-sft",
