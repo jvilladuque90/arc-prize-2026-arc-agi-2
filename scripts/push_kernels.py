@@ -89,6 +89,10 @@ KERNELS = {
     # Descarga un slice de la data de induccion BARC desde HF (para de-risk del SFT). T4+internet.
     "barc-data-dl": {"notebook": "notebooks/barc_data_dl.ipynb", "slug": "arc-agi2-barc-data-dl",
                      "title": "arc agi2 barc data dl", "gpu": False},
+    # Fase B: data-gen compositiva (componer seeds de BARC -> tareas AGI-2 de 2 pasos verificadas).
+    # CPU + internet (NO gasta quota GPU). Output jsonl -> se adjunta al SFT de la Fase C.
+    "barc-datagen": {"notebook": "notebooks/barc_datagen.ipynb", "slug": "arc-agi2-barc-datagen",
+                     "title": "arc agi2 barc datagen", "gpu": False},
     # Fase A: SFT LoRA del BARC-8B sobre el slice de data (de-risk de la infra). Imagen BYOD
     # (unsloth+trl); adjunta el modelo (barc-download) y la data (barc-data-dl) como kernel_sources.
     "barc-sft": {"notebook": "notebooks/barc_sft.ipynb", "slug": "arc-agi2-barc-sft",
