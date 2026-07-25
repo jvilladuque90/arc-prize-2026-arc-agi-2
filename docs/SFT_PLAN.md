@@ -70,4 +70,19 @@ ejecutar programas compuestos y validar (consistencia en train pairs, no-trivial
     prompt (labels=-100 hasta el header del assistant). LoRA r=16 en q/k/v/o/gate/up/down.
   - Data slice: `barc-data-dl` baja N de `barc0/induction_heavy_100k_jsonl` (HF, abierto) a un kernel
     output, adjuntado como kernel_source.
-- **Siguiente: Fase B** (data-gen compositiva).
+- **Fase B — EN CURSO.** Compositor implementado en `src/arc/seedgen.py` (333 líneas) + 163 seeds
+  vendorizados en `vendor/barc/seeds/`. Validado LOCALMENTE (sin GPU):
+  - **138-142 de 163 seeds ejecutan** y generan pares válidos (el resto crashea: ValueError,
+    IndexError… se descartan).
+  - Componer A→B: `input ← genA()`, `x ← mainA(input)`, `output ← mainB(x)`. El programa objetivo
+    concatena ambos cuerpos (renombrados `_step_a`/`_step_b`) + un `transform` que los encadena.
+  - **~36% de pares aleatorios de seeds dan tarea útil**, y **100% de las generadas VERIFICAN** (el
+    programa compuesto reproduce todos los pares) → **data correcta por construcción**, sin LLM.
+  - Filtros de calidad: no-identidad, output no-degenerado (≥2 colores), y **ambos pasos deben
+    aportar** en la mayoría de pares (si no, es tarea de 1 paso disfrazada).
+  - Diversidad: 53 conceptos distintos en 29 tareas de muestra.
+  - Formato de salida = chat `messages` de BARC (system/user/assistant con ```python) → entra
+    directo al SFT de la Fase A.
+  - Ejecución a escala: kernel `barc-datagen` (**CPU + internet, NO gasta quota GPU**), objetivo
+    12K tareas verificadas → jsonl en el output, que se adjunta al SFT de la Fase C.
+- **Siguiente: Fase C** (SFT sobre la data compositiva + re-probe del hit rate).
