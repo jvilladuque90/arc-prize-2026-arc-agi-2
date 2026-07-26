@@ -240,3 +240,10 @@ from scratch) to exceed the public models' ceiling.
   validated offline (loss 1.65→1.08). Key config: standard image, transformers+peft, `device_map=auto`
   (spreads the 8B across 4 L4s, no bitsandbytes), device-aware `DevTrainer` for the loss. Next:
   **Phase B** — compositional data-gen (compose seeds → 2-step AGI-2-style tasks).
+- **2026-07-25/26. Phases B and C executed.** **Phase B:** our own compositor
+  (`src/arc/seedgen.py`) chains BARC's executable seeds (A→B) → **13,271 VERIFIED 2-step tasks**
+  (the composed program reproduces every pair → data correct by construction), 128 concepts, 6,037
+  distinct seed pairs, generated **without any LLM and without spending GPU quota** (CPU kernel).
+  **Phase C:** LoRA r=32 SFT, 900 steps on that data mixed with ~25% original (anti-forgetting) →
+  **loss 4.07 → 0.50**; the high initial loss confirms the compositional data is genuinely new to
+  the model. Pending: the verifiable-hit-rate A/B (probe with adapter) vs the frozen 6.25%.

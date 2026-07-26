@@ -85,4 +85,16 @@ ejecutar programas compuestos y validar (consistencia en train pairs, no-trivial
     directo al SFT de la Fase A.
   - Ejecución a escala: kernel `barc-datagen` (**CPU + internet, NO gasta quota GPU**), objetivo
     12K tareas verificadas → jsonl en el output, que se adjunta al SFT de la Fase C.
-- **Siguiente: Fase C** (SFT sobre la data compositiva + re-probe del hit rate).
+- **Fase B — COMPLETA (2026-07-25).** Kernel `barc-datagen` (CPU+internet, 0 quota GPU) generó
+  **13.271 tareas compuestas VERIFICADAS** (205 MB) en ~1.7h: **128 conceptos distintos**, **6.037
+  pares de seeds distintos** (máx. repetición de un par: 9 → alta diversidad). Formato chat de BARC.
+- **Fase C — SFT COMPLETO (2026-07-26).** Kernel `barc-sft-c`: LoRA r=32, 900 steps sobre 13.290
+  ejemplos = data compositiva + ~25% de data original de BARC (mezcla anti-olvido, estilo
+  `dataset_mixer`). **Loss 4.07 → 0.50.** La loss inicial alta (4.07 vs 1.65 del de-risk sobre data
+  original) confirma que **la data compositiva es genuinamente nueva para el modelo** — y la aprende.
+  Adapter en el output del kernel.
+  - *Gate resuelto:* Kaggle rotó su imagen "latest" a py3.12 con `torchao 0.10` incompatible con
+    `peft` (>0.16) → `ImportError`. **Usar siempre la imagen pinneada `DOCKER_IMAGE`** para kernels
+    con peft. (La Fase A había funcionado en "latest" cuando aún era py3.11.)
+- **Fase C.2 — EN CURSO:** `barc-probe-lora` (base + adapter) mide el verifiable-hit rate → **A/B
+  contra el 6.25% del modelo congelado**. Es el veredicto de la apuesta.

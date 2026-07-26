@@ -250,3 +250,10 @@ para superar el techo de los modelos públicos.
   LoRA del BARC-8B validado offline (loss 1.65→1.08). Config clave: imagen estándar, transformers+peft,
   `device_map=auto` (reparte el 8B en 4 L4s, sin bitsandbytes), `DevTrainer` device-aware para el loss.
   Siguiente: **Fase B** — data-gen compositiva (componer seeds → tareas AGI-2 de 2 pasos).
+- **2026-07-25/26. Fases B y C ejecutadas.** **Fase B:** compositor propio (`src/arc/seedgen.py`)
+  que encadena seeds ejecutables de BARC (A→B) → **13.271 tareas de 2 pasos VERIFICADAS** (el
+  programa compuesto reproduce todos los pares → data correcta por construcción), 128 conceptos,
+  6.037 pares de seeds, generadas **sin LLM y sin gastar quota GPU** (kernel CPU). **Fase C:** SFT
+  LoRA r=32, 900 steps sobre esa data mezclada con ~25% de la original (anti-olvido) →
+  **loss 4.07 → 0.50**; la loss inicial alta confirma que la data compositiva es nueva para el
+  modelo. Pendiente: el A/B del verifiable-hit rate (probe con adapter) vs el 6.25% congelado.
