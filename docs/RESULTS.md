@@ -127,7 +127,21 @@ Ver [[arc-leaderboard-landscape]].
 |---|---|---|---|
 | 2026-07-23 | **BARC-8B inducción, verifiable-hit rate en ARC-AGI-2** (N=16, K=16, eval) | **6.25%** (1/16), y ese 1 **generalizó** (1/1) | Copia propia del modelo (repo HF abierto; la de ironbar en Kaggle está gated por Llama). ~8 gates de integración offline + un bug clave: `common.py` de master usa TEAL/MAROON pero el modelo usa PURPLE/BROWN → 0% falso; parcheado. **Validado:** el pipeline generar→ejecutar→verificar-en-train→aplicar FUNCIONA y **generaliza** (train-pass → test-correct). **Pero:** BARC congelado ≈6% en AGI-2 (el "cliff"; es un modelo 2024/AGI-1) y **caro** (485s/tarea a K=16). |
 
-| 2026-07-26 | SFT compositivo (Paso 3) — medición con `MAX_NEW=1024` | **INVÁLIDA** (0/16) | ⚠️ **Artefacto de medición, no resultado.** El modelo SFT'd genera programas más largos (4000+ chars) y se **truncaban antes de cerrar el bloque ```**, así que `parse_code` devolvía `None` → 0 programas extraíbles. Diagnosticado con un probe barato (N=2,K=2,DEBUG): `len(raw)=4596 \| parse_code=None`. **Lección: al cambiar la distribución de salida con SFT, hay que revisar los límites de decodificación del evaluador** — si no, se mide el evaluador, no el modelo. Re-medición con `MAX_NEW=2048` en curso. |
+| 2026-07-26 | SFT compositivo (Paso 3) — medición con `MAX_NEW=1024` | **INVÁLIDA** (0/16) | ⚠️ **Artefacto de medición, no resultado.** El modelo SFT'd genera programas más largos (4000+ chars) y se **truncaban antes de cerrar el bloque ```**, así que `parse_code` devolvía `None` → 0 programas extraíbles. Diagnosticado con un probe barato (N=2,K=2,DEBUG): `len(raw)=4596 \| parse_code=None`. **Lección: al cambiar la distribución de salida con SFT, hay que revisar los límites de decodificación del evaluador** — si no, se mide el evaluador, no el modelo. |
+| 2026-07-27 | **SFT compositivo — re-medición con `MAX_NEW=2048`** (cancelada en 5/16) | **0/16 en 5 tareas** (80 generaciones) | ❌ **Negativo real.** Con la truncación arreglada los programas **sí se extraen y ejecutan** (evidencia: RuntimeWarnings de `common.py`/`<string>` al correrlos), pero **ninguno resuelve la tarea**. Cancelado a las 5/16 (~1.074 s/tarea): con el base en 1/16, **n=16 a tasas del ~6% no tiene poder estadístico** para distinguir los modelos → el número final no cambiaba la decisión. |
+
+**Conclusión del Paso 3 (SFT compositivo): la data era correcta pero no útil.** Tres lecciones
+transversales, todas medidas:
+1. **Verificable ≠ útil.** Las 13.271 tareas eran correctas por construcción (100% verificadas),
+   pero encadenar dos seeds *aleatorias* no produce tareas **ARC-like**: las reales tienen una regla
+   coherente e inferible, una cadena de dos transformaciones sin relación semántica a menudo no lo
+   es. El SFT aprendió la **forma** (programas de dos partes `_step_a`/`_step_b`) y no razonamiento
+   útil. *Corolario: la corrección de la data sintética no implica su relevancia distribucional.*
+2. **El instrumento de medida es parte del experimento.** Cambiar la distribución de salida con SFT
+   invalidó los límites de decodificación del evaluador; la primera medición midió el evaluador.
+3. **Poder estadístico.** Un probe de n=16 sobre tasas del ~6% no puede distinguir 0/16 de 1/16.
+   Para decidir sobre mejoras pequeñas hace falta n mucho mayor (caro: ~1.000 s/tarea) o
+   una métrica más densa que el exact-match por tarea.
 
 **Conclusión FASE 0.** La síntesis de programas verificable **funciona offline y su verificación es
 fiable** (train-pass generalizó). Pero el modelo BARC **congelado** es débil en AGI-2 (~6%) y caro,
