@@ -127,6 +127,8 @@ Ver [[arc-leaderboard-landscape]].
 |---|---|---|---|
 | 2026-07-23 | **BARC-8B inducción, verifiable-hit rate en ARC-AGI-2** (N=16, K=16, eval) | **6.25%** (1/16), y ese 1 **generalizó** (1/1) | Copia propia del modelo (repo HF abierto; la de ironbar en Kaggle está gated por Llama). ~8 gates de integración offline + un bug clave: `common.py` de master usa TEAL/MAROON pero el modelo usa PURPLE/BROWN → 0% falso; parcheado. **Validado:** el pipeline generar→ejecutar→verificar-en-train→aplicar FUNCIONA y **generaliza** (train-pass → test-correct). **Pero:** BARC congelado ≈6% en AGI-2 (el "cliff"; es un modelo 2024/AGI-1) y **caro** (485s/tarea a K=16). |
 
+| 2026-07-26 | **SFT compositivo (Paso 3, Fases B+C)** — BARC-8B + LoRA r=32 sobre 13.271 tareas compuestas de 2 pasos (+25% data original) | **0/16 (0%)** vs 6.25% del congelado | ❌ **El SFT DEGRADÓ el modelo.** SFT limpio (loss 4.07→0.50) y adapter cargado/fusionado OK, pero el modelo SFT'd produjo **0 programas train-correct en 256 generaciones** (el base producía algunos). No es ruido: es un cero duro. Hipótesis (en diagnóstico): (a) **truncación** — los programas compuestos son ~2× más largos y el probe corta a 1024 tokens; (b) **overfit de plantilla** — la data enseña una forma rígida (`_step_a`+`_step_b`+dispatcher) ajena a las soluciones reales; (c) LoRA demasiado agresiva (r=32, lr=1e-4, 900 steps). |
+
 **Conclusión FASE 0.** La síntesis de programas verificable **funciona offline y su verificación es
 fiable** (train-pass generalizó). Pero el modelo BARC **congelado** es débil en AGI-2 (~6%) y caro,
 así que como partner de híbrido *congelado* enfrenta el MISMO impuesto de cobertura que el TRM
