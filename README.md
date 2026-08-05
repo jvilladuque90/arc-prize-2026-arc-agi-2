@@ -38,35 +38,49 @@ Estructura (en `data/`):
 - `arc-agi_test_challenges.json` — copia pública del set de test (el privado real está oculto).
 - `sample_submission.json` — formato de entrega: `{task_id: [{"attempt_1": grid, "attempt_2": grid}, ...]}`.
 
-## Estrategia
+## Estrategia y estado actual
 
-Estrategia de **dos vías convergentes** (desde 2026-07-11; detalle en
-[`docs/STRATEGY.md`](docs/STRATEGY.md) y auditoría en [`docs/LB33_AUDIT.md`](docs/LB33_AUDIT.md)):
+> 📘 **Explicación técnica extensa** — el problema, **cada táctica de entrenamiento e inferencia**
+> (SFT, LoRA, TTT, aumentación, decodificación DFS, re-scoring, selección, síntesis verificable,
+> data-gen compositiva) y dónde estamos: **[`docs/TACTICAS.md`](docs/TACTICAS.md)**
+> (EN: [`docs/TACTICS.md`](docs/TACTICS.md)).
+> Narrativa y resultados: [`docs/working_note_es.md`](docs/working_note_es.md) ·
+> Números duros: [`docs/RESULTS.md`](docs/RESULTS.md) ·
+> Auditoría del baseline: [`docs/LB33_AUDIT.md`](docs/LB33_AUDIT.md).
 
-- **Vía A — Baseline LB33/NVARC (~33% LB):** el checkpoint open-source del 1º puesto 2025
-  (`sorokin/qwen3_4b_grids15_sft139`, Apache 2.0) con su pipeline público de TTT + DFS,
-  **auditado limpio** de hardcode/leakage. Es el control a superar, no solo a igualar.
-- **Vía B — Pipeline propio (`src/arc/`):** LLM pequeño + LoRA SFT + TTT por tarea +
-  inferencia multi-candidato con **scoring por log-verosimilitud augmentada** + runner
-  multi-GPU con presupuesto por tiers. Aporta los *injertos* que LB33 no tiene (cobertura
-  bajo presupuesto, selección de attempts) y, a medio plazo, un segundo modelo limpio para
-  ensemble y validación.
+**Campeón actual: 30.14%** (LB semi-privado) = pipeline LB33/NVARC + nuestro injerto `cheap-first`.
+Ese score coincide con el nivel del **ganador privado 2025** (NVARC, 24.03%), cuyo checkpoint
+reutilizamos.
 
 ```mermaid
 flowchart TB
-    subgraph VIA_A["Vía A — Baseline LB33 (auditada, ~33% LB)"]
-        NV["Checkpoint NVARC<br/>Qwen3-4B sft139 · Apache 2.0"] --> LB33["lb33_baseline.ipynb<br/>TTT LoRA r=256 + DFS determinista<br/>+ re-scoring augmentado"]
+    subgraph PIPE["Pipeline desplegado (campeón, 30.14%)"]
+        direction TB
+        Q["Checkpoint NVARC<br/>Qwen3-4B SFT'd en grids · Apache 2.0"]
+        CF["Cola <b>cheap-first</b><br/>(barata→cara por celdas)<br/>★ único injerto que funcionó: +1.67"]
+        TTT["<b>TTT</b> por tarea (×4 workers)<br/>LoRA r=256 · 16 augmentaciones · 1 época"]
+        DFS["<b>turbo-DFS</b><br/>búsqueda podada por prob. acumulada<br/>sobre 12 tokens ARC"]
+        RS["<b>Re-scoring</b> por consistencia<br/>bajo 8 augmentaciones"]
+        SEL["<b>Selección</b> top-2<br/>(consenso: score_kgmon)"]
+        Q --> CF --> TTT --> DFS --> RS --> SEL --> SUB["submission.json"]
     end
-    subgraph VIA_B["Vía B — Pipeline propio (src/arc)"]
-        Q3["Qwen2.5-3B-Instruct"] --> SFT["LoRA SFT r=16<br/>aug D4×color + sintético"]
-        SFT --> TTT["TTT por tarea<br/>snapshot/restore"]
-        TTT --> SCORE["Multi-candidato +<br/>scoring por verosimilitud"]
-    end
-    SCORE -- "injertos: tiers, cobertura, attempts" --> INJ["LB33 + injertos"]
-    LB33 -- "motor de candidatos" --> INJ
-    INJ --> ENS["Ensemble: pool conjunto de candidatos,<br/>re-scoring único"]
-    ENS --> SUB["submission.json → leaderboard"]
 ```
+
+**Las tres conclusiones estructurales** (todas medidas en el LB, detalle en `TACTICAS.md` §16):
+
+1. **El modelo fuerte quiere todo el cómputo.** Dos ensembles con partners más débiles (Qwen3-2B,
+   TRM 7M) fallaron por la misma razón: el 4B es *coverage-limited*, así que ceder cómputo le quita
+   cobertura y el partner no la repone. → No reintentar ensembles con partners débiles.
+2. **El punto de operación del tiempo ya es óptimo.** Más tiempo/tarea → −2.08; menos → degradación
+   severa. Ambas direcciones empeoran.
+3. **Estamos en el techo del paradigma equivocado.** La transducción pura capa en ~40%; los
+   ganadores son **híbridos** (inducción + transducción + TTT).
+
+**Paso 3 (SFT de inducción con data sintética propia) — ejecutado y cerrado con negativo:**
+generamos **13.271 tareas compositivas verificadas** sin LLM ni quota GPU, el SFT entrenó limpio
+(loss 4.07→0.50), pero el A/B dio **0/16 vs 1/16** del modelo congelado. Causa raíz:
+**verificable ≠ útil** — encadenar seeds aleatorias da tareas correctas pero no *ARC-like*, y el
+modelo aprendió la forma en vez del razonamiento. Infraestructura reutilizable documentada.
 
 > ⚠️ **Validación:** el checkpoint NVARC **incluyó el eval público en su SFT** → nunca medir
 > mejoras contra `arc-agi_evaluation_challenges.json` con ese modelo. Held-out limpio: split
@@ -120,10 +134,24 @@ pusheados headless por CLI con la imagen Docker pineada y `machine_shape: Nvidia
 ## Estructura del repo
 
 ```
-src/arc/            Paquete Python: carga de datos, serialización, augmentación, métrica
-scripts/            Utilidades CLI (descarga de datos, preparación de dataset de fine-tune)
-docs/               Notas de estrategia y diseño
-notebooks/          Notebook(s) de entrega para Kaggle
+src/arc/            Paquete Python
+  ├─ seedgen.py       Generador de data compositiva VERIFICADA (compone seeds ejecutables A→B)
+  ├─ holdout.py       Split held-out determinista (hash estable entre procesos)
+  ├─ select.py        Scorers de selección de attempts (kgmon, probmul y variantes)
+  └─ infer/model/…    Pipeline propio: TTT, inferencia multi-candidato, runner multi-GPU
+vendor/barc/        Recursos vendorizados de BARC
+  ├─ common.py        Librería de primitivas ARC que usan los programas generados (1.551 líneas)
+  └─ seeds/           163 seeds ejecutables (generate_input + main) para la data-gen compositiva
+scripts/            Utilidades CLI (descarga de datos, push de kernels a Kaggle)
+docs/               Documentación
+  ├─ TACTICAS.md / TACTICS.md   ★ Explicación técnica extensa (problema + todas las tácticas)
+  ├─ working_note_es/en.md      Working note (narrativa, estrategias exitosas y fallidas)
+  ├─ RESULTS.md                 Registro de cada medición en el leaderboard
+  ├─ SFT_PLAN.md                Plan y estado del Paso 3 (SFT de inducción)
+  ├─ PROGRAM_SYNTHESIS.md       Receta de síntesis de programas verificable (BARC)
+  ├─ LB33_AUDIT.md              Auditoría del baseline adoptado (limpio de hardcode/leakage)
+  └─ STRATEGY.md                Estrategia histórica
+notebooks/          Notebooks de Kaggle (submission, probes, SFT, data-gen)
 data/               Datos de la competencia (NO versionado)
 ```
 

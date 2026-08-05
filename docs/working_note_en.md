@@ -5,7 +5,9 @@
 
 > Living document. Goal: **win**, not merely participate. Updated with every experiment —
 > problem, features, successful/failed strategies, results, metrics, process. Hard numbers in
-> [RESULTS.md](RESULTS.md); companion docs [PROGRAM_SYNTHESIS.md](PROGRAM_SYNTHESIS.md),
+> [RESULTS.md](RESULTS.md). **Extended technical explanation of every training/inference tactic and
+> of the problem: [TACTICS.md](TACTICS.md)** (Spanish: [TACTICAS.md](TACTICAS.md)).
+> Companion docs: [PROGRAM_SYNTHESIS.md](PROGRAM_SYNTHESIS.md), [SFT_PLAN.md](SFT_PLAN.md),
 > [LB33_AUDIT.md](LB33_AUDIT.md), [STRATEGY.md](STRATEGY.md).
 
 ---
@@ -117,6 +119,9 @@ A frozen ARC-SFT transduction tracker with a coverage graft:
              ─▶ SELECT top-2 (score_kgmon) ─▶ submission (attempt_1, attempt_2)
 ```
 
+> **Every component (TTT, LoRA, DFS, re-scoring, selection, cheap-first) is explained in depth in
+> [TACTICS.md](TACTICS.md) — what it is, why it exists, how we implement it.**
+
 We adopted the public LB33 fork of the NVARC recipe (audited clean — no hardcoding/leakage; see
 LB33_AUDIT.md), reusing the `sorokin/qwen3_4b_grids15_sft139` checkpoint. The **only** change that
 survived the public test is **cheap-first ordering** (§4): sort the task queue cheap→expensive so
@@ -205,7 +210,13 @@ measuring at each gate.
 worth +20–30 pt in the winning recipe. Automatic, cheap, per-task; applied to induction and/or
 transduction as measurements dictate.
 
-**Step 3 — Own SFT with synthetic data (the long, decisive work).** Replicate NVARC's core:
+**Step 3 — Own SFT with synthetic data — EXECUTED AND CLOSED WITH A NEGATIVE (2026-07-27).**
+Outcome: we generated **13,271 verified compositional tasks** with no LLM and no GPU quota, and the
+SFT trained cleanly (loss 4.07→0.50), but the A/B gave **0/16 vs the frozen model's 1/16**. Root
+cause: **verifiable ≠ useful** (see §4 and [TACTICS.md](TACTICS.md) §12). Original plan below; the
+infrastructure built remains reusable.
+
+**Step 3 (original plan) — Own SFT with synthetic data.** Replicate NVARC's core:
 **generate 100–266K synthetic puzzles** (RE-ARC / BARC-Potpourri / concept-mixing, validated
 against specs) and **continue-SFT** the weights (starting from an already-ARC-SFT'd checkpoint, not
 from scratch) to exceed the public models' ceiling.

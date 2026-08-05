@@ -5,7 +5,9 @@
 
 > Documento vivo. Objetivo: **ganar**, no solo participar. Se actualiza con cada experimento —
 > problema, features, estrategias exitosas/fallidas, resultados, métricas, proceso. Números duros en
-> [RESULTS.md](RESULTS.md); docs acompañantes [PROGRAM_SYNTHESIS.md](PROGRAM_SYNTHESIS.md),
+> [RESULTS.md](RESULTS.md). **Explicación técnica extensa de cada táctica de entrenamiento e
+> inferencia y del problema: [TACTICAS.md](TACTICAS.md)** (en inglés: [TACTICS.md](TACTICS.md)).
+> Docs acompañantes: [PROGRAM_SYNTHESIS.md](PROGRAM_SYNTHESIS.md), [SFT_PLAN.md](SFT_PLAN.md),
 > [LB33_AUDIT.md](LB33_AUDIT.md), [STRATEGY.md](STRATEGY.md).
 
 ---
@@ -120,6 +122,9 @@ Un tracker de transducción ARC-SFT congelado con un injerto de cobertura:
               ─▶ SELECT top-2 (score_kgmon) ─▶ submission (attempt_1, attempt_2)
 ```
 
+> **Cada componente (TTT, LoRA, DFS, re-scoring, selección, cheap-first) está explicado en detalle
+> en [TACTICAS.md](TACTICAS.md) — qué es, por qué existe y cómo lo implementamos.**
+
 Adoptamos el fork público LB33 de la receta NVARC (auditado limpio — sin hardcode/leakage; ver
 LB33_AUDIT.md), reutilizando el checkpoint `sorokin/qwen3_4b_grids15_sft139`. El **único** cambio
 que sobrevivió el test público es **cheap-first** (§4): ordenar la cola barata→cara para drenar más
@@ -211,7 +216,13 @@ primero, midiendo en cada gate.
 vale +20–30 pt en la receta ganadora. Automático, barato, por-tarea; aplicado a inducción y/o
 transducción según midan los datos.
 
-**Paso 3 — SFT propio con data sintética (el trabajo largo y decisivo).** Replicar el núcleo de
+**Paso 3 — SFT propio con data sintética — EJECUTADO Y CERRADO CON NEGATIVO (2026-07-27).**
+Resultado: generamos **13.271 tareas compositivas verificadas** sin LLM ni quota GPU y el SFT
+entrenó limpio (loss 4.07→0.50), pero el A/B dio **0/16 vs 1/16 del congelado**. Causa raíz
+diagnosticada: **verificable ≠ útil** (ver §4 y [TACTICAS.md](TACTICAS.md) §12). Detalle original
+del plan abajo; la infraestructura construida queda reutilizable.
+
+**Paso 3 (plan original) — SFT propio con data sintética.** Replicar el núcleo de
 NVARC: **generar 100–266K puzzles sintéticos** (RE-ARC / BARC-Potpourri / concept-mixing, validados
 contra specs) y **continuar-SFT** los pesos (partiendo de un checkpoint ya-SFT'd en ARC, no de cero)
 para superar el techo de los modelos públicos.
