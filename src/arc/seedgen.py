@@ -62,8 +62,22 @@ def _extract_block(src: str, header: str) -> str:
     return " ".join(x.strip() for x in lines if x.strip()).strip()
 
 
+# El modelo BARC fue entrenado con el vocabulario de colores RENOMBRADO (su gen_dataset
+# aplica Teal→Purple, Maroon→Brown, Grey→Gray en código y descripciones). Los seeds del
+# repo usan los nombres viejos; renombramos al cargar para casar la distribución del modelo.
+_COLOR_RENAMES = (("teal", "purple"), ("grey", "gray"), ("maroon", "brown"))
+
+
+def _rename_colors(src: str) -> str:
+    for old, new in _COLOR_RENAMES:
+        for o, n in ((old, new), (old.capitalize(), new.capitalize()),
+                     (old.upper(), new.upper())):
+            src = re.sub(rf"\b{o}\b", n, src)
+    return src
+
+
 def parse_seed(path: Path) -> Seed:
-    src = _strip_scaffold(path.read_text(encoding="utf-8", errors="replace"))
+    src = _rename_colors(_strip_scaffold(path.read_text(encoding="utf-8", errors="replace")))
     concepts_raw = _extract_block(src, "concepts")
     concepts = [c.strip() for c in concepts_raw.split(",") if c.strip()]
     return Seed(name=path.stem, concepts=concepts,
@@ -94,6 +108,37 @@ class time_limit:
         if self.ok:
             signal.alarm(0)
         return False
+
+
+def call_with_timeout(fn, args=(), timeout: int = 5):
+    """Ejecuta fn(*args) con timeout PORTABLE.
+
+    POSIX (Kaggle): SIGALRM — barato y mata de verdad la ejecución.
+    Windows (desarrollo local): thread daemon abandonado si excede — el runaway queda
+    quemando CPU hasta que muera solo, pero el flujo principal continúa. Necesario porque
+    algunos seeds tienen bucles de reintento que no terminan con inputs fuera de su
+    distribución (p.ej. el chequeo de visibilidad ejecuta main_B sobre inputs crudos)."""
+    if hasattr(signal, "SIGALRM"):
+        with time_limit(timeout):
+            return fn(*args)
+    import threading
+
+    box: dict[str, Any] = {}
+
+    def _run():
+        try:
+            box["v"] = fn(*args)
+        except BaseException as e:  # noqa: BLE001
+            box["e"] = e
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    t.join(timeout)
+    if t.is_alive():
+        raise _Timeout()
+    if "e" in box:
+        raise box["e"]
+    return box.get("v")
 
 
 def load_common() -> str:
@@ -140,9 +185,8 @@ def try_seed(seed: Seed, common_src: str, n: int = 3, timeout: int = 5) -> Seed:
             seed.err = "sin generate_input/main"
             return seed
         for _ in range(n):
-            with time_limit(timeout):
-                gi = np.array(gen())
-                go = np.array(main(np.copy(gi)))
+            gi = np.array(call_with_timeout(gen, timeout=timeout))
+            go = np.array(call_with_timeout(main, (np.copy(gi),), timeout))
             if valid_grid(gi) and valid_grid(go):
                 seed.samples.append((gi, go))
         seed.ok = len(seed.samples) >= 2
@@ -162,13 +206,59 @@ def load_seeds(limit: int | None = None) -> list[Seed]:
 
 # ---------------------------------------------------------------- composición
 
+# --- v2: compatibilidad semántica ---------------------------------------------
+# Lección del A/B v1 (0/16): encadenar dos seeds ALEATORIAS produce tareas correctas pero
+# no ARC-like — sin una regla coherente inferible. v2 solo compone pares que (a) comparten
+# temática, o (b) cuyo segundo paso es una operación GLOBAL (geometría/color) que mantiene
+# visible el efecto del primero (la regla compuesta "haz A y luego rota/recolorea" sí es
+# inferible por un humano).
+
+_CATS = {
+    "geometry": ("symmetry", "rotation", "reflection", "mirror", "translation", "scaling",
+                 "transpose", "flip"),
+    "color": ("color",),
+    "objects": ("object", "sprite", "shape", "attraction", "collision"),
+    "pattern": ("pattern", "repetition", "tiling", "fractal", "repeating"),
+    "draw": ("line", "fill", "draw", "border", "frame", "growing"),
+    "topology": ("topology", "connect", "contain", "inside", "boundary", "hole",
+                 "occlusion"),
+    "count": ("counting", "count", "size"),
+}
+
+# categorías cuyo efecto como SEGUNDO paso es global y no destruye la evidencia del primero
+_GLOBAL_SECOND = {"geometry", "color"}
+
+
+def seed_categories(seed: Seed) -> set[str]:
+    cats: set[str] = set()
+    text = " ".join(seed.concepts).lower()
+    for cat, kws in _CATS.items():
+        if any(kw in text for kw in kws):
+            cats.add(cat)
+    return cats
+
+
+def compatible(a: Seed, b: Seed) -> bool:
+    """¿La composición A→B tiene posibilidades de ser una tarea coherente/inferible?"""
+    ca, cb = seed_categories(a), seed_categories(b)
+    if cb & _GLOBAL_SECOND:                      # 2º paso global → siempre inferible
+        return True
+    if ca & cb:                                  # temática compartida
+        return True
+    return bool(set(c.lower() for c in a.concepts) & set(c.lower() for c in b.concepts))
+
+
 def compose_task(a: Seed, b: Seed, common_src: str, n_pairs: int = 4,
-                 timeout: int = 5, seed_val: int | None = None) -> dict | None:
+                 timeout: int = 5, seed_val: int | None = None,
+                 require_compatible: bool = True) -> dict | None:
     """Compone A→B: input ← genA(), x ← mainA(input), output ← mainB(x).
 
     Devuelve una tarea {train:[{input,output}...], test:[...]} + el programa compuesto,
-    o None si la composición no es válida (crashea, degenera o es trivial).
+    o None si la composición no es válida (crashea, degenera, es trivial, incompatible
+    semánticamente, o el efecto de A no sobrevive a B).
     """
+    if require_compatible and not compatible(a, b):
+        return None
     if seed_val is not None:
         random.seed(seed_val)
         np.random.seed(seed_val % (2**32))
@@ -182,19 +272,18 @@ def compose_task(a: Seed, b: Seed, common_src: str, n_pairs: int = 4,
         return None
 
     pairs: list[tuple[np.ndarray, np.ndarray]] = []
-    n_noop_a = n_noop_b = 0
+    n_noop_a = n_noop_b = n_invisible_a = 0
     for _ in range(n_pairs * 4):  # margen: muchas ejecuciones fallan
         if len(pairs) >= n_pairs + 1:
             break
         try:
-            with time_limit(timeout):
-                gi = np.array(gen_a())
-                if not valid_grid(gi):
-                    continue
-                mid = np.array(main_a(np.copy(gi)))
-                if not valid_grid(mid):
-                    continue
-                go = np.array(main_b(np.copy(mid)))
+            gi = np.array(call_with_timeout(gen_a, timeout=timeout))
+            if not valid_grid(gi):
+                continue
+            mid = np.array(call_with_timeout(main_a, (np.copy(gi),), timeout))
+            if not valid_grid(mid):
+                continue
+            go = np.array(call_with_timeout(main_b, (np.copy(mid),), timeout))
             if not valid_grid(go):
                 continue
             if np.array_equal(gi, go):  # identidad: tarea trivial
@@ -204,6 +293,16 @@ def compose_task(a: Seed, b: Seed, common_src: str, n_pairs: int = 4,
             # cada paso debe HACER algo (si no, la tarea no es realmente compositiva)
             n_noop_a += int(np.array_equal(gi, mid))
             n_noop_b += int(np.array_equal(mid, go))
+            # v2 — VISIBILIDAD: el efecto de A debe sobrevivir A TRAVÉS de B. Si B(input)
+            # da lo mismo que B(A(input)), el paso A es invisible en el output y la tarea
+            # colapsa a una de 1 paso (no compositiva de verdad). B(input) puede crashear
+            # (la distribución de A difiere de la de gen_B) — eso cuenta como "visible".
+            try:
+                direct_b = np.array(call_with_timeout(main_b, (np.copy(gi),), timeout))
+                if valid_grid(direct_b) and np.array_equal(direct_b, go):
+                    n_invisible_a += 1
+            except BaseException:
+                pass
             pairs.append((gi, go))
         except BaseException:
             continue
@@ -212,6 +311,9 @@ def compose_task(a: Seed, b: Seed, common_src: str, n_pairs: int = 4,
         return None
     # ambos pasos deben aportar en la mayoria de los pares (si no, es una tarea de 1 paso)
     if n_noop_a > len(pairs) // 2 or n_noop_b > len(pairs) // 2:
+        return None
+    # v2: el efecto de A debe ser visible en el output en la mayoría de los pares
+    if n_invisible_a > len(pairs) // 2:
         return None
     # no-degenerada: los outputs no pueden ser todos idénticos entre sí
     if all(np.array_equal(pairs[0][1], p[1]) for p in pairs[1:]):
@@ -246,10 +348,46 @@ def _body_without_common_imports(src: str) -> str:
     return "\n".join(out).strip("\n")
 
 
+def _strip_seed_header(src: str) -> str:
+    """Quita los bloques `# concepts:` y `# description:` propios del seed (el programa
+    compuesto lleva su propio header fusionado; dos headers intermedios son ruido de forma)."""
+    src = re.sub(r"#[ \t]*concepts:[ \t]*\n(?:[ \t]*#.*\n)+", "", src)
+    src = re.sub(r"#[ \t]*description:[ \t]*\n(?:[ \t]*#.*\n)+", "", src)
+    return src.strip("\n")
+
+
+def _helper_name(seed: Seed, taken: set[str]) -> str:
+    """Nombre natural para el paso, derivado de su primer concepto:
+    'color change' -> apply_color_change. Evita colisiones con sufijo numérico."""
+    base = (seed.concepts[0] if seed.concepts else seed.name).lower()
+    slug = re.sub(r"[^a-z0-9]+", "_", base).strip("_") or "step"
+    name = f"apply_{slug}"
+    n = 2
+    while name in taken:
+        name = f"apply_{slug}_{n}"
+        n += 1
+    taken.add(name)
+    return name
+
+
+def _first_sentence(text: str, limit: int = 140) -> str:
+    s = text.split(". ")[0].strip().rstrip(".")
+    return (s[: limit - 1] + "…") if len(s) > limit else s
+
+
 def compose_program(a: Seed, b: Seed) -> str:
-    """Emite el programa compuesto: `transform` = mainB(mainA(x)), con ambos cuerpos."""
-    body_a = _rename_main(_body_without_common_imports(a.source), "_step_a")
-    body_b = _rename_main(_body_without_common_imports(b.source), "_step_b")
+    """Emite el programa compuesto con FORMA NATURAL (v2).
+
+    v1 emitía dos cuerpos verbatim (con sus propios headers) + un dispatcher `_step_a/_step_b`
+    — el A/B mostró que el modelo aprendía esa plantilla, no el razonamiento. v2: un solo
+    header fusionado, helpers con nombres semánticos y un `transform` que se lee como una
+    solución secuencial de dos etapas (la forma que tienen los programas multi-paso reales
+    de BARC)."""
+    taken: set[str] = set()
+    name_a = _helper_name(a, taken)
+    name_b = _helper_name(b, taken)
+    body_a = _rename_main(_strip_seed_header(_body_without_common_imports(a.source)), name_a)
+    body_b = _rename_main(_strip_seed_header(_body_without_common_imports(b.source)), name_b)
     concepts = ", ".join(sorted(set(a.concepts) | set(b.concepts)))
     desc = f"First, {a.description.rstrip('.')}. Then, {b.description.rstrip('.')}."
     return (
@@ -258,9 +396,11 @@ def compose_program(a: Seed, b: Seed) -> str:
         f"# description:\n# {desc}\n\n"
         f"{body_a}\n\n{body_b}\n\n"
         "def transform(input_grid):\n"
-        "    # apply the two transformations in sequence\n"
-        "    intermediate = _step_a(np.copy(input_grid))\n"
-        "    return _step_b(np.array(intermediate))\n"
+        f"    # Step 1: {_first_sentence(a.description)}\n"
+        f"    grid = {name_a}(np.copy(input_grid))\n"
+        f"    # Step 2: {_first_sentence(b.description)}\n"
+        f"    output_grid = {name_b}(np.array(grid))\n"
+        "    return output_grid\n"
     )
 
 
@@ -324,8 +464,7 @@ def verify_program(program: str, task: dict, common_src: str, timeout: int = 5) 
         if not callable(fn):
             return False
         for pair in task["train"] + task["test"]:
-            with time_limit(timeout):
-                got = np.array(fn(np.array(pair["input"])))
+            got = np.array(call_with_timeout(fn, (np.array(pair["input"]),), timeout))
             if not np.array_equal(got, np.array(pair["output"])):
                 return False
         return True
