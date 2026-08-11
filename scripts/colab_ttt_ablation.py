@@ -21,7 +21,10 @@ TOKEN = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("KAGGLE_API_TOKEN",
 assert TOKEN, "pasa el KAGGLE_API_TOKEN como argv[1]"
 os.environ["KAGGLE_API_TOKEN"] = TOKEN
 
-subprocess.run([sys.executable, "-m", "pip", "install", "-q", "peft", "kaggle"], check=True)
+# torchao>=0.16: la imagen de Colab trae 0.10, incompatible con peft (mismo bug que en Kaggle,
+# pero aqui pip es libre y se arregla en una linea)
+subprocess.run([sys.executable, "-m", "pip", "install", "-q", "peft", "kaggle",
+                "torchao>=0.16"], check=True)
 
 os.makedirs("/content", exist_ok=True)
 os.chdir("/content")
