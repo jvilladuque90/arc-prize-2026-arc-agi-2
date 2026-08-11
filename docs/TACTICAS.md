@@ -404,7 +404,7 @@ en 5–40%** y muestra que los ganadores son **híbridos** (inducción + transdu
 Nuestro ~30% *es* el nivel del ganador 2025 (cuyo checkpoint usamos). Superarlo requiere cambiar de
 paradigma, no ajustar parámetros.
 
-### 17. Estado del Paso 3 (SFT de inducción) — cerrado con negativo
+### 17. Estado del Paso 3 (SFT de inducción) — CERRADO con DOS negativos (v1 plantilla, v2 estilo; ver RESULTS.md 2026-08-11)
 
 | Fase | Qué era | Estado |
 |---|---|---|

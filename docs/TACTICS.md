@@ -362,7 +362,7 @@ quality loss. **Both directions are worse.**
 the 2025 winner's level (whose checkpoint we use). Beating it requires a paradigm change, not
 parameter tuning.
 
-### 17. Step 3 status (induction SFT) — closed with a negative
+### 17. Step 3 status (induction SFT) — CLOSED with TWO negatives (v1 template, v2 style; see RESULTS.md 2026-08-11)
 
 | Phase | What it was | Status |
 |---|---|---|

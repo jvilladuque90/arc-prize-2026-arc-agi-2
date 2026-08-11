@@ -1,4 +1,12 @@
-# Paso 3 — SFT de la inducción en AGI-2 (plan)
+# Paso 3 — SFT de la inducción en AGI-2 — CERRADO (dos negativos medidos)
+
+> **Estado final (2026-08-11):** vía cerrada tras dos iteraciones honestas. v1 (composición
+> aleatoria): el modelo aprendió la plantilla (0/16 vs 1/16). v2 (composición coherente + forma
+> natural + colores alineados + probe pareado): el modelo aprendió el ESTILO y perdió capacidad
+> base (0 train-correct, exec 80%→50%, generaciones 2.5×). Lección: **distribución sintética ≠
+> real; el SFT sobre tareas compuestas mecánicamente interfiere en vez de ampliar.** La infra
+> (SFT offline de 8B, generador verificado, probe pareado) queda reutilizable. Detalle en
+> RESULTS.md y working notes. Plan original a continuación (histórico).
 
 Objetivo: subir el verifiable-hit rate de la inducción en ARC-AGI-2 de ~6% (BARC congelado,
 medido en FASE 0) a un nivel competitivo, vía **data sintética + SFT** — la apuesta diferenciada
