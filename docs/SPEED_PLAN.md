@@ -108,6 +108,20 @@ mantener el campeón estable, y documentar todo al nivel de writeup** (el Grand 
 Track evalúan el writeup de los ganadores — y nuestra documentación es también material del
 paper track, donde un método/análisis novedoso puede premiar sin top score, como el TRM 2025).
 
+## 4-bis. Runbook del viernes (2026-08-14, reset 19:00) — pre-registrado
+
+Presupuesto: ~2.5 h de L4 + 1 submission. Orden exacto:
+
+1. **19:05 — `lb33-timing` smoke** (~40 min): split real TTT/decode/scoring en 12 tareas.
+2. **Leer el split** y decidir por las reglas de §3-B:
+   - decode ≥ ~50% → `lb33-dfsbatch` (ya construido: fusión 4×4→2×8 + cap 540→1080 que preserva
+     el presupuesto de exploración; único riesgo = memoria KV ~19GB/24GB).
+   - TTT ≥ ~35% → reconsiderar `ttt8` pese a la luz roja del proxy.
+   - Nada domina → registrar y no gastar la submission en velocidad.
+3. **Smoke del injerto elegido** (~30-40 min) — para `dfsbatch`, verificar en el log: memoria pico
+   (`allocated MB for inference`) y tiempo por tarea vs el smoke del campeón.
+4. **Submit A/B** vs 30.14 (slot del día) con las lecturas pre-registradas de §3-C.
+
 ## 5. Registro de resultados de la cadena
 
 | Fecha | Etapa | Resultado | Decisión |
