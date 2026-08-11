@@ -89,10 +89,11 @@ KERNELS = {
     # Descarga un slice de la data de induccion BARC desde HF (para de-risk del SFT). T4+internet.
     "barc-data-dl": {"notebook": "notebooks/barc_data_dl.ipynb", "slug": "arc-agi2-barc-data-dl",
                      "title": "arc agi2 barc data dl", "gpu": False},
-    # Fase B: data-gen compositiva (componer seeds de BARC -> tareas AGI-2 de 2 pasos verificadas).
-    # CPU + internet (NO gasta quota GPU). Output jsonl -> se adjunta al SFT de la Fase C.
+    # Fase B: data-gen compositiva (componer seeds -> tareas AGI-2 de 2 pasos verificadas).
+    # v2-L4: seeds EMBEBIDOS (sin internet) -> corre en L4x4 y aprovecha sus vCPUs (el kernel
+    # CPU solo tiene 4). Gasta ~0.5-1h de quota pero desbloquea el tren SFT->probe horas antes.
     "barc-datagen": {"notebook": "notebooks/barc_datagen.ipynb", "slug": "arc-agi2-barc-datagen",
-                     "title": "arc agi2 barc datagen", "gpu": False},
+                     "title": "arc agi2 barc datagen", "gpu": True},
     # Probe PAREADO base-vs-SFT (mismas tareas, metrica densa, MAX_NEW=2048). Imagen estandar.
     "barc-probe-paired": {"notebook": "notebooks/barc_probe_paired.ipynb",
                           "slug": "arc-agi2-barc-probe-paired", "title": "arc agi2 barc probe paired",
