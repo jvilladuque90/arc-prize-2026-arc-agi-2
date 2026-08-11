@@ -130,7 +130,18 @@ Ver [[arc-leaderboard-landscape]].
 | 2026-07-26 | SFT compositivo (Paso 3) — medición con `MAX_NEW=1024` | **INVÁLIDA** (0/16) | ⚠️ **Artefacto de medición, no resultado.** El modelo SFT'd genera programas más largos (4000+ chars) y se **truncaban antes de cerrar el bloque ```**, así que `parse_code` devolvía `None` → 0 programas extraíbles. Diagnosticado con un probe barato (N=2,K=2,DEBUG): `len(raw)=4596 \| parse_code=None`. **Lección: al cambiar la distribución de salida con SFT, hay que revisar los límites de decodificación del evaluador** — si no, se mide el evaluador, no el modelo. |
 | 2026-07-27 | **SFT compositivo — re-medición con `MAX_NEW=2048`** (cancelada en 5/16) | **0/16 en 5 tareas** (80 generaciones) | ❌ **Negativo real.** Con la truncación arreglada los programas **sí se extraen y ejecutan** (evidencia: RuntimeWarnings de `common.py`/`<string>` al correrlos), pero **ninguno resuelve la tarea**. Cancelado a las 5/16 (~1.074 s/tarea): con el base en 1/16, **n=16 a tasas del ~6% no tiene poder estadístico** para distinguir los modelos → el número final no cambiaba la decisión. |
 
-**Conclusión del Paso 3 (SFT compositivo): la data era correcta pero no útil.** Tres lecciones
+| 2026-08-11 | **SFT compositivo v2** (composición COHERENTE + forma natural + colores alineados + mezcla 1:1; probe PAREADO n=16, K=8, MAX_NEW=2048) | **0 vs 1 train-correct (Δ=−1)** | ❌ **Segundo negativo — cierra la vía.** El SFT entrenó limpio (loss 4.05→0.66) y el probe pareado es metodológicamente sólido (base replica el ancla: 1/16 + generaliza). Pero el SFT'd: exec rate 80%→**50%**, longitud media 2.219→**5.686 chars**, y el sample muestra al modelo **imitando el estilo de la data** ("First…, Then…") en tareas reales. La composición coherente corrigió la forma; el problema es más hondo: **entrenar sobre tareas sintéticas compuestas desplaza el prior del modelo lejos de la distribución real de ARC** (interferencia, no aprendizaje transferible). |
+
+**Conclusión del Paso 3 (SFT compositivo) — CERRADO con dos negativos medidos.** v1 (composición
+aleatoria): el modelo aprendió la *plantilla*. v2 (composición coherente, forma natural, vocabulario
+alineado, mezcla 1:1, probe pareado): el modelo aprendió el *estilo* y perdió capacidad base
+(exec rate a la mitad, generaciones 2.5×más largas, 0 train-correct). **Lección de fondo: la
+distribución sintética ≠ distribución real; el SFT sobre tareas compuestas mecánicamente
+interfiere con la capacidad real en vez de ampliarla.** BARC lo logró con 100K+ tareas generadas
+por GPT-4 imitando la diversidad real — un listón de calidad inalcanzable offline con composición
+mecánica. No iterar más esta vía sin un generador cualitativamente distinto.
+
+**Conclusión del Paso 3 v1 (detalle histórico): la data era correcta pero no útil.** Tres lecciones
 transversales, todas medidas:
 1. **Verificable ≠ útil.** Las 13.271 tareas eran correctas por construcción (100% verificadas),
    pero encadenar dos seeds *aleatorias* no produce tareas **ARC-like**: las reales tienen una regla
