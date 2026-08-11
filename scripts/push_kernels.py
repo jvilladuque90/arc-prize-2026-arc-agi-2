@@ -94,10 +94,11 @@ KERNELS = {
     # CPU solo tiene 4). Gasta ~0.5-1h de quota pero desbloquea el tren SFT->probe horas antes.
     "barc-datagen": {"notebook": "notebooks/barc_datagen.ipynb", "slug": "arc-agi2-barc-datagen",
                      "title": "arc agi2 barc datagen", "gpu": True},
-    # Probe PAREADO base-vs-SFT (mismas tareas, metrica densa, MAX_NEW=2048). Imagen estandar.
+    # Probe PAREADO base-vs-SFT (mismas tareas, metrica densa, MAX_NEW=2048). Imagen PINNEADA:
+    # la "latest" volvio a romper peft (torchao 0.10) tambien en PeftModel.from_pretrained.
     "barc-probe-paired": {"notebook": "notebooks/barc_probe_paired.ipynb",
                           "slug": "arc-agi2-barc-probe-paired", "title": "arc agi2 barc probe paired",
-                          "gpu": True, "docker": "",
+                          "gpu": True,
                           "defaults": {"kernel_source": ["juliancamilovilla/arc-agi2-barc-download",
                                                          "juliancamilovilla/arc-agi2-barc-sft-c"]}},
     # Fase C.2: probe del modelo SFT'd (base + adapter de la Fase C) -> A/B del hit rate vs 6.25%.
