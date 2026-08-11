@@ -284,5 +284,25 @@ para superar el techo de los modelos públicos.
   Construidos para el reset del viernes: (1) **smoke instrumentado** (12 tareas por el espectro de
   coste, split TTT/decode/scoring — dato nunca capturado); (2) **injerto ttt8** (TTT n_aug 16→8,
   un solo número: tarea más barata → más cobertura).
-- *(siguiente: viernes tras el reset — timing smoke ~40min → decidir → A/B del mejor injerto de
-  velocidad en LB vs 30.14)*
+- **2026-08-11 (tarde). Carril Colab operativo — tres entregas gratis en un día.** CLI oficial de
+  Colab headless desde Windows (T4 gratis, 0 quota Kaggle; setup en docs/COLAB.md). (1) Ablación
+  pareada `ttt8`: **luz roja** — ΔNLL(n8) = 48% de ΔNLL(n16): halvar augs halva la adaptación;
+  degradado a "solo si TTT ≥ 35% del tiempo". (2) El bench de `dfsbatch` **cazó un bug de
+  producción** (la fusión ingenua [0,4,2,6] mezcla formas (h,w)/(w,h) en tareas no-cuadradas →
+  tensor irregular → habría crasheado; los 4 lotes del campeón están agrupados por forma a
+  propósito) y luego lo **eliminó** con datos: speedup 1.05× (0.77 en la tarea con DFS real) y KV
+  proyectado en L4 = 39.3 GB > 22 GB. Queda `scoring4` (augs de re-scoring 8→4, pre-testeable con
+  rank-correlation en Colab).
+- **2026-08-11 (noche). Nueva familia paralela: ESCALA (docs/SCALE_PLAN.md).** Hipótesis
+  (propuesta del usuario): el gap con la cabeza es en buena parte **datos sintéticos + escala**,
+  no un método distinto. Los dos negativos de v1/v2 condenan la composición mecánica casera, NO
+  los corpora diversos de 100K+ generados por LLM frontera — el campeón mismo es prueba de que ese
+  SFT funciona. Fuentes verificadas y descargables: ARC-Heavy 139K (HF, streaming), NVARC
+  103K+3.2M (Kaggle), RE-ARC. **D1 lanzado en Colab (gratis)**: 2B campeón + LoRA r=64, curva
+  acumulativa N=0→500→2000 sobre ARC-Heavy, eval densa en las mismas 12 tareas reales de la
+  ablación + 40 sintéticas held-out (separa "aprende la fuente" de "transfiere a AGI-2" — la
+  lección de v1/v2). Cadena pre-registrada: D2 N=8000 → D3 comparación de fuentes (¿qué
+  distribución sintética generaliza a AGI-2?) → D4 = el paso 3 real (SFT del 4B en Kaggle) solo
+  con dos verdes.
+- *(siguiente: leer la curva D1; construir el proxy de scoring4; viernes tras el reset — timing
+  smoke → decidir por las reglas pre-registradas de SPEED_PLAN §4-bis)*
