@@ -69,10 +69,12 @@ _COLOR_RENAMES = (("teal", "purple"), ("grey", "gray"), ("maroon", "brown"))
 
 
 def _rename_colors(src: str) -> str:
+    # fronteras de LETRA (no \b): asi "teal_pixel" -> "purple_pixel", igual que el
+    # color_deterministic de BARC (su regex usa [^a-zA-Z] como frontera).
     for old, new in _COLOR_RENAMES:
         for o, n in ((old, new), (old.capitalize(), new.capitalize()),
                      (old.upper(), new.upper())):
-            src = re.sub(rf"\b{o}\b", n, src)
+            src = re.sub(rf"(?<![a-zA-Z]){o}(?![a-zA-Z])", n, src)
     return src
 
 
