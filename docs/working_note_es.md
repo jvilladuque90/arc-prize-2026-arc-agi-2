@@ -268,3 +268,21 @@ para superar el techo de los modelos públicos.
   LoRA r=32, 900 steps sobre esa data mezclada con ~25% de la original (anti-olvido) →
   **loss 4.07 → 0.50**; la loss inicial alta confirma que la data compositiva es nueva para el
   modelo. Pendiente: el A/B del verifiable-hit rate (probe con adapter) vs el 6.25% congelado.
+- **2026-07-27→08-11. A/B del SFT compositivo — DOS negativos, vía CERRADA.** v1 (composición
+  aleatoria): 0/16 vs 1/16 — el modelo aprendió la *plantilla* (`_step_a/_step_b`); dos artefactos
+  de medición corregidos por el camino (truncación del evaluador; poder estadístico). v2 (rediseño
+  completo: composición semánticamente coherente + filtro de visibilidad + forma natural +
+  vocabulario alineado + mezcla 1:1, evaluado con **probe pareado** — mismas 16 tareas, métrica
+  densa, base replica el ancla 1/16+generaliza): **SFT'd = 0 train-correct (Δ=−1), exec rate
+  80%→50%, generaciones 2.5× más largas, y el modelo imita el estilo de la data ("First…, Then…")
+  en tareas reales.** Lección de fondo: **la distribución sintética ≠ la real — el SFT sobre tareas
+  compuestas mecánicamente desplaza el prior e interfiere con la capacidad base.** BARC necesitó
+  100K+ tareas GPT-4; ese listón no se alcanza offline con composición mecánica.
+- **2026-08-11. Nueva familia de palancas: VELOCIDAD (inexplorada).** Recon fresco del LB: la
+  cabeza se escapa (nvbanana 67.5, rabbithole 47.8), pelotón en 33-34, corte top-8 ~33.5. Todas
+  nuestras perillas medidas cambiaban el *cap* de tiempo, nunca la *eficiencia* por tarea.
+  Construidos para el reset del viernes: (1) **smoke instrumentado** (12 tareas por el espectro de
+  coste, split TTT/decode/scoring — dato nunca capturado); (2) **injerto ttt8** (TTT n_aug 16→8,
+  un solo número: tarea más barata → más cobertura).
+- *(siguiente: viernes tras el reset — timing smoke ~40min → decidir → A/B del mejor injerto de
+  velocidad en LB vs 30.14)*

@@ -258,3 +258,20 @@ from scratch) to exceed the public models' ceiling.
   **Phase C:** LoRA r=32 SFT, 900 steps on that data mixed with ~25% original (anti-forgetting) →
   **loss 4.07 → 0.50**; the high initial loss confirms the compositional data is genuinely new to
   the model. Pending: the verifiable-hit-rate A/B (probe with adapter) vs the frozen 6.25%.
+- **2026-07-27→08-11. Compositional-SFT A/B — TWO negatives, path CLOSED.** v1 (random
+  composition): 0/16 vs 1/16 — the model learned the *template* (two measurement artifacts fixed
+  along the way: evaluator truncation; statistical power). v2 (full redesign: semantically coherent
+  composition + visibility filter + natural form + aligned vocabulary + 1:1 mix, evaluated with a
+  **paired probe** — same 16 tasks, dense metric, base replicating the 1/16+generalizes anchor):
+  **SFT'd = 0 train-correct (Δ=−1), exec rate 80%→50%, generations 2.5× longer, and the model
+  parrots the data's style ("First…, Then…") on real tasks.** Underlying lesson: **synthetic ≠ real
+  distribution — SFT on mechanically composed tasks shifts the prior and interferes with base
+  capability.** BARC needed 100K+ GPT-4 tasks; that bar is unreachable offline via mechanical
+  composition.
+- **2026-08-11. New lever family: SPEED (unexplored).** Fresh LB recon: the head is pulling away
+  (nvbanana 67.5, rabbithole 47.8), pelotón at 33-34, top-8 cutoff ~33.5. Every knob we measured
+  changed the time *cap*, never per-task *efficiency*. Built for Friday's reset: (1) an
+  **instrumented smoke** (12 tasks across the cost spectrum, TTT/decode/scoring split — never
+  captured); (2) the **ttt8 graft** (TTT n_aug 16→8, one number: cheaper task → more coverage).
+- *(next: Friday after reset — timing smoke ~40 min → decide → LB A/B of the best speed graft
+  vs 30.14)*
