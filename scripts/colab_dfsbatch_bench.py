@@ -113,22 +113,41 @@ def dfs_call(prefixes, max_new=400, budget=240):
     return sum(len(v) for v in res.values())
 
 
-# ---- prompts realistas: vistas D4 de tareas holdout, formato del campeon ----
+# ---- prompts realistas: 8 vistas de la MISMA FORMA (como el injerto real) ----
+# En tareas no-cuadradas rot90/transpose cambian la longitud tokenizada -> el injerto fusiona
+# solo grupos de forma igual. Aqui: 4 geometrias que PRESERVAN (h,w) x 2 permutes de color.
+import random as _rnd
+
+
 def g2s(grid):
     return "\n".join("".join(str(int(c)) for c in row) for row in grid)
 
 
-def fmt(task, k):
-    def tr(g):
-        a = np.array(g)
-        if k >= 4:
-            a = a.T
-        return np.rot90(a, k % 4)
-    txt = "".join(f"<|im_start|>user\n{g2s(tr(p['input']))}<|im_end|>"
-                  f"<|im_start|>assistant\n{g2s(tr(p['output']))}<|im_end|>"
-                  for p in task["train"])
-    txt += f"<|im_start|>user\n{g2s(tr(task['test'][0]['input']))}<|im_end|><|im_start|>assistant\n"
-    return TOK.encode(txt)
+def views_same_shape(task, seed=3):
+    geos = [lambda a: a,
+            lambda a: np.rot90(a, 2),
+            lambda a: np.rot90(a.T, 1),    # transpose.rot90 -> (h,w)
+            lambda a: np.rot90(a.T, 3)]    # transpose.rot270 -> (h,w)
+    rnd = _rnd.Random(seed)
+    perms = []
+    for _ in range(2):
+        p = list(range(10))
+        tail = p[1:]
+        rnd.shuffle(tail)
+        p[1:] = tail
+        perms.append(np.array(p))
+    out = []
+    for g in geos:
+        for pm in perms:
+            def tr(x, g=g, pm=pm):
+                return pm[g(np.array(x))]
+            txt = "".join(f"<|im_start|>user\n{g2s(tr(p['input']))}<|im_end|>"
+                          f"<|im_start|>assistant\n{g2s(tr(p['output']))}<|im_end|>"
+                          for p in task["train"])
+            txt += (f"<|im_start|>user\n{g2s(tr(task['test'][0]['input']))}<|im_end|>"
+                    f"<|im_start|>assistant\n")
+            out.append(TOK.encode(txt))
+    return out
 
 
 def is_holdout(tid):
@@ -148,7 +167,7 @@ TASKS = [HOLD[20], HOLD[40], HOLD[60]]   # tamanos chico/medio/grande
 
 RES = {"tasks": [], "kv": {}}
 for tk in TASKS:
-    views = [fmt(CHAL[tk], k) for k in range(8)]
+    views = views_same_shape(CHAL[tk])
     L = len(views[0])
     assert all(len(v) == L for v in views), "vistas de longitud desigual"
     r = {"task": tk, "ctx_tokens": L}
