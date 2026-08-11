@@ -32,7 +32,8 @@ Setup que FUNCIONA en Windows (el CLI dice "Linux/macOS only"; estos 2 fixes lo 
    `https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/userinfo.email,`
    `https://www.googleapis.com/auth/colaboratory` (los 4 scopes son obligatorios).
 
-Uso: `colab --auth=adc run --gpu T4 scripts/mi_experimento.py [args]` (stdout del script →
+Uso: `colab --auth=adc run --gpu T4 --timeout 7200 scripts/mi_experimento.py [args]` — ⚠️ el
+`--timeout` por defecto es **30s** y corta scripts con silencios largos (descargas); súbelo siempre (stdout del script →
 stdout; el chatter `[colab]` → stderr). `colab sessions` lista; `colab stop -s N` libera;
 **sesiones sin stop queman compute units** (`run` sin `--keep` se auto-limpia).
 
