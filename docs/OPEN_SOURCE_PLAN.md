@@ -42,6 +42,14 @@ Nota: nuestros kernels/datasets privados NO violan reglas de "external data" —
 que usamos es público y gratuito para cualquier participante; lo privado es solo **nuestro
 trabajo derivado**, que se abrirá al cierre.
 
+## Fechas oficiales (API de Kaggle, 2026-07-30)
+
+| Hito | Fecha |
+|---|---|
+| **Deadline submissions ARC-AGI-2** | **2026-11-02 23:59 UTC** |
+| **Paper Track** (competencia separada, $450K — ya inscritos) | **2026-11-09 23:59 UTC** |
+| Ventana de open-source + Solution Writeup | 2026-11-02 → 2026-11-09 |
+
 ## Recordatorio operativo
 
 - El deadline de la competencia define la ventana; **agendar la publicación el mismo día del
