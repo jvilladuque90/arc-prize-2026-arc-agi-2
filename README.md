@@ -164,7 +164,9 @@ pip install -r requirements.txt
 python scripts/download_data.py
 ```
 
-## Licencia
+## Licencia y open-source
 
-MIT (ver [`LICENSE`](LICENSE)) — licencia permisiva acorde con el requisito de open source de la
-competencia. Confirmar en las reglas si exigen CC0/MIT-0.
+MIT (ver [`LICENSE`](LICENSE)). Regla verificada (arcprize.org): **el código y método deben
+open-sourcearse para optar a premios, en los 7 días tras el deadline** junto a un Solution
+Writeup; durante la competencia lo privado es legal. Plan de publicación accionable (checklist,
+licencias de dependencias verificadas): [`docs/OPEN_SOURCE_PLAN.md`](docs/OPEN_SOURCE_PLAN.md).
