@@ -24,6 +24,9 @@ import subprocess
 import sys
 import time
 
+# antes de importar torch: la T4 (14.5GB) fragmenta con eval+train alternados
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+
 T00 = time.time()
 TOKEN = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("KAGGLE_API_TOKEN", "")
 assert TOKEN, "pasa el KAGGLE_API_TOKEN como argv[1]"
@@ -162,7 +165,10 @@ LCFG = LoraConfig(r=64, lora_alpha=32, lora_dropout=0.0, bias="none", task_type=
                   target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
                                   "gate_proj", "up_proj", "down_proj"])
 MODEL = get_peft_model(MODEL, LCFG)
-print(f"[setup] 2B + LoRA r=64 listo | mem={torch.cuda.memory_allocated()/1e9:.1f}GB "
+# sin checkpointing, el backward de 2048 tokens no cabe en la T4 (OOM medido con 13.9GB)
+MODEL.enable_input_require_grads()
+MODEL.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+print(f"[setup] 2B + LoRA r=64 + grad-ckpt listo | mem={torch.cuda.memory_allocated()/1e9:.1f}GB "
       f"({time.time()-T00:.0f}s)", flush=True)
 
 
@@ -206,6 +212,7 @@ def greedy_cell_acc(key, max_new=900):
 
 def eval_point(n_seen):
     MODEL.eval()
+    torch.cuda.empty_cache()
     t0 = time.time()
     real = []
     for k in KEYS:
@@ -234,6 +241,8 @@ SCALER = torch.cuda.amp.GradScaler()
 def train_chunk(items):
     MODEL.config.use_cache = False
     MODEL.train()
+    torch.cuda.empty_cache()
+    torch.cuda.reset_peak_memory_stats()
     t0 = time.time()
     OPT.zero_grad()
     for n, it in enumerate(items):
@@ -246,7 +255,8 @@ def train_chunk(items):
             SCALER.update()
             OPT.zero_grad()
         if (n + 1) % 250 == 0:
-            print(f"  [train] {n+1}/{len(items)} ({time.time()-t0:.0f}s)", flush=True)
+            print(f"  [train] {n+1}/{len(items)} ({time.time()-t0:.0f}s, "
+                  f"pico {torch.cuda.max_memory_allocated()/1e9:.1f}GB)", flush=True)
     SCALER.step(OPT)
     SCALER.update()
     OPT.zero_grad()
@@ -257,7 +267,7 @@ def train_chunk(items):
 # ---------------------------------------------------------------- curva acumulativa
 RES = {"points": []}
 RES["points"].append(eval_point(0))
-for lo, hi in ((0, 500), (500, 2000)):
+for lo, hi in ((0, 500), (500, 1250), (1250, 2000)):
     secs = train_chunk(TRAIN[lo:hi])
     print(f"[curva] entrenado {lo}->{hi} en {secs:.0f}s (total {time.time()-T00:.0f}s)", flush=True)
     RES["points"].append(eval_point(hi))
