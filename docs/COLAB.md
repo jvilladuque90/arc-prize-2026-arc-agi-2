@@ -14,7 +14,29 @@ pip libre** (bitsandbytes funciona → 4-bit posible) y iteración inmediata.
   de Colab con un modelo pequeño ANTES de gastar GPU de Kaggle).
 - **Regla**: Colab = pre-filtro barato de hipótesis; Kaggle L4 = instrumento confirmatorio.
 
-## Flujo de trabajo
+## ⚡ CLI OFICIAL de Google (junio 2026) — ejecución HEADLESS operativa
+
+Google lanzó el **CLI oficial** (`pip install google-colab-cli`, Apache 2.0) que SÍ ejecuta
+headless: `colab run --gpu T4 script.py` = aprovisionar VM fresca → ejecutar → liberar, todo
+desde el terminal (diseñado para agentes; trae `COLAB_SKILL.md` embebido). **Validado
+end-to-end en este proyecto (2026-08-11).**
+
+Setup que FUNCIONA en Windows (el CLI dice "Linux/macOS only"; estos 2 fixes lo arreglan):
+1. `pip install google-colab-cli gitpython` + **pin** `pip install jupyter-kernel-client==0.15.0`
+   (la 1.0.1 renombró `KernelClient` → rompe el CLI).
+2. **Parche termios** (consola interactiva Unix-only): en
+   `site-packages/colab_cli/console.py`, envolver `import termios`/`import tty` en
+   `try/except ImportError` con `termios = None` / `tty = None` (solo afecta a `colab console`,
+   que no usamos).
+3. Auth ADC (una vez, browser): `gcloud auth application-default login --scopes=openid,`
+   `https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/userinfo.email,`
+   `https://www.googleapis.com/auth/colaboratory` (los 4 scopes son obligatorios).
+
+Uso: `colab --auth=adc run --gpu T4 scripts/mi_experimento.py [args]` (stdout del script →
+stdout; el chatter `[colab]` → stderr). `colab sessions` lista; `colab stop -s N` libera;
+**sesiones sin stop queman compute units** (`run` sin `--keep` se auto-limpia).
+
+## Flujo de trabajo (alternativa manual, notebooks)
 
 `colab-cli` (instalado: `pip install colab-cli gitpython`) **sincroniza y abre** notebooks en
 Colab vía Google Drive — **no ejecuta headless** (Colab gratis exige "Run All" manual en el
@@ -38,7 +60,7 @@ En Colab: Runtime → Change runtime type → **T4 GPU**, y añadir el secreto `
 
 | Notebook | Pregunta que responde | Duración T4 |
 |---|---|---|
-| `colab_ttt_ablation.ipynb` | ¿Cuánta calidad de adaptación pierde TTT con n_aug=8 vs 16, y cuánto tiempo ahorra? (guía del injerto `ttt8`) — NVARC 2B, 12 tareas holdout, diseño pareado, métricas densas (ΔNLL, cell-acc, tiempo) | ~75 min |
+| `scripts/colab_ttt_ablation.py` (headless via `colab run`) o `colab_ttt_ablation.ipynb` (manual) | ¿Cuánta calidad de adaptación pierde TTT con n_aug=8 vs 16, y cuánto tiempo ahorra? (guía del injerto `ttt8`) — NVARC 2B, 12 tareas holdout, diseño pareado, métricas densas (ΔNLL, cell-acc, tiempo) | ~75 min |
 
 Los resultados (`*_result.json`) se pegan en la conversación o se commitean a `docs/` para
 analizarlos y decidir el gasto de quota de Kaggle.
