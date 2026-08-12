@@ -292,5 +292,17 @@ from scratch) to exceed the public models' ceiling.
   (separates "learns the source" from "transfers to AGI-2" — the v1/v2 lesson). Pre-registered
   chain: D2 N=8000 → D3 source comparison (which synthetic distribution generalizes to AGI-2?) →
   D4 = the real Step 3 (4B SFT on Kaggle) only after two greens.
-- *(next: read the D1 curve; build the scoring4 proxy; Friday after reset — timing smoke → decide
-  by the pre-registered rules in SPEED_PLAN §4-bis)*
+- **2026-08-11/12 (late night). D1 + D1-bis: the STRONGEST positive signal of the campaign.**
+  D1 curve (champion 2B + LoRA over ARC-Heavy, N=0→500→1250→2000): exact 1/12→7/12, cell-acc
+  0.47→0.85. Post-hoc audit: 9/12 eval tasks were AGI-1 (the population BARC's seeds were
+  written from) → possible memorized neighborhood → **D1-bis** same day: paired base-vs-adapter
+  eval on the **24 holdout tasks NOT in AGI-1** (all postdate ARC-Heavy → contamination
+  impossible). Verdict: **exact 0/24 → 7/24, cell-acc 0.50 → 0.85, NLL improves on 24/24, 0
+  losses — GENUINE transfer.** The v1/v2 negatives condemned our mechanical composition, not
+  diverse corpora: with the right source, Step 3 of the winner's recipe LIVES. Technical gates:
+  T4 OOM (→ grad checkpointing, 5.4GB peak); the n=2000 adapter persisted as a private Kaggle
+  dataset (`arcscale-adapter-2b`) so later stages resume without retraining. Remaining unknown
+  before spending Kaggle: does the gain survive ON TOP of per-task TTT? → **D2-bis launched**
+  (paired arms TTT vs adapter+TTT on 12 new tasks).
+- *(next: read D2-bis → if green, design D4 = 4B SFT on L4×4 for the weekend; scoring4 proxy
+  before Friday; Friday 19:05 timing smoke per SPEED_PLAN §4-bis)*

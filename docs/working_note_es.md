@@ -304,5 +304,17 @@ para superar el techo de los modelos públicos.
   lección de v1/v2). Cadena pre-registrada: D2 N=8000 → D3 comparación de fuentes (¿qué
   distribución sintética generaliza a AGI-2?) → D4 = el paso 3 real (SFT del 4B en Kaggle) solo
   con dos verdes.
-- *(siguiente: leer la curva D1; construir el proxy de scoring4; viernes tras el reset — timing
-  smoke → decidir por las reglas pre-registradas de SPEED_PLAN §4-bis)*
+- **2026-08-11/12 (madrugada). D1 + D1-bis: la señal positiva MÁS FUERTE de la campaña.**
+  Curva D1 (2B campeón + LoRA sobre ARC-Heavy, N=0→500→1250→2000): exactas 1/12→7/12, cell-acc
+  0.47→0.85. Auditoría post-hoc: 9/12 tareas de eval eran de AGI-1 (la población fuente de los
+  seeds de BARC) → posible vecindario memorizado → **D1-bis** el mismo día: eval pareada base vs
+  adapter sobre las **24 tareas del holdout que NO están en AGI-1** (posteriores a ARC-Heavy →
+  contaminación imposible). Veredicto: **exactas 0/24 → 7/24, cell-acc 0.50 → 0.85, NLL mejora
+  en 24/24, 0 perdidas — transferencia GENUINA.** Los negativos de v1/v2 condenaban nuestra
+  composición mecánica, no los corpora diversos: con la fuente correcta, el paso 3 de la receta
+  ganadora VIVE. Gates técnicos del día: OOM en T4 (→ grad checkpointing, pico 5.4GB), adapter
+  n=2000 persistido como dataset privado de Kaggle (`arcscale-adapter-2b`) para reanudar sin
+  reentrenar. Incógnita restante antes de gastar Kaggle: ¿la ganancia sobrevive ENCIMA del TTT
+  por tarea? → **D2-bis lanzado** (brazos pareados TTT vs adapter+TTT en 12 nuevas).
+- *(siguiente: leer D2-bis → si verde, diseñar D4 = SFT del 4B en L4×4 para el fin de semana;
+  proxy de scoring4 antes del viernes; viernes 19:05 timing smoke según SPEED_PLAN §4-bis)*

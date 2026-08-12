@@ -71,9 +71,16 @@ densas tras cada punto (regla del carril: lo absoluto no transfiere, lo relativo
 la fuente; si no, significa no-transferencia. Ambas cierran la rama ARC-Heavy — la ambigüedad
 no cambia la decisión.*
 
+### D2-bis — Interacción con TTT (GRATIS, decide el EV de D4)
+`scripts/colab_ttt_adapter.py` — brazos pareados en 12 tareas nuevas: (A) base+TTT vs
+(B) base+adapter fusionado+TTT, con el TTT del campeón (n_aug=16). El pipeline de producción
+hace TTT por tarea: si el TTT ya captura lo que enseña ARC-Heavy, el SFT no mueve el LB.
+**Lectura:** B > A claramente en exactas/cell-acc post-TTT → el SFT compone con TTT → luz
+verde D4. B ≈ A → el SFT solo ayuda al modelo "frío" → no paga en producción.
+
 ### D2 — Extensión de la curva (GRATIS, condicional a D1 verde)
-N=8000 (sesión 2, reanuda con más datos). Si la pendiente sigue positiva en log-N → luz verde
-al paso 3 real.
+N=8000 (sesión 2, reanuda desde el adapter guardado). Si la pendiente sigue positiva en log-N
+→ informa cuántos ejemplos necesita el SFT del 4B.
 
 ### D3 — Generalización / comparación de fuentes (GRATIS, condicional)
 A N fijo (p. ej. 2000): ARC-Heavy vs NVARC-Synthetic vs mezcla. Responde la segunda pregunta:
@@ -102,7 +109,8 @@ pendiente positiva dos veces.
 | Fecha | Etapa | Resultado | Decisión |
 |---|---|---|---|
 | 2026-08-11 | D1 (curva Colab) | **Pendiente positiva FUERTE** en N=0→500→1250→2000: real NLL 0.327→0.156→0.055→0.061, cell-acc 0.47→0.73→0.78→**0.85**, exactas **1/12→5→7→7**; syn NLL 0.349→0.081 (satura ~1250 en NLL; cell-acc sigue subiendo). Gate técnico: OOM en T4 → grad checkpointing (pico 5.4GB). Adapter n=2000 guardado en Kaggle (`arcscale-adapter-2b`, privado). **⚠️ Confound detectado post-hoc:** 9/12 tareas de eval son de AGI-1 — la población fuente de los seeds de BARC → posible vecindario memorizado. Las 3 NUEVAS de AGI-2 también mejoran (0/3→2/3 exactas, cell-acc 0.31→0.99) pero n=3 no decide. | ✅ señal suficiente para **D1-bis** (mismo día): eval pareada base vs adapter sobre las **~24 tareas NUEVAS de AGI-2** del holdout — la única población parecida al test oculto. La lectura de D1 queda EN SUSPENSO hasta D1-bis. |
-| — | D1-bis (nuevas AGI-2) | *(en curso — lanzada 2026-08-11 noche)* | — |
+| 2026-08-11 | D1-bis (nuevas AGI-2) | **TRANSFERENCIA GENUINA.** Eval pareada base vs adapter en las **24 tareas del holdout que NO están en AGI-1** (todas posteriores a ARC-Heavy → contaminación imposible): exactas **0/24 → 7/24**, cell-acc 0.50 → 0.85, NLL mejora en **24/24** tareas, 0 exactas perdidas. La señal positiva más fuerte de la campaña. | ✅ **H-escala VIVA con evidencia limpia.** Incógnita restante antes de gastar Kaggle: ¿la ganancia sobrevive ENCIMA del TTT? (el pipeline campeón hace TTT por tarea — si el TTT ya captura lo mismo, el SFT no mueve el LB) → **D2-bis** inmediato. |
+| — | D2-bis (adapter × TTT) | *(en curso — brazos pareados TTT vs adapter+TTT en 12 nuevas)* | — |
 | — | D2 (N=8000) | *(condicional)* | — |
 | — | D3 (fuentes) | *(condicional)* | — |
-| — | D4 (SFT 4B Kaggle) | *(condicional)* | — |
+| — | D4 (SFT 4B Kaggle) | *(condicional a D2-bis verde)* | — |
