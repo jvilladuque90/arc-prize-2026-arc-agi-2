@@ -59,6 +59,15 @@ OUT = "/content/out/merged_2b"
 os.makedirs(OUT, exist_ok=True)
 MERGED.save_pretrained(OUT, safe_serialization=True)
 AutoTokenizer.from_pretrained(MDIR).save_pretrained(OUT)
+# Leccion del 0.00 (12-ago): el config.json de transformers 5.x pierde rope_theta del nivel
+# superior -> el stack 4.x del kernel usa el default (10000 vs 5M) -> modelo roto. Se envian
+# los aux files ORIGINALES (el merge no cambia arquitectura ni tokenizer).
+import shutil
+for f in ("config.json", "generation_config.json", "tokenizer.json", "tokenizer_config.json",
+          "special_tokens_map.json", "added_tokens.json", "vocab.json", "merges.txt"):
+    src = os.path.join(MDIR, f)
+    if os.path.exists(src):
+        shutil.copy(src, OUT)
 # metadatos de procedencia (que adapter exactamente se fusiono)
 if os.path.exists(os.path.join(ADIR, "data_scaling_ext_result.json")):
     import shutil
