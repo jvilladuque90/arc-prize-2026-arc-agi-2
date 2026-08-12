@@ -49,7 +49,10 @@ import torch
 from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-BASE = AutoModelForCausalLM.from_pretrained(MDIR, torch_dtype=torch.bfloat16, device_map="cuda:0")
+# merge en CPU si no hay GPU (limite diario de T4 gratis agotado): bf16 en RAM (~5GB), lento
+# pero suficiente — merge_and_unload es una pasada de sumas de matrices
+DEV = "cuda:0" if torch.cuda.is_available() else None
+BASE = AutoModelForCausalLM.from_pretrained(MDIR, torch_dtype=torch.bfloat16, device_map=DEV)
 MODEL = PeftModel.from_pretrained(BASE, ADIR)
 MERGED = MODEL.merge_and_unload()
 OUT = "/content/out/merged_2b"
