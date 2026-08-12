@@ -68,7 +68,10 @@ print(f"[setup] modelo cargado | vocab={len(TOK)} | mem={torch.cuda.memory_alloc
 # ---- vocabulario minimo del campeon: ids 0-9 = digitos, 10 = \n, 15 = im_end, 13 = pad ----
 ARC_TOKENS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15]
 PAD_ID, EOS_ID, NL_ID = 13, 15, 10
-MAX_SCORE = -float(np.log(0.2))
+# umbral ENSANCHADO solo para GENERAR el pool (el del campeon, -log 0.2, deja 1-2 candidatos
+# en estas tareas -> nada que rankear; medido 2026-08-12). La fidelidad S8 vs S4 no depende
+# del umbral: solo necesita candidatos plausibles que la seleccion deba ordenar.
+MAX_SCORE = -float(np.log(0.02))
 _TOKID = torch.tensor(ARC_TOKENS, dtype=torch.long, device="cuda:0")
 
 
@@ -221,7 +224,7 @@ def cost(t):
 
 
 HOLD = sorted([k for k in CHAL if is_holdout(k)], key=lambda k: cost(CHAL[k]))
-TASKS = HOLD[40:60:2]   # 10 tareas medianas/grandes (donde el DFS trabaja de verdad)
+TASKS = HOLD[40:64:2]   # 12 tareas medianas/grandes (donde el DFS trabaja de verdad)
 
 RES = {"tasks": []}
 MAX_CANDS = 8
