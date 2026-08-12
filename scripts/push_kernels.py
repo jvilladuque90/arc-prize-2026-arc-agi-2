@@ -155,6 +155,13 @@ KERNELS = {
                       "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                    "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1",
                                              "sorokin/qwen3_2b_grids15_sft141/Transformers/bfloat16/1"]}},
+    # D4 (SCALE_PLAN): SFT LoRA del 4B campeon sobre ARC-Heavy (snapshot 19K, dataset privado).
+    # Imagen PINNEADA (default, gate peft/torchao). Lanzar con --accelerator NvidiaL4 (offline).
+    # Salida: adapter_4b + merged_4b (para el kernel de inferencia lb33-scale).
+    "scale-sft-4b": {"notebook": "notebooks/scale_sft_4b.ipynb", "slug": "arc-agi2-scale-sft-4b",
+                     "title": "arc agi2 scale sft 4b", "gpu": True,
+                     "defaults": {"model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"],
+                                  "dataset": ["juliancamilovilla/arcscale-archeavy-19k"]}},
     # Ensemble ARQUITECTÓNICAMENTE diverso: Qwen 4B (cheap-first, cap ~10h) + TRM recursivo
     # (épocas reducidas ~1.5h) + merge pass@2. Un kernel, imagen BYOD del Qwen (TRM corre ahí).
     # Adjunta el Qwen 4B (model), unsloth (kernel_source) y los 4 datasets del TRM.
