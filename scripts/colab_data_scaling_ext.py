@@ -262,9 +262,10 @@ def train_chunk(items):
             OPT.zero_grad()
         if (n + 1) % 500 == 0:
             print(f"  [train] {n+1}/{len(items)} ({time.time()-t0:.0f}s)", flush=True)
-    SCALER.step(OPT)
-    SCALER.update()
-    OPT.zero_grad()
+    if len(items) % ACCUM != 0:   # flush SOLO si quedan gradientes (si no, GradScaler asserta)
+        SCALER.step(OPT)
+        SCALER.update()
+        OPT.zero_grad()
     MODEL.eval()
     return time.time() - t0
 
