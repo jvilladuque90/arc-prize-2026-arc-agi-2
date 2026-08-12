@@ -171,6 +171,15 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch",
                                                   "juliancamilovilla/arc-agi2-scale-sft-4b"]}},
+    # ENSAYO escala en el test oculto: lb33_2b (config campeona, baseline 18.33 del 15-jul)
+    # con el 2B FUSIONADO con ARC-Heavy (dataset arcscale-merged-2b). Commit barato: solo 4
+    # tareas smoke (rerun_mode hace el trabajo real gratis en el scoring). SIN model source.
+    "lb33-2b-scale": {"notebook": "notebooks/lb33_2b_scale.ipynb", "slug": "arc-agi2-lb33-2b-scale",
+                      "title": "arc agi2 lb33 2b scale", "gpu": True,
+                      "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                                 "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+                      "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                                   "dataset": ["juliancamilovilla/arcscale-merged-2b"]}},
     # Ensemble ARQUITECTÓNICAMENTE diverso: Qwen 4B (cheap-first, cap ~10h) + TRM recursivo
     # (épocas reducidas ~1.5h) + merge pass@2. Un kernel, imagen BYOD del Qwen (TRM corre ahí).
     # Adjunta el Qwen 4B (model), unsloth (kernel_source) y los 4 datasets del TRM.
