@@ -162,6 +162,15 @@ KERNELS = {
                      "title": "arc agi2 scale sft 4b", "gpu": True,
                      "defaults": {"model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"],
                                   "dataset": ["juliancamilovilla/arcscale-archeavy-19k"]}},
+    # Inferencia D4: campeon (lb33_graft) con el 4B FUSIONADO de scale-sft-4b (unico cambio =
+    # ruta del modelo, resuelta por os.walk; sin fallback). SIN model source: el modelo viene
+    # del output del kernel de SFT (kernel_source). Imagen BYOD del campeon.
+    "lb33-scale": {"notebook": "notebooks/lb33_scale.ipynb", "slug": "arc-agi2-lb33-scale",
+                   "title": "arc agi2 lb33 scale", "gpu": True,
+                   "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                              "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+                   "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch",
+                                                  "juliancamilovilla/arc-agi2-scale-sft-4b"]}},
     # Ensemble ARQUITECTÓNICAMENTE diverso: Qwen 4B (cheap-first, cap ~10h) + TRM recursivo
     # (épocas reducidas ~1.5h) + merge pass@2. Un kernel, imagen BYOD del Qwen (TRM corre ahí).
     # Adjunta el Qwen 4B (model), unsloth (kernel_source) y los 4 datasets del TRM.

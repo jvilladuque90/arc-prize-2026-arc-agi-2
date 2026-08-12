@@ -104,6 +104,28 @@ pendiente positiva dos veces.
   fuentes en AGI-2 es un resultado publicable por sí mismo, positivo o negativo.
 - Coste hasta la decisión D4: **0 horas de Kaggle** (todo en Colab T4 gratis).
 
+## 4-bis. Ejecución de D4 — runbook del viernes 2026-08-14 (pre-registrado)
+
+Artefactos YA construidos (todo lo previo al gasto de quota):
+- **Datos:** dataset privado `arcscale-archeavy-19k` (19K tareas, filtros idénticos al proxy).
+- **Kernel de SFT:** `notebooks/scale_sft_4b.ipynb` (`push_kernels.py scale-sft-4b
+  --accelerator NvidiaL4`) — LoRA r=64, lr 1e-4, accum 8, `N_TRAIN` a dimensionar con D2;
+  eval integrada base vs SFT en las 24 nuevas; salida `adapter_4b` + `merged_4b`.
+- **Kernel de inferencia:** `notebooks/lb33_scale.ipynb` (`lb33-scale`) — campeón exacto con
+  UN cambio: modelo = `merged_4b` (sin fallback silencioso).
+- ⚠️ **No hacer push antes del reset**: el push ejecuta el kernel (gasta quota).
+
+Orden del viernes (reset 19:00; ~30h de quota, regla de 2h de holgura):
+1. **19:05 — `lb33-timing` smoke** (~40 min): split TTT/decode/scoring (SPEED_PLAN §4-bis).
+2. **~19:50 — push `scale-sft-4b`** con `N_TRAIN` fijado por D2 (~3-5h de L4).
+3. **Con el split en mano:** si scoring ≥ ~15% → construir `lb33-scoring4` (un número:
+   augs de re-scoring 8→4; proxy ya avalado), smoke y **submission del viernes = A/B scoring4**.
+   Si no → guardar el slot.
+4. **Sábado:** smoke de `lb33-scale` (~40 min) → **submission del sábado = A/B escala**
+   (lb33-scale vs 30.14). Lecturas pre-registradas: `>31` → nuevo campeón, iterar (más datos /
+   fuentes D3); `≈30` → neutro, diagnosticar (¿cobertura vs calidad?); `<29.5` → revertir.
+5. Gasto total estimado: ~6h → quedan >20h para iterar el fin de semana.
+
 ## 5. Registro de resultados de la cadena
 
 | Fecha | Etapa | Resultado | Decisión |
