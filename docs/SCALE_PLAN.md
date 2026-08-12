@@ -101,7 +101,8 @@ pendiente positiva dos veces.
 
 | Fecha | Etapa | Resultado | Decisión |
 |---|---|---|---|
-| — | D1 (curva Colab) | *(en curso — sesión 1 lanzada 2026-08-11)* | — |
+| 2026-08-11 | D1 (curva Colab) | **Pendiente positiva FUERTE** en N=0→500→1250→2000: real NLL 0.327→0.156→0.055→0.061, cell-acc 0.47→0.73→0.78→**0.85**, exactas **1/12→5→7→7**; syn NLL 0.349→0.081 (satura ~1250 en NLL; cell-acc sigue subiendo). Gate técnico: OOM en T4 → grad checkpointing (pico 5.4GB). Adapter n=2000 guardado en Kaggle (`arcscale-adapter-2b`, privado). **⚠️ Confound detectado post-hoc:** 9/12 tareas de eval son de AGI-1 — la población fuente de los seeds de BARC → posible vecindario memorizado. Las 3 NUEVAS de AGI-2 también mejoran (0/3→2/3 exactas, cell-acc 0.31→0.99) pero n=3 no decide. | ✅ señal suficiente para **D1-bis** (mismo día): eval pareada base vs adapter sobre las **~24 tareas NUEVAS de AGI-2** del holdout — la única población parecida al test oculto. La lectura de D1 queda EN SUSPENSO hasta D1-bis. |
+| — | D1-bis (nuevas AGI-2) | *(en curso — lanzada 2026-08-11 noche)* | — |
 | — | D2 (N=8000) | *(condicional)* | — |
 | — | D3 (fuentes) | *(condicional)* | — |
 | — | D4 (SFT 4B Kaggle) | *(condicional)* | — |
