@@ -155,6 +155,14 @@ KERNELS = {
                       "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                    "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1",
                                              "sorokin/qwen3_2b_grids15_sft141/Transformers/bfloat16/1"]}},
+    # Etapa B de SPEED_PLAN: smoke instrumentado del campeon (12 tareas por el espectro de
+    # coste, split TTT/decode/scoring por tarea). Mismo entorno del campeon.
+    "lb33-timing": {"notebook": "notebooks/lb33_timing.ipynb", "slug": "arc-agi2-lb33-timing",
+                    "title": "arc agi2 lb33 timing", "gpu": True,
+                    "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # D4 (SCALE_PLAN): SFT LoRA del 4B campeon sobre ARC-Heavy (snapshot 19K, dataset privado).
     # Imagen PINNEADA (default, gate peft/torchao). Lanzar con --accelerator NvidiaL4 (offline).
     # Salida: adapter_4b + merged_4b (para el kernel de inferencia lb33-scale).
