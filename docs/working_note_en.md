@@ -304,5 +304,21 @@ from scratch) to exceed the public models' ceiling.
   dataset (`arcscale-adapter-2b`) so later stages resume without retraining. Remaining unknown
   before spending Kaggle: does the gain survive ON TOP of per-task TTT? → **D2-bis launched**
   (paired arms TTT vs adapter+TTT on 12 new tasks).
-- *(next: read D2-bis → if green, design D4 = 4B SFT on L4×4 for the weekend; scoring4 proxy
-  before Friday; Friday 19:05 timing smoke per SPEED_PLAN §4-bis)*
+- **2026-08-12/13. D2/D3 chain + hidden-set TRIAL E1 (user's idea: use the idle daily slot).**
+  D2: ARC-Heavy SATURATES around 2-4K examples on the 2B (exact flat at 7-8/24). D3: the three
+  public sources (ARC-Heavy, NVARC's own, mix) are INDISTINGUISHABLE — a shared plateau → the
+  bulk of the effect is domain re-alignment, not source knowledge; the only remaining data lever
+  is a NEW distribution (semantic-author generation pilot). E1: 2B+merged n4000 adapter,
+  submitted with the exact 18.33-baseline config. **First attempt: 0.00** — post-mortem: the
+  transformers 5.x config drops top-level `rope_theta: 5M` → the kernel's 4.x stack used the
+  default → broken attention. Fix: ORIGINAL aux files in every merge + the commit now VALIDATES
+  (unsloth load + NLL<1.5; cost ~7 of the 22 quota minutes). Pre-score audit at the user's
+  request: weight diff (adapter genuinely merged, controls bit-identical), n4000 provenance,
+  mechanical diff vs baseline (single change on the rerun path). **E1-v2 (Aug 13): 19.86 =
+  +1.53 over 18.33 — transfer is REAL but modest** (~3× the variance band; between the
+  pre-registered thresholds). Consistent with D2-bis: TTT already recovers part of the SFT.
+  Operational gates: free-T4 daily limit (~6 sessions) — Google-account switch authorized by
+  the user (ADC backed up); D2's ghost VM kept running after the client died and saved n=4000.
+- *(next: FRIDAY 19:05 = timing smoke → push scale-sft-4b [ARC-Heavy N=8000, recipe fixed by
+  D2/D3] → scoring4 if scoring ≥15% → SATURDAY = 4B scale A/B vs 30.14, calibrated expectation
+  +1-1.5 → 31.1-31.6; then: generation pilot + re-measure ttt8 on the new base)*

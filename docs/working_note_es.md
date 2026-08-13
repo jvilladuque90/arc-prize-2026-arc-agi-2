@@ -316,5 +316,22 @@ para superar el techo de los modelos públicos.
   n=2000 persistido como dataset privado de Kaggle (`arcscale-adapter-2b`) para reanudar sin
   reentrenar. Incógnita restante antes de gastar Kaggle: ¿la ganancia sobrevive ENCIMA del TTT
   por tarea? → **D2-bis lanzado** (brazos pareados TTT vs adapter+TTT en 12 nuevas).
-- *(siguiente: leer D2-bis → si verde, diseñar D4 = SFT del 4B en L4×4 para el fin de semana;
-  proxy de scoring4 antes del viernes; viernes 19:05 timing smoke según SPEED_PLAN §4-bis)*
+- **2026-08-12/13. Cadena D2/D3 + ENSAYO E1 en el test oculto (idea del usuario: usar el slot
+  diario ocioso).** D2: ARC-Heavy SATURA hacia 2-4K ejemplos en el 2B (exactas planas 7-8/24).
+  D3: las tres fuentes públicas (ARC-Heavy, NVARC-propia, mezcla) son INDISTINGUIBLES — plateau
+  compartido → el grueso del efecto es re-alineación de dominio, no conocimiento de fuente; la
+  única palanca de datos restante es una distribución NUEVA (piloto de generación con autor
+  semántico). E1: 2B+adapter n4000 fusionado, submitido con la config exacta del baseline 18.33.
+  **Primer intento: 0.00** — post-mortem: el config de transformers 5.x pierde `rope_theta: 5M`
+  → el stack 4.x del kernel usa el default → atención rota. Fix: aux files ORIGINALES en todo
+  merge + el commit ahora VALIDA (carga unsloth + NLL<1.5; costó ~7 de los 22 min de quota).
+  Auditoría pre-score a pedido del usuario: diff de pesos (adapter fusionado de verdad,
+  controles bit-idénticos), procedencia n4000, diff mecánico vs baseline (1 solo cambio en el
+  camino de rerun). **E1-v2 (13-ago): 19.86 = +1.53 sobre 18.33 — transferencia REAL pero
+  modesta** (~3× la banda de varianza; entre los umbrales pre-registrados). Coherente con
+  D2-bis: el TTT ya recupera parte del SFT. Gates operativos del día: límite diario de T4 gratis
+  (~6 sesiones) — cambio de cuenta Google autorizado por el usuario (ADC respaldado); la VM
+  fantasma de D2 siguió corriendo tras morir el cliente y salvó el punto n=4000.
+- *(siguiente: VIERNES 19:05 = timing smoke → push scale-sft-4b [ARC-Heavy N=8000, receta
+  fijada por D2/D3] → scoring4 si scoring ≥15% → SÁBADO = A/B escala 4B vs 30.14, expectativa
+  calibrada +1-1.5 → 31.1-31.6; después: piloto de generación + re-medir ttt8 sobre base nueva)*
