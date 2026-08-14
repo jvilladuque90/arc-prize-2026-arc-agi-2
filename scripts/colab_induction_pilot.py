@@ -30,6 +30,7 @@ os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 T00 = time.time()
 TOKEN = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("KAGGLE_API_TOKEN", "")
 assert TOKEN, "pasa el KAGGLE_API_TOKEN como argv[1]"
+KUSER = sys.argv[2] if len(sys.argv) > 2 else ""
 os.environ["KAGGLE_API_TOKEN"] = TOKEN
 
 subprocess.run([sys.executable, "-m", "pip", "install", "-q", "peft", "kaggle", "datasets",
@@ -183,7 +184,7 @@ for n, (ids, plen) in enumerate(TRAIN):
         SCALER.step(OPT)
         SCALER.update()
         OPT.zero_grad()
-    if (n + 1) % 400 == 0:
+    if (n + 1) % 100 == 0:   # cada ~3 min: el cliente CLI aborta con ~10 min de silencio
         print(f"  [sft] {n+1}/{len(TRAIN)} loss={out.loss.item():.3f} ({time.time()-t0:.0f}s)",
               flush=True)
 if len(TRAIN) % ACCUM != 0:
@@ -265,3 +266,22 @@ RES["resumen"] = {"tareas_con_programa_verificado": vt,
                   "modelo": MODEL_ID, "n_train": len(TRAIN)}
 json.dump(RES, open("/content/induction_pilot_result.json", "w"), indent=1)
 print("RESULT_JSON:" + json.dumps(RES["resumen"]), flush=True)
+
+# persistir en Kaggle (best-effort): si el cliente CLI murio, el resultado sobrevive igual
+try:
+    if KUSER:
+        OUTD = "/content/piloutd"
+        os.makedirs(OUTD, exist_ok=True)
+        shutil.copy("/content/induction_pilot_result.json", OUTD)
+        MODEL.save_pretrained(os.path.join(OUTD, "adapter_induction_1p5b"))
+        json.dump({"title": "arcscale-induction-pilot", "id": f"{KUSER}/arcscale-induction-pilot",
+                   "licenses": [{"name": "CC0-1.0"}]},
+                  open(os.path.join(OUTD, "dataset-metadata.json"), "w"))
+        r = subprocess.run(["kaggle", "datasets", "create", "-p", OUTD, "--dir-mode", "zip"],
+                           capture_output=True, text=True)
+        if r.returncode != 0 or "already exists" in ((r.stdout or "") + (r.stderr or "")):
+            r = subprocess.run(["kaggle", "datasets", "version", "-p", OUTD, "-m", "pilot",
+                                "--dir-mode", "zip"], capture_output=True, text=True)
+        print(f"[persist] rc={r.returncode}", flush=True)
+except Exception as e:
+    print(f"[persist] fallo (ok): {e}", flush=True)
