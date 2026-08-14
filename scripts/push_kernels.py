@@ -273,11 +273,16 @@ def main() -> int:
     # PYTHONUTF8=1: el CLI de Kaggle en Windows lee el ipynb con cp1252 y CHOCA con bytes
     # UTF-8 (acentos/guiones de los comentarios) -> falla en silencio (exit!=0, sin mensaje).
     env = {**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}
-    r = subprocess.run(["kaggle", "kernels", "push", "-p", str(tmp)], env=env)
-    if r.returncode != 0:
-        print(f"\n[ERROR] 'kaggle kernels push' devolvió {r.returncode} — el push FALLÓ "
-              f"(la versión committeada NO cambió). Revisa encoding/rate-limit/auth.")
-    return r.returncode
+    r = subprocess.run(["kaggle", "kernels", "push", "-p", str(tmp)], env=env,
+                       capture_output=True, text=True)
+    out = (r.stdout or "") + (r.stderr or "")
+    print(out.strip())
+    # El CLI devuelve rc=0 incluso en "Kernel push error: Maximum weekly GPU quota..."
+    # (medido 2026-08-13) — detectar el fallo por el TEXTO, no por el returncode.
+    if r.returncode != 0 or "error" in out.lower():
+        print(f"\n[ERROR] push FALLÓ (rc={r.returncode}) — la versión committeada NO cambió.")
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
