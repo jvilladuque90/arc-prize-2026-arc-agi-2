@@ -84,7 +84,7 @@ def make_prompt(pairs):
     ex = "\n\n".join(f"Example {i+1}\nInput:\n{g2s(a)}\nOutput:\n{g2s(b)}"
                      for i, (a, b) in enumerate(pairs))
     return (f"You are given input/output grid pairs of an ARC puzzle (digits 0-9 are colors).\n"
-            f"{ex}\n\nWrite a Python function `transform(input_grid)` (numpy in, numpy out) "
+            f"{ex}\n\nWrite a Python function `main(input_grid)` (numpy in, numpy out) "
             f"that implements the transformation. You may use `from common import *`.\n"
             f"```python\n")
 
@@ -104,8 +104,14 @@ for row in STREAM:
     seen += 1
     try:
         src = row["source"]
-        if "def transform" not in src or len(src) > 3500:
+        # convencion ARC-Heavy: def main(input_grid) + def generate_input() (el generador de la
+        # tarea — irrelevante para resolver: se recorta, igual que los imports del header)
+        if "def main" not in src or len(src) > 4500:
             continue
+        src = src[src.index("def main"):]
+        if "def generate_input" in src:
+            src = src[:src.index("def generate_input")]
+        src = src.rstrip()
         pairs = []
         for exp in row["examples"][:3]:
             gi = [[int(c) for c in r] for r in exp[0]]
@@ -193,18 +199,22 @@ def run_program(src, grid, timeout=4):
     def handler(signum, frame):
         raise TimeoutError
 
+    import contextlib
+    import io
+
     ns = {}
     try:
-        exec("from common import *\nimport numpy as np\n" + src, ns)
-        fn = ns.get("transform")
-        if fn is None:
-            return None
-        signal.signal(signal.SIGALRM, handler)
-        signal.alarm(timeout)
-        try:
-            out = fn(np.array(grid))
-        finally:
-            signal.alarm(0)
+        with contextlib.redirect_stdout(io.StringIO()):
+            exec("from common import *\nimport numpy as np\nfrom typing import *\n" + src, ns)
+            fn = ns.get("main")
+            if fn is None:
+                return None
+            signal.signal(signal.SIGALRM, handler)
+            signal.alarm(timeout)
+            try:
+                out = fn(np.array(grid))
+            finally:
+                signal.alarm(0)
         out = np.array(out)
         if out.ndim != 2 or out.shape[0] > 30 or out.shape[1] > 30:
             return None
