@@ -73,7 +73,8 @@ from datasets import load_dataset
 from peft import LoraConfig, get_peft_model
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-MODEL_ID = "Qwen/Qwen2.5-1.5B-Instruct"
+MODEL_ID = sys.argv[3] if len(sys.argv) > 3 else "Qwen/Qwen2.5-1.5B-Instruct"
+N_TARGET = int(sys.argv[4]) if len(sys.argv) > 4 else 2000
 TOK = AutoTokenizer.from_pretrained(MODEL_ID)
 
 
@@ -129,7 +130,7 @@ for row in STREAM:
             continue
         plen = TOK(make_prompt(pairs), return_tensors="pt").input_ids[0].numel()
         TRAIN.append((ids, plen))
-        if len(TRAIN) >= 2000:
+        if len(TRAIN) >= N_TARGET:
             break
     except Exception:
         continue
