@@ -37,24 +37,25 @@ t0 = time.time()
 # argv[2] == "merged": usa el 4B FUSIONADO con ARC-Heavy (output del kernel scale-sft-4b)
 # en vez del campeon original — diagnostico del A/B 27.08 (¿pools mas chicos por calibracion?)
 USE_MERGED = len(sys.argv) > 2 and sys.argv[2] == "merged"
+# El merged_4b completo (8GB) no se puede bajar en la VM (kernels output viejo falla; el nuevo
+# muere por OOM de RAM bufereando). Camino robusto: base sorokin (models download, probado) +
+# SOLO el adapter (~300MB via kernels output con CLI actualizado) + merge en la VM con peft.
+subprocess.run(["kaggle", "models", "instances", "versions", "download",
+                "sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1",
+                "-p", "/content/m4b", "--untar", "-q"], check=True)
 if USE_MERGED:
-    # la imagen de Colab trae un kaggle VIEJO preinstalado (pip -q no lo actualiza) que no
-    # soporta kernels output con token ni --file-pattern -> forzar upgrade
     subprocess.run([sys.executable, "-m", "pip", "install", "-q", "-U", "kaggle"], check=True)
+    subprocess.run([sys.executable, "-m", "pip", "install", "-q", "peft", "torchao>=0.16"],
+                   check=True)
     subprocess.run(["kaggle", "kernels", "output", "juliancamilovilla/arc-agi2-scale-sft-4b",
-                    "-p", "/content/m4b", "--file-pattern", "merged_4b/.*"], check=True)
-else:
-    subprocess.run(["kaggle", "models", "instances", "versions", "download",
-                    "sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1",
-                    "-p", "/content/m4b", "--untar", "-q"], check=True)
+                    "-p", "/content/ad", "--file-pattern", "adapter_4b/.*"], check=True)
 MDIR = None
 for root, dirs, files in os.walk("/content/m4b"):
     if "config.json" in files and any(x.endswith(".safetensors") for x in files):
         MDIR = root
         break
 assert MDIR
-print(f"[setup] 4B {'FUSIONADO' if USE_MERGED else 'original'} en {MDIR} "
-      f"({time.time()-t0:.0f}s)", flush=True)
+print(f"[setup] 4B base en {MDIR} | merged={USE_MERGED} ({time.time()-t0:.0f}s)", flush=True)
 
 import hashlib
 import random as _rnd
@@ -65,6 +66,16 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 TOK = AutoTokenizer.from_pretrained(MDIR)
 MODEL = AutoModelForCausalLM.from_pretrained(MDIR, torch_dtype=torch.float16, device_map="cuda:0")
+if USE_MERGED:
+    from peft import PeftModel
+    ADIR = None
+    for root, dirs, files in os.walk("/content/ad"):
+        if "adapter_model.safetensors" in files:
+            ADIR = root
+            break
+    assert ADIR, "adapter_4b no encontrado"
+    MODEL = PeftModel.from_pretrained(MODEL, ADIR).merge_and_unload()
+    print(f"[setup] adapter fusionado desde {ADIR}", flush=True)
 MODEL.eval()
 print(f"[setup] modelo cargado | mem={torch.cuda.memory_allocated()/1e9:.1f}GB", flush=True)
 
