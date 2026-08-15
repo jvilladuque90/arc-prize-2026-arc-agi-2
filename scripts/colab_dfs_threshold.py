@@ -34,16 +34,24 @@ for f in ("arc-agi_training_challenges.json", "arc-agi_training_solutions.json")
 subprocess.run("cd /content && for z in *.zip; do unzip -o -q \"$z\"; done", shell=True)
 
 t0 = time.time()
-subprocess.run(["kaggle", "models", "instances", "versions", "download",
-                "sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1",
-                "-p", "/content/m4b", "--untar", "-q"], check=True)
+# argv[2] == "merged": usa el 4B FUSIONADO con ARC-Heavy (output del kernel scale-sft-4b)
+# en vez del campeon original — diagnostico del A/B 27.08 (¿pools mas chicos por calibracion?)
+USE_MERGED = len(sys.argv) > 2 and sys.argv[2] == "merged"
+if USE_MERGED:
+    subprocess.run(["kaggle", "kernels", "output", "juliancamilovilla/arc-agi2-scale-sft-4b",
+                    "-p", "/content/m4b", "--file-pattern", "merged_4b/.*"], check=True)
+else:
+    subprocess.run(["kaggle", "models", "instances", "versions", "download",
+                    "sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1",
+                    "-p", "/content/m4b", "--untar", "-q"], check=True)
 MDIR = None
 for root, dirs, files in os.walk("/content/m4b"):
     if "config.json" in files and any(x.endswith(".safetensors") for x in files):
         MDIR = root
         break
 assert MDIR
-print(f"[setup] 4B en {MDIR} ({time.time()-t0:.0f}s)", flush=True)
+print(f"[setup] 4B {'FUSIONADO' if USE_MERGED else 'original'} en {MDIR} "
+      f"({time.time()-t0:.0f}s)", flush=True)
 
 import hashlib
 import random as _rnd
