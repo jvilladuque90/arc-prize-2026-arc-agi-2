@@ -38,8 +38,9 @@ t0 = time.time()
 # en vez del campeon original — diagnostico del A/B 27.08 (¿pools mas chicos por calibracion?)
 USE_MERGED = len(sys.argv) > 2 and sys.argv[2] == "merged"
 if USE_MERGED:
+    # sin --file-pattern: el kaggle de pip en la VM no lo soporta; bajar todo (~8GB, VM aguanta)
     subprocess.run(["kaggle", "kernels", "output", "juliancamilovilla/arc-agi2-scale-sft-4b",
-                    "-p", "/content/m4b", "--file-pattern", "merged_4b/.*"], check=True)
+                    "-p", "/content/m4b"], check=True)
 else:
     subprocess.run(["kaggle", "models", "instances", "versions", "download",
                     "sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1",
