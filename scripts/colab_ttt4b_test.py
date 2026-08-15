@@ -31,8 +31,8 @@ assert TOKEN, "pasa el KAGGLE_API_TOKEN como argv[1]"
 os.environ["KAGGLE_API_TOKEN"] = TOKEN
 
 subprocess.run([sys.executable, "-m", "pip", "install", "-q", "-U", "kaggle"], check=True)
-subprocess.run([sys.executable, "-m", "pip", "install", "-q", "peft", "torchao>=0.16"],
-               check=True)
+subprocess.run([sys.executable, "-m", "pip", "install", "-q", "peft", "torchao>=0.16",
+                "bitsandbytes"], check=True)
 
 os.makedirs("/content", exist_ok=True)
 os.chdir("/content")
@@ -195,8 +195,11 @@ def run_arm(name, with_adapter):
         texts = make_ttt_examples(CHAL[k])
         enc = [TOK(t, return_tensors="pt", truncation=True, max_length=3072).input_ids[0]
                for t in texts]
-        # lr 5e-5 cosine 1 epoca como el campeon (por-ejemplo, accum 1)
-        opt = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad], lr=5e-5)
+        # lr 5e-5 cosine 1 epoca como el campeon (por-ejemplo, accum 1). AdamW de 8 bits:
+        # los momentos fp32 de r=256 en el 4B no caben en la T4 (OOM medido); identico en
+        # ambos brazos -> la lectura DIFERENCIAL se preserva.
+        import bitsandbytes as bnb
+        opt = bnb.optim.AdamW8bit([p for p in model.parameters() if p.requires_grad], lr=5e-5)
         sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=len(enc))
         scaler = torch.cuda.amp.GradScaler()
         model.train()
