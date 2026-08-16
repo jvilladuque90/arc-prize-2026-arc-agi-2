@@ -319,6 +319,32 @@ from scratch) to exceed the public models' ceiling.
   pre-registered thresholds). Consistent with D2-bis: TTT already recovers part of the SFT.
   Operational gates: free-T4 daily limit (~6 sessions) — Google-account switch authorized by
   the user (ADC backed up); D2's ghost VM kept running after the client died and saved n=4000.
-- *(next: FRIDAY 19:05 = timing smoke → push scale-sft-4b [ARC-Heavy N=8000, recipe fixed by
-  D2/D3] → scoring4 if scoring ≥15% → SATURDAY = 4B scale A/B vs 30.14, calibrated expectation
-  +1-1.5 → 31.1-31.6; then: generation pilot + re-measure ttt8 on the new base)*
+- **2026-08-13/14. The data lever closes + trial run 2 + induction pilot.** claudegen v1: 33
+  compositional rules hand-authored in a day (2178 tasks verified by construction, 0
+  contamination with AGI-2) → probe under the D3 protocol: the SAME plateau (7-8/24) as the
+  other four sources/mixes → QUINTUPLE evidence that the SFT effect is domain re-alignment +
+  generic grid competence, saturated — the data lever closes on the 2B proxy with a crisp
+  result for the paper. E1 trial run 2 (Thursday's idle slot): **21.25** — two runs 19.86/21.25,
+  mean delta **+2.2** over 18.33 (3-6× the run-to-run spread) → hidden-set transfer CONFIRMED
+  robust. Own-induction pilot (grids→`main` program, execute-and-verify): Qwen2.5-1.5B SFT on
+  2000 ARC-Heavy pairs → **0/24 verified** (prereg rule: scale before discarding); the Coder-3B
+  escalation was LOST to infra (the ghost VM died before persisting) — the branch has no clean
+  verdict yet.
+- **2026-08-15/16. D4: capacity breaks the plateau… and the pipeline eats the gain. Merged
+  branch CLOSED.** 4B SFT on Kaggle (3.2h, N=8000 ARC-Heavy): 0/24 → **11/24 greedy** on the
+  internal eval — capacity breaks the 2B plateau ✓. But the LB A/B: **27.08 (−3.06 vs 30.14)**
+  → prereg revert. Converging, free diagnosis: the merged model's pools IMPROVE (1.6 vs 0.8
+  cands/task; GT-in-pool 8/12 vs 5/12), and the smoke with the real stack scores 3.0 vs the
+  champion's 2.5 (per-task quality did NOT regress) → mechanism: **2× richer pools make
+  decode+scoring more expensive → coverage collapsed**. Compensation `lb33-scale-fast` = ttt8
+  (green when re-measured on the new base, −17%) + scoring4 (top-2 100% faithful) ≈ −25%
+  t/task; v1 was caught by the commit failsafe (IndentationError — the build now compiles the
+  embedded modules), v2 smoke reload 3.0. **A/B (55538928): 28.33** — the mechanism's direction
+  is confirmed (+1.25 from cutting cost) but <29 → **prereg reading: merged branch CLOSED; the
+  champion remains 30.14**. For the paper, the week's clean pair: the SAME SFT yields +2.2 on
+  the 2B and −1.8/−3.1 on the production 4B — the calibration×pipeline-budget interaction
+  dominates over capacity.
+- *(next: levers on the CHAMPION — adaptive per-task budget reallocation (27-790s dispersion
+  already measured) as the candidate graft; Coder-3B induction only if the Colab bench allows;
+  ledger ~14.5 quota-hours with the 4h floor, reset Friday ~20:00; daily submission slot free
+  from ~19:00 local)*

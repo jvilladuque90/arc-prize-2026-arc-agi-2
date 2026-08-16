@@ -332,6 +332,33 @@ para superar el techo de los modelos públicos.
   D2-bis: el TTT ya recupera parte del SFT. Gates operativos del día: límite diario de T4 gratis
   (~6 sesiones) — cambio de cuenta Google autorizado por el usuario (ADC respaldado); la VM
   fantasma de D2 siguió corriendo tras morir el cliente y salvó el punto n=4000.
-- *(siguiente: VIERNES 19:05 = timing smoke → push scale-sft-4b [ARC-Heavy N=8000, receta
-  fijada por D2/D3] → scoring4 si scoring ≥15% → SÁBADO = A/B escala 4B vs 30.14, expectativa
-  calibrada +1-1.5 → 31.1-31.6; después: piloto de generación + re-medir ttt8 sobre base nueva)*
+- **2026-08-13/14. La palanca de datos se cierra + tirada 2 + piloto de inducción.** claudegen
+  v1: 33 reglas compositivas autoradas a mano en el día (2178 tareas verificadas por
+  construcción, 0 contaminación con AGI-2) → probe con protocolo D3: el MISMO plateau (7-8/24)
+  que las otras cuatro fuentes/mezclas → evidencia QUÍNTUPLE de que el efecto del SFT es
+  re-alineación de dominio + competencia genérica de grids, saturada — la palanca de datos se
+  cierra en el proxy 2B con un resultado nítido para el paper. Tirada 2 del ensayo E1 (slot
+  ocioso del jueves): **21.25** — dos tiradas 19.86/21.25, delta medio **+2.2** vs 18.33 (3-6×
+  la dispersión entre tiradas) → transferencia al test oculto CONFIRMADA robusta. Piloto de
+  inducción propia (grids→programa `main`, ejecutar y verificar): Qwen2.5-1.5B SFT en 2000
+  pares de ARC-Heavy → **0/24 verificado** (regla prerreg: escalar antes de descartar);
+  escalación a Coder-3B PERDIDA por infra (la VM fantasma murió antes de persistir) — la rama
+  queda sin veredicto limpio.
+- **2026-08-15/16. D4: la capacidad rompe el plateau… y el pipeline se come la ganancia. Rama
+  fusionada CERRADA.** SFT del 4B en Kaggle (3.2h, N=8000 ARC-Heavy): 0/24 → **11/24 greedy**
+  en la eval interna — la capacidad rompe el plateau del 2B ✓. Pero el A/B en el LB: **27.08
+  (−3.06 vs 30.14)** → revert prerreg. Diagnóstico convergente y gratis: los pools del fusionado
+  MEJORAN (1.6 vs 0.8 cands/tarea; GT-en-pool 8/12 vs 5/12), y el smoke con el stack real da
+  3.0 vs 2.5 del campeón (la calidad por tarea NO regresó) → mecanismo: **pools 2× más ricos
+  encarecen decode+scoring → cobertura colapsó**. Compensación `lb33-scale-fast` = ttt8 (verde
+  re-medido en la base nueva, −17%) + scoring4 (top-2 100% fiel) ≈ −25% t/tarea; la v1 la cazó
+  el failsafe del commit (IndentationError — el build ahora compila los módulos embebidos), v2
+  smoke reload 3.0. **A/B (55538928): 28.33** — la dirección del mecanismo se confirma (+1.25
+  por recortar coste) pero <29 → **lectura prerreg: rama fusionada CERRADA; el campeón sigue
+  siendo 30.14**. Para el paper, el par limpio de la semana: el MISMO SFT da +2.2 en el 2B y
+  −1.8/−3.1 en el 4B de producción — la interacción calibración×presupuesto-de-pipeline domina
+  sobre la capacidad.
+- *(siguiente: palancas sobre el CAMPEÓN — reasignación adaptativa del presupuesto por tarea
+  (dispersión 27-790s ya medida) como graft candidato; inducción Coder-3B solo si el banco
+  Colab lo permite; ledger ~14.5h-quota con piso de 4h, reset viernes ~20:00; slot diario de
+  submission libre desde ~19:00 locales)*
