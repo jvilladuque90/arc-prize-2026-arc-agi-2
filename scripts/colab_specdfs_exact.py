@@ -207,80 +207,74 @@ def dfs_spec(prompt_ids, inp, deadline):
         if not cands:
             return
         draft = draft_seq(row_col, inp, K_DRAFT)
-        # ¿el candidato preferido coincide con el borrador? entonces especulamos el bloque
-        if draft and cands[0][1] == draft[0] and draft[0] != EOS_ID:
-            cache.crop(pos)
-            blk = torch.tensor([draft], device="cuda:0", dtype=torch.long)
-            ppos = torch.arange(pos, pos + len(draft), device="cuda:0").view(1, -1)
-            o = MODEL(input_ids=blk, position_ids=ppos, past_key_values=cache,
-                      use_cache=True, return_dict=True)
-            stats["fwd"] += 1
-            # camino aceptado: mientras el borrador siga siendo el candidato preferido
-            cur_score, cur_prefix, cur_rc, cur_pos = run_score, list(prefix), row_col, pos
-            node_cands = cands
-            accepted = 0
-            for j, dtok in enumerate(draft):
-                if node_cands[0][1] != dtok:
-                    break
-                # ramas alternativas de ESTE nodo: se exploran despues (con crop)
-                for sc2, t2 in node_cands[1:]:
-                    if t2 == EOS_ID:
-                        leaves.append((round(sc2, 6), tuple(cur_prefix + [EOS_ID])))
-                    else:
-                        cache.crop(cur_pos)
-                        o2 = MODEL(input_ids=torch.tensor([[t2]], device="cuda:0",
-                                                          dtype=torch.long),
-                                   position_ids=torch.tensor([[cur_pos]], device="cuda:0"),
-                                   past_key_values=cache, use_cache=True, return_dict=True)
-                        stats["fwd"] += 1
-                        rec(o2.logits[0, -1], cur_pos + 1, sc2, cur_prefix + [t2],
-                            advance(cur_rc, t2))
-                        if time.time() > deadline:
-                            return
-                cur_score = node_cands[0][0]
-                cur_prefix = cur_prefix + [dtok]
-                cur_rc = advance(cur_rc, dtok)
-                cur_pos += 1
-                accepted += 1
-                if len(cur_prefix) >= MAX_NEW or time.time() > deadline:
-                    stats["trunc"] = True
-                    return
-                node_cands = cand_list(o.logits[0, j], cur_score)
-                if not node_cands:
-                    return
-                if node_cands[0][1] == EOS_ID:
-                    leaves.append((round(node_cands[0][0], 6), tuple(cur_prefix + [EOS_ID])))
-                    for sc2, t2 in node_cands[1:]:
-                        if t2 == EOS_ID:
-                            continue
-                        cache.crop(cur_pos)
-                        o2 = MODEL(input_ids=torch.tensor([[t2]], device="cuda:0",
-                                                          dtype=torch.long),
-                                   position_ids=torch.tensor([[cur_pos]], device="cuda:0"),
-                                   past_key_values=cache, use_cache=True, return_dict=True)
-                        stats["fwd"] += 1
-                        rec(o2.logits[0, -1], cur_pos + 1, sc2, cur_prefix + [t2],
-                            advance(cur_rc, t2))
-                    return
-            if accepted:
-                # el borrador dejo de acertar: seguir con la semantica normal desde aqui
-                cache.crop(cur_pos)
-                rec_logits = o.logits[0, accepted - 1]
-                rec(rec_logits, cur_pos, cur_score, cur_prefix, cur_rc)
+        if not (draft and cands[0][1] == draft[0] and draft[0] != EOS_ID):
+            step(cands, pos, prefix, row_col)
+            return
+        # --- especulacion: UN forward para todo el bloque del borrador ---
+        o = feed(draft, pos)
+        cur_score, cur_prefix, cur_rc = run_score, list(prefix), row_col
+        node_cands, accepted, dead = cands, 0, False
+        # v3: las ramas NO se exploran aqui. Explorarlas sobrescribiria la cache en esa
+        # posicion y corromperia el prefijo del borrador para todo lo que venga despues
+        # (bug cazado por el test v2: jaccard 0.0 contra la referencia). Se anotan y se
+        # procesan al final, restableciendo el prefijo con un solo forward cada una.
+        ramas = []
+        for j, dtok in enumerate(draft):
+            if node_cands[0][1] != dtok:
+                break
+            for sc2, t2 in node_cands[1:]:
+                ramas.append((j, sc2, t2, tuple(cur_prefix), cur_rc))
+            cur_score = node_cands[0][0]
+            cur_prefix.append(dtok)
+            cur_rc = advance(cur_rc, dtok)
+            accepted = j + 1
+            if dtok == EOS_ID:
+                leaves.append((round(cur_score, 6), tuple(cur_prefix)))
+                dead = True
+                break
+            if len(cur_prefix) >= MAX_NEW:
+                stats["trunc"] = True
+                dead = True
+                break
+            node_cands = cand_list(o.logits[0, j], cur_score)
+            if not node_cands:
+                dead = True
+                break
+        # continuacion PRIMERO: la cache aun contiene el bloque del borrador intacto
+        if not dead and accepted:
+            rec(o.logits[0, accepted - 1], pos + accepted, cur_score, cur_prefix, cur_rc)
+        # ...y ahora las ramas, cada una restableciendo el prefijo exacto
+        for j, sc2, t2, pfx, rc in ramas:
+            if time.time() > deadline:
+                stats["trunc"] = True
                 return
-        # sin especulacion posible: paso a paso, identico a la referencia
+            if t2 == EOS_ID:
+                leaves.append((round(sc2, 6), tuple(list(pfx) + [EOS_ID])))
+                continue
+            o2 = feed(list(draft[:j]) + [t2], pos)
+            rec(o2.logits[0, -1], pos + j + 1, sc2, list(pfx) + [t2], advance(rc, t2))
+
+    def step(cands, pos, prefix, row_col):
+        """Camino lento: token a token, semantica identica a la referencia."""
         for sc, tok in cands:
             if tok == EOS_ID:
                 leaves.append((round(sc, 6), tuple(prefix + [EOS_ID])))
                 continue
-            cache.crop(pos)
-            o = MODEL(input_ids=torch.tensor([[tok]], device="cuda:0", dtype=torch.long),
-                      position_ids=torch.tensor([[pos]], device="cuda:0"),
-                      past_key_values=cache, use_cache=True, return_dict=True)
-            stats["fwd"] += 1
+            o = feed([tok], pos)
             rec(o.logits[0, -1], pos + 1, sc, prefix + [tok], advance(row_col, tok))
             if time.time() > deadline:
+                stats["trunc"] = True
                 return
+
+    def feed(seq, pos):
+        """Restablece el prefijo exacto (crop) y consume 'seq' en UN forward."""
+        cache.crop(pos)
+        o = MODEL(input_ids=torch.tensor([seq], device="cuda:0", dtype=torch.long),
+                  position_ids=torch.arange(pos, pos + len(seq),
+                                            device="cuda:0").view(1, -1),
+                  past_key_values=cache, use_cache=True, return_dict=True)
+        stats["fwd"] += 1
+        return o
 
     rec(out.logits[0, -1], base, 0.0, [], (0, 0))
     return leaves, stats
@@ -389,11 +383,21 @@ def gt_len(k):
 
 HOLD = sorted([k for k in CHAL if is_holdout(k)], key=lambda k: cost(CHAL[k]))
 NEW = [k for k in HOLD if k not in AGI1]
-# salidas cortas: el arbol tiene que caber ENTERO en ambos brazos (si se trunca, no compara)
-TASKS = [k for k in NEW if gt_len(k) <= 150][:8]
 BUDGET = 240
-THRESHOLDS = {"t020_prod": -float(np.log(0.2)), "t001": -float(np.log(0.01)),
-              "t0001": -float(np.log(0.001))}
+# v4: argv[2]=="sharp" -> tareas de AGI-1 (que el modelo tiene MEMORIZADAS: sharp, con pool
+# no vacio al umbral de PRODUCCION incluso sin TTT). Es la unica forma barata de testear la
+# exactitud en el punto de operacion real: con tareas nuevas y sin TTT el pool es vacio y la
+# comparacion no vale. La poblacion no importa: la equivalencia es una propiedad algoritmica.
+SHARP = len(sys.argv) > 2 and sys.argv[2] == "sharp"
+if SHARP:
+    TASKS = [k for k in CHAL if k in AGI1 and gt_len(k) <= 150]
+    TASKS = sorted(TASKS, key=lambda k: cost(CHAL[k]))[:10]
+    THRESHOLDS = {"t020_prod": -float(np.log(0.2)), "t005": -float(np.log(0.05))}
+else:
+    # salidas cortas: el arbol tiene que caber ENTERO en ambos brazos (si se trunca, no vale)
+    TASKS = [k for k in NEW if gt_len(k) <= 150][:5]
+    THRESHOLDS = {"t020_prod": -float(np.log(0.2)), "t001": -float(np.log(0.01)),
+                  "t0001": -float(np.log(0.001))}
 
 RES = {"tasks": []}
 for ti, tk in enumerate(TASKS):
@@ -424,7 +428,9 @@ for ti, tk in enumerate(TASKS):
         sc_seq = {s for _, s in lc}
         union = len(sa_seq | sb_seq)
         dmax = 0.0
-        da, db = dict(la), dict(lb)
+        # las hojas son (score, seq): el dict va seq -> score (invertirlo daba KeyError)
+        da = {s: sc for sc, s in la}
+        db = {s: sc for sc, s in lb}
         for s in sa_seq & sb_seq:
             dmax = max(dmax, abs(da[s] - db[s]))
         # una comparacion solo VALE si hay hojas y ningun brazo se trunco
