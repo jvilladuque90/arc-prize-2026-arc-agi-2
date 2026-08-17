@@ -82,6 +82,16 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # Campeon + TOPE DE LONGITUD POR TAREA (17-ago): max_new_tokens deja de ser 931 fijo y pasa
+    # a 4x max(mayor salida de train, entrada de test). El lote de 4 vistas corre hasta la mas
+    # lenta, y una vista que divaga lo arrastra entero. GT cabe en el 100% de 1248 subtareas
+    # -> monotono. Mismo entorno que lb33-graft; un solo numero cambia.
+    "lb33-cap": {"notebook": "notebooks/lb33_cap.ipynb", "slug": "arc-agi2-lb33-cap",
+                 "title": "arc agi2 lb33 cap", "gpu": True,
+                 "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                            "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+                 "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                              "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # Descarga BARC-8B desde HF (repo abierto) a su output; su output se adjunta luego al probe
     # como kernel_source (evita la copia gated de ironbar). Internet ON -> T4, sin docker pin.
     "barc-download": {"notebook": "notebooks/barc_download.ipynb", "slug": "arc-agi2-barc-download",
