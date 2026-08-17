@@ -344,7 +344,49 @@ from scratch) to exceed the public models' ceiling.
   champion remains 30.14**. For the paper, the week's clean pair: the SAME SFT yields +2.2 on
   the 2B and −1.8/−3.1 on the production 4B — the calibration×pipeline-budget interaction
   dominates over capacity.
-- *(next: levers on the CHAMPION — adaptive per-task budget reallocation (27-790s dispersion
-  already measured) as the candidate graft; Coder-3B induction only if the Colab bench allows;
-  ledger ~14.5 quota-hours with the 4h floor, reset Friday ~20:00; daily submission slot free
-  from ~19:00 local)*
+- **2026-08-16. Architecture map: where our data enters and where the ceiling is.**
+  At the user's request, [ARCHITECTURE.md](ARCHITECTURE.md), with numbers taken from the tensors
+  and the code rather than memory: Qwen3-4B with the vocabulary cut to **16 tokens** (1 token =
+  1 cell), 36 layers, d_model 2560, GQA 32/8, rope 5M, **untied** `lm_head`, 3,634 M params.
+  **There are only TWO data-injection points**: the SFT (LoRA r=64, 132 M, 7 projections) and
+  per-task TTT (LoRA r=256 + rsLoRA, 530 M, **including embed_tokens and lm_head**). Finding:
+  those two matrices are [16, 2560], **max rank 16**, so r=256 on them is *full rank* — TTT
+  rewrites the entire symbol table per task, and our SFT never touched it (verified tensor by
+  tensor). A candidate explanation for why the SFT gain washed out over TTT. **Score
+  decomposition: 0.80 coverage × 0.42 GT-in-pool × 0.90 selection ≈ 30.1** → the ceiling of the
+  WHOLE speed family is **+7.5 pts**; the ×2 lives only in GT-in-pool. Measured free the same
+  day: context truncation is NOT a lever (2/120 tasks), `attempt_2` **is** used (4/5 smoke
+  subtasks), and scoring seeds its augmentations with `hash()`, which is **salted per process**
+  → the same kernel is not reproducible (consistent with the 19.86 / 21.25 runs) ⇒ **differences
+  below 1.4 pts are not conclusive from a single run**.
+- **2026-08-16/17. Speculation: exact but dead; the length cap survives.**
+  Prompted by the user's question about nibble tokenization (which in the literature means
+  quantization, not tokenization; and for ARC the ARChitects deliberately chose 1 token/cell),
+  we chased the *lossless* version of the same idea: speculative decoding with a free drafter =
+  the input grid itself (72% of outputs share their input's dimensions and, of those, a median
+  85% of cells are identical). Chain: cost gate ✓ (a 16-token forward costs the same as a
+  1-token one) → exactness test v1 came back **EMPTY** (without TTT the 4B completes no grid at
+  the production threshold — corollary worth its own line: *TTT doesn't improve the pool, it is
+  what makes the pool exist*) → v2 **caught a real bug** (exploring a branch overwrote the cache
+  and corrupted the drafted prefix: Jaccard 0.0) → v3 fixed → **v4 gate PASSED: 15/15 identical
+  pools, 6 at the production threshold**. Then the decisive bench: over the **4 real views of a
+  production batch** the gain collapses to **×1.25 (lockstep) / ×1.39 (ragged)** against gates
+  of 1.4/1.6 → **branch CLOSED with the algorithm already verified correct**. Reason:
+  speculation accelerates short tasks (×3.4) and not long ones (×1.06-1.3), which are what
+  consumes the budget. The same bench produced what we did adopt: batches with lengths
+  `[72, 650, 72, 72]` → the champion uses `max_new_tokens=931` for every task, so one rambling
+  view drags the whole batch. **`lb33-cap`**: cap = `4 × max(largest train output, test input)`;
+  the GT fits in **100.0% of 1248 subtasks**, the capped pool was a **subset** of the normal one
+  in 12/12 with 0 GTs lost, and the L4×4 smoke gave **reload 2.5 = identical to the champion**.
+  Submitted (55582027). Infrastructure gates paid: mount layout (now we **search** for the
+  file), `--accelerator NvidiaL4` mandatory (the T4×2 default leaves 2 of the 4 processes
+  without a GPU), and the Kaggle CLI **cannot write logs on Windows** (charmap vs unsloth's
+  emoji → a 0-byte `.log` that hid the real error for three attempts; `PYTHONUTF8=1`). Also
+  discovered that **agi-3 shares the same Kaggle account**: same 2 GPU sessions and same weekly
+  quota ⇒ this repo's hour ledger is unreliable.
+- *(next: the COVERAGE route is near exhaustion — six levers measured, every survivor between
+  ×1.10 and ×1.25 against a total ceiling of +7.5 pts. The real gap lives in GT-in-pool (0.42):
+  in more than half the processed tasks the model cannot generate the answer at any threshold.
+  Remaining levers: stable hash (methodological), scoring prefix-KV cache, and the
+  induction/hybrid branch, the only one with a high ceiling. Operational: split the weekly
+  Kaggle quota with agi-3)*

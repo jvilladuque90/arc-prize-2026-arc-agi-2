@@ -228,6 +228,13 @@ transducción pura satura ~40%.
 | Truncación de contexto | 2/120 tareas (1,7%) | medición local 16-ago |
 | Diversidad del `attempt_2` | ya se usa (4/5 subtareas) | submission.json del smoke |
 | Ensemble 2B/TRM | el 4B nunca cede cómputo sobrante | RESULTS.md |
+| **Decodificación especulativa** (borrador = grid de entrada) | **×1,25 lockstep / ×1,39 ragged** < gates (1,4 / 1,6) | bench 17-ago sobre las 4 vistas reales de un lote |
+
+### Adoptado
+
+| Superficie | Cambio | Evidencia |
+|---|---|---|
+| **Tope de longitud por tarea** (`lb33-cap`) | `max_new_tokens`: 931 fijo → `4 × max(mayor salida de train, entrada de test)` | GT cabe en 100,0% de 1248 subtareas; pool capado ⊆ pool normal en 12/12 (0 GT perdidas); smoke L4 reload **2,5** = campeón; muerde en el **54%** del test real |
 
 ### Abierto y sin medir
 
@@ -266,10 +273,24 @@ Ordenado por (evidencia a favor) ÷ (coste de probarlo):
 | # | Trabajo | Coste | Ganancia esperada |
 |---|---|---|---|
 | 0 | Fijar `PYTHONHASHSEED` / hash estable en el seed de scoring | 1 línea | 0 pt, pero hace comparables todas las mediciones siguientes |
-| 1 | Caché de prefijo KV en scoring (+ test de equivalencia numérica) | Colab gratis + 1 smoke | +0,7-1,0 pt, sin riesgo de calidad |
+| 1 | Caché de prefijo KV en scoring (+ test de equivalencia numérica) | Colab gratis + 1 smoke | +0,5-1,0 pt — **ojo**: las 8 augmentaciones tienen longitudes distintas, así que necesita left-padding + máscara (el mismo obstáculo que cerró la especulación) |
 | 2 | Barrido de umbral hacia arriba (0,25 / 0,3) en el bench | Colab gratis | decide si hay +0,5-1 pt más |
-| 3 | Cap de ancho de haz sobre la cola patológica | Colab gratis | acota el peor caso |
-| 4 | A/B en Kaggle del paquete 0+1+2+3 | 1 submission | acumulativo — y por encima de la banda de ruido de 1,4 pt |
+| 3 | Inducción / híbrido | alto | única palanca sobre GT-en-pool (el ×2) |
 
-Los tres primeros se diseñan y miden **sin gastar quota de Kaggle**, que es la restricción
-dura. Ninguno toca el modelo: el campeón sigue siendo el 4B original de sorokin.
+**Lección estructural de la campaña de velocidad (11-17 ago)**: se midieron seis palancas de
+decode (`ttt8`, `scoring4`, `dfsbatch`, `dfswide`, especulación, tope de longitud) y **todas
+las supervivientes rinden entre ×1,10 y ×1,25**. No es casualidad: el techo de TODA la familia
+es +7,5 pt (§5) y el pipeline ya estaba bien tuneado por NVARC. La conclusión honesta es que
+**la vía de cobertura está cerca de agotarse**, y que el gap real vive en GT-en-pool.
+
+Ninguna de las palancas adoptadas toca el modelo: el campeón sigue siendo el 4B original de
+sorokin, sin fusionar.
+
+## 8. Notas de infraestructura (caras de re-aprender)
+
+| Gate | Síntoma | Fix |
+|---|---|---|
+| Layout de montaje de Kaggle | `FileNotFoundError` en `/kaggle/input/competitions/<comp>/` | prólogo que **busca** el archivo bajo `/kaggle/input` (ya cambió dos veces; no encadenar rutas fijas) |
+| Acelerador por defecto | `NotImplementedError: Unsloth only works on NVIDIA GPUs` en el proceso 2 | `push_kernels.py <k> --accelerator NvidiaL4` **siempre** en kernels de inferencia: el campeón lanza 4 procesos, uno por GPU |
+| Logs de Kaggle en Windows | el `.log` baja con **0 bytes** y oculta el error real | `export PYTHONUTF8=1` (el CLI revienta con `charmap` al escribir el emoji de unsloth) |
+| Cuenta Kaggle compartida | push rechazado por "Maximum batch GPU session count of 2" | el proyecto **agi-3 usa la misma cuenta**: comparte las 2 sesiones GPU y la cuota semanal → el ledger de horas de este repo no es fiable |

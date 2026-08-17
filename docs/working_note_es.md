@@ -358,7 +358,50 @@ para superar el techo de los modelos públicos.
   siendo 30.14**. Para el paper, el par limpio de la semana: el MISMO SFT da +2.2 en el 2B y
   −1.8/−3.1 en el 4B de producción — la interacción calibración×presupuesto-de-pipeline domina
   sobre la capacidad.
-- *(siguiente: palancas sobre el CAMPEÓN — reasignación adaptativa del presupuesto por tarea
-  (dispersión 27-790s ya medida) como graft candidato; inducción Coder-3B solo si el banco
-  Colab lo permite; ledger ~14.5h-quota con piso de 4h, reset viernes ~20:00; slot diario de
-  submission libre desde ~19:00 locales)*
+- **2026-08-16. Mapa de arquitectura: dónde entra nuestra data y dónde está el techo.**
+  A pedido del usuario, [ARCHITECTURE.md](ARCHITECTURE.md) con los números sacados de los
+  tensores y del código, no de memoria: Qwen3-4B con vocabulario recortado a **16 tokens**
+  (1 token = 1 celda), 36 capas, d_model 2560, GQA 32/8, rope 5M, `lm_head` **no atado**,
+  3.634 M parámetros. **Solo hay DOS puntos de inyección de datos**: el SFT (LoRA r=64, 132 M,
+  7 proyecciones) y el TTT por tarea (LoRA r=256 + rsLoRA, 530 M, **incluye embed_tokens y
+  lm_head**). Hallazgo: esas dos matrices son [16, 2560], **rango máximo 16**, así que r=256
+  sobre ellas es *rango completo* — el TTT reescribe entera la tabla de símbolos en cada tarea,
+  y nuestro SFT nunca la tocó (verificado tensor a tensor). Candidato a explicar por qué la
+  ganancia del SFT se lavaba sobre el TTT. **Descomposición del score: 0,80 cobertura × 0,42
+  GT-en-pool × 0,90 selección ≈ 30,1** → techo de TODA la familia velocidad = **+7,5 pt**;
+  el ×2 está solo en GT-en-pool. Medido gratis el mismo día: la truncación de contexto NO es
+  palanca (2/120 tareas), el `attempt_2` **sí se usa** (4/5 subtareas del smoke), y el scoring
+  siembra sus augmentaciones con `hash()` **salteado por proceso** → el mismo kernel no es
+  reproducible (consistente con las tiradas 19,86 y 21,25) ⇒ **diferencias <1,4 pt no son
+  concluyentes con una sola tirada**.
+- **2026-08-16/17. Especulación: exacta pero muerta; sobrevive el tope de longitud.**
+  A partir de la pregunta del usuario sobre tokenización por nibbles (que en la literatura es
+  cuantización, no tokenización; y para ARC los ARChitects eligieron 1 token/celda a propósito),
+  se persiguió la versión *lossless* de la misma idea: decodificación especulativa con borrador
+  gratis = la propia grid de entrada (72% de las salidas comparten dimensiones con su entrada y,
+  de esas, mediana 85% de celdas idénticas). Cadena: gate de coste ✓ (un forward de 16 tokens
+  cuesta igual que uno de 1) → v1 del test de exactitud **VACÍA** (sin TTT el 4B no completa
+  ninguna grid al umbral de producción — corolario propio: *el TTT no mejora el pool, es lo que
+  hace que el pool exista*) → v2 **cazó un bug real** (explorar una rama sobrescribía la caché
+  y corrompía el prefijo: Jaccard 0,0) → v3 corregida → **v4 gate SUPERADO: 15/15 pools
+  idénticos, 6 al umbral de producción**. Y entonces el bench decisivo: sobre las **4 vistas
+  reales de un lote** la ganancia cae a **×1,25 (lockstep) / ×1,39 (ragged)** contra gates de
+  1,4/1,6 → **rama CERRADA con el algoritmo ya verificado correcto**. Motivo: la especulación
+  acelera las tareas cortas (×3,4) y no las largas (×1,06-1,3), que son las que consumen el
+  presupuesto. Del mismo bench salió lo que sí se adoptó: lotes con longitudes `[72, 650, 72,
+  72]` → el campeón usa `max_new_tokens=931` para todas las tareas y una vista que divaga
+  arrastra al lote. **`lb33-cap`**: tope = `4 × max(mayor salida de train, entrada de test)`;
+  la GT cabe en el **100,0% de 1248 subtareas**, el pool capado fue **subconjunto** del normal
+  en 12/12 con 0 GT perdidas, y el smoke en L4×4 dio **reload 2,5 = idéntico al campeón**.
+  Submitido (55582027). Gates de infraestructura pagados: layout de montaje (ahora se **busca**
+  el archivo), `--accelerator NvidiaL4` obligatorio (el default T4×2 deja sin GPU a 2 de los 4
+  procesos), y el CLI de Kaggle **no puede escribir logs en Windows** (charmap vs el emoji de
+  unsloth → `.log` de 0 bytes que ocultó el error real durante tres intentos; `PYTHONUTF8=1`).
+  Descubierto además que **agi-3 comparte la misma cuenta de Kaggle**: mismas 2 sesiones GPU y
+  misma cuota semanal ⇒ el ledger de horas de este repo no es fiable.
+- *(siguiente: la vía de COBERTURA está cerca de agotarse — seis palancas medidas, todas las
+  supervivientes entre ×1,10 y ×1,25 sobre un techo total de +7,5 pt. El gap real vive en
+  GT-en-pool (0,42): en más de la mitad de las tareas procesadas el modelo no sabe generar la
+  respuesta a ningún umbral. Palancas restantes: hash estable (metodológica), caché de prefijo
+  KV en scoring, y la rama de inducción/híbridos, única con techo alto. Pendiente operativo:
+  repartir la cuota semanal con agi-3)*
