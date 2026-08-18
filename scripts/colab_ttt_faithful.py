@@ -47,7 +47,8 @@ subprocess.run([sys.executable, "-m", "pip", "install", "-q", "peft", "bitsandby
                 "torchao>=0.16"], check=True)
 os.makedirs("/content", exist_ok=True)
 os.chdir("/content")
-for f in ("arc-agi_training_challenges.json", "arc-agi_training_solutions.json"):
+for f in ("arc-agi_training_challenges.json", "arc-agi_training_solutions.json",
+          "arc-agi_evaluation_challenges.json", "arc-agi_evaluation_solutions.json"):
     subprocess.run(["kaggle", "competitions", "download", "arc-prize-2026-arc-agi-2",
                     "-f", f, "-p", "/content", "-q"], check=True)
 subprocess.run("cd /content && for z in *.zip; do unzip -o -q \"$z\"; done", shell=True)
@@ -225,9 +226,16 @@ def cost(t):
                for g in t["train"])
 
 
-NEW = sorted([k for k in CHAL if is_holdout(k) and k not in AGI1],
-             key=lambda k: cost(CHAL[k]))
-TASKS = NEW[:8]
+# argv[2]=="eval": poblacion NO memorizada. El A/B de formato mostro que en el holdout de
+# training el modelo recita su SFT (NLL 0.037) mientras en eval no cruza el umbral: la pregunta
+# decisiva es si un TTT que SI entrena mueve GT-en-pool donde no hay memorizacion.
+if len(sys.argv) > 2 and sys.argv[2] == "eval":
+    CHAL = json.load(open("/content/arc-agi_evaluation_challenges.json"))
+    SOLS = json.load(open("/content/arc-agi_evaluation_solutions.json"))
+    TASKS = sorted(CHAL, key=lambda k: cost(CHAL[k]))[:8]
+else:
+    TASKS = sorted([k for k in CHAL if is_holdout(k) and k not in AGI1],
+                   key=lambda k: cost(CHAL[k]))[:8]
 print(f"[setup] {len(TASKS)} tareas nuevas | umbral {THR:.3f}", flush=True)
 
 RANK = 256
@@ -395,7 +403,7 @@ try:
     os.makedirs("/content/persist", exist_ok=True)
     json.dump(RES, open("/content/persist/ttt_faithful_result.json", "w"), indent=1)
     user = os.environ.get("KAGGLE_USERNAME", "juliancamilovilla")
-    json.dump({"title": "arcscale ttt faithful", "id": f"{user}/arcscale-ttt-faithful",
+    json.dump({"title": "arcscale ttt faithful", "id": f"{user}/arcscale-ttt-eval" if (len(sys.argv)>2 and sys.argv[2]=="eval") else f"{user}/arcscale-ttt-faithful",
                "licenses": [{"name": "CC0-1.0"}]},
               open("/content/persist/dataset-metadata.json", "w"))
     r = subprocess.run(["kaggle", "datasets", "create", "-p", "/content/persist", "-q"],

@@ -92,6 +92,17 @@ KERNELS = {
                             "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                  "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                               "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # Campeon + REPOSICION DE LOS MARCADORES DE ROL (18-ago). El tokenizador (WordLevel, 13
+    # entradas, 0 merges) se come 'user'/'assistant', asi que los ids 11/12 nunca llegan al
+    # modelo aunque fue entrenado con ellos. A/B en Colab: NLL de la GT 18.6->0.037, GT bajo
+    # umbral 0/14->14/14, pool 0->16. Solo cambia la tokenizacion del prompt. LANZAR CON
+    # --accelerator NvidiaL4 (el campeon spawnea 4 procesos, uno por GPU).
+    "lb33-roles": {"notebook": "notebooks/lb33_roles.ipynb", "slug": "arc-agi2-lb33-roles",
+                   "title": "arc agi2 lb33 roles", "gpu": True,
+                   "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                              "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+                   "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                                "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # Descarga BARC-8B desde HF (repo abierto) a su output; su output se adjunta luego al probe
     # como kernel_source (evita la copia gated de ironbar). Internet ON -> T4, sin docker pin.
     "barc-download": {"notebook": "notebooks/barc_download.ipynb", "slug": "arc-agi2-barc-download",

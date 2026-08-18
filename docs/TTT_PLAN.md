@@ -165,3 +165,30 @@ que vio en entrenamiento, y eso no depende de la poblacion.
 de `calc_scores`. El DFS no puede generarlos (no estan en `ARC_TOKENS`), asi que la salida no
 cambia de forma. Arreglar el collator (marcar los tramos por construccion, no por busqueda de
 ids) revive el TTT como efecto aparte.
+
+## 7. CONTRASTE EN EVAL (18-ago): el efecto del formato era memorizacion
+
+Mismo A/B, poblacion del **eval publico** (14 tareas, `colab_format_ab.py ... eval`):
+
+| | produccion | con roles | holdout de TRAINING (referencia) |
+|---|---|---|---|
+| NLL de la GT (mediana) | 16,77 | **13,03** (x1,3) | 18,6 -> 0,037 (x500) |
+| GT bajo el umbral | 0/14 | **0/14** | 0/14 -> 14/14 |
+| pool del DFS | 0 | **8** | 0 -> 16 |
+
+**Veredicto: NO se sube.** El efecto espectacular del holdout de training era el modelo
+recitando su propio SFT con el formato correcto; en poblacion no memorizada el formato mejora
+la NLL solo x1,3 y **ninguna tarea cruza el umbral**. Peor: el pool sube de 0 a 8 candidatos
+**sin que ninguno sea correcto** — exactamente el mecanismo que costo -3 pt con el 4B fusionado
+(pools mas ricos encarecen decode+scoring y hunden la cobertura). Habria sido el cuarto submit
+fallido de la semana.
+
+**Lo que SI queda, y es mayor**: el bug del collator no depende de la poblacion. El TTT de
+produccion **no supervisa ni un token** (etiquetas todas en -100, CE = NaN medido en GPU), y
+eso consume el **34,8% del presupuesto**. Explica `ttt8` neutro, GT-en-pool clavado en 0,42, y
+que "con TTT" y "sin TTT" dieran resultados parecidos en nuestros benches.
+
+⇒ Pregunta decisiva, ya en ejecucion: **¿un TTT que SI entrena mueve GT-en-pool en tareas no
+memorizadas?** (`colab_ttt_faithful.py ... eval` — el harness construye la mascara a mano, asi
+que entrena de verdad). Si sube -> arreglar el collator es la palanca del proyecto. Si no ->
+estamos en el techo de la transduccion pura y la unica salida es la rama de induccion.

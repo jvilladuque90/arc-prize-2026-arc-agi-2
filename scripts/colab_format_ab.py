@@ -50,7 +50,8 @@ os.environ["KAGGLE_API_TOKEN"] = TOKEN
 subprocess.run([sys.executable, "-m", "pip", "install", "-q", "-U", "kaggle"], check=True)
 os.makedirs("/content", exist_ok=True)
 os.chdir("/content")
-for f in ("arc-agi_training_challenges.json", "arc-agi_training_solutions.json"):
+for f in ("arc-agi_training_challenges.json", "arc-agi_training_solutions.json",
+          "arc-agi_evaluation_challenges.json", "arc-agi_evaluation_solutions.json"):
     subprocess.run(["kaggle", "competitions", "download", "arc-prize-2026-arc-agi-2",
                     "-f", f, "-p", "/content", "-q"], check=True)
 subprocess.run("cd /content && for z in *.zip; do unzip -o -q \"$z\"; done", shell=True)
@@ -186,8 +187,16 @@ def cost(t):
                for g in t["train"])
 
 
-TASKS = sorted([k for k in CHAL if is_holdout(k) and k not in AGI1],
-               key=lambda k: cost(CHAL[k]))[:14]
+# argv[2]=="eval": poblacion del EVAL publico. Las 14 del holdout de training las vio el
+# modelo en su SFT, asi que su NLL ~0 con roles incluye memorizacion; el eval es la poblacion
+# mas parecida al test que tenemos con soluciones (aunque tambien puede estar contaminada).
+if len(sys.argv) > 2 and sys.argv[2] == "eval":
+    CHAL = json.load(open("/content/arc-agi_evaluation_challenges.json"))
+    SOLS = json.load(open("/content/arc-agi_evaluation_solutions.json"))
+    TASKS = sorted(CHAL, key=lambda k: cost(CHAL[k]))[:14]
+else:
+    TASKS = sorted([k for k in CHAL if is_holdout(k) and k not in AGI1],
+                   key=lambda k: cost(CHAL[k]))[:14]
 print(f"[setup] {len(TASKS)} tareas nuevas | umbral {THR:.3f}", flush=True)
 
 RES = {"loss_todo_ignorado": float(_loss.item()), "tasks": []}
@@ -230,7 +239,7 @@ try:
     os.makedirs("/content/persist", exist_ok=True)
     json.dump(RES, open("/content/persist/format_ab_result.json", "w"), indent=1)
     user = os.environ.get("KAGGLE_USERNAME", "juliancamilovilla")
-    json.dump({"title": "arcscale format ab", "id": f"{user}/arcscale-format-ab",
+    json.dump({"title": "arcscale format ab", "id": f"{user}/arcscale-format-ab-eval" if (len(sys.argv)>2 and sys.argv[2]=="eval") else f"{user}/arcscale-format-ab",
                "licenses": [{"name": "CC0-1.0"}]},
               open("/content/persist/dataset-metadata.json", "w"))
     r = subprocess.run(["kaggle", "datasets", "create", "-p", "/content/persist", "-q"],
