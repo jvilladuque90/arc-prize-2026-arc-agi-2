@@ -192,3 +192,44 @@ que "con TTT" y "sin TTT" dieran resultados parecidos en nuestros benches.
 memorizadas?** (`colab_ttt_faithful.py ... eval` — el harness construye la mascara a mano, asi
 que entrena de verdad). Si sube -> arreglar el collator es la palanca del proyecto. Si no ->
 estamos en el techo de la transduccion pura y la unica salida es la rama de induccion.
+
+## 8. CORRECCION (18-ago): el bug de formato era de MI entorno, no de produccion
+
+El log de produccion del campeon (`kaggle kernels output arc-agi2-lb33-graft`, con
+`PYTHONUTF8=1` para que baje completo) muestra:
+
+```
+[Rank 1] training stats ... training_loss=0.005190  (global_step=128)
+[Rank 0] training stats ... training_loss=0.005742
+[Rank 2] training stats ... training_loss=0.002902
+[Rank 3] training stats ... training_loss=0.000156
+```
+
+Perdidas **reales, no NaN**. Si la mascara del collator estuviera vacia la CE seria NaN (lo
+medimos en GPU). Por tanto **en Kaggle el tokenizador SI emite los ids 11/12** y el TTT de
+produccion supervisa normalmente. La afirmacion de §6(b) es **falsa para produccion**: el
+descarte de 'user'/'assistant' es un artefacto del `tokenizers` mas nuevo que trae Colab.
+
+**Consecuencia sobre nuestras propias mediciones**: todos los benches de Colab que tokenizaron
+por TEXTO alimentaron al modelo **sin marcadores de rol**, es decir fuera de distribucion. Eso
+invalida sus valores ABSOLUTOS:
+
+| medicion | estado |
+|---|---|
+| T2a: "GT 0/38, brecha x10.4, train 2/118" | ❌ invalida (prompt sin roles) |
+| "sin TTT el pool es vacio" | ❌ invalida (era el formato, no la falta de TTT) |
+| "el criterio penaliza salidas grandes" (corr -0,612) | ⚠️ a re-medir con formato correcto |
+| aceptacion del borrador / especulacion x1.25-1.39 | ⚠️ medido OOD; la conclusion estructural (el lote sincronizado mata la ganancia) probablemente aguanta |
+| `lb33-cap` -2,5 pt | ✅ valida (medida en Kaggle) |
+| **TTT sobreajusta: train 24/24, GT 0/8 en eval** | ✅ **valida** — ese harness construye los tokens a mano CON roles |
+
+**Lo que queda en pie tras la correccion**: con el formato correcto y un TTT que entrena de
+verdad, sobre 8 tareas de eval no memorizadas, el TTT lleva los pares de train a NLL ~0
+(24/24 bajo el umbral) y la GT del test **no cruza en ninguna** (mediana empeora x0,56). Es
+sobreajuste puro: aprende las demostraciones, no la regla. ⇒ **H3 muerta**: entrenar "hasta
+cumplir el criterio en los pares de train" se logra al 100% y no compra nada en test.
+
+**Leccion de metodo**: un entorno de banco que difiere del de produccion en una libreria puede
+invertir por completo la lectura. Antes de declarar un hallazgo sobre produccion hay que
+verificarlo CONTRA produccion — aqui bastaba leer el log del campeon, que era gratis y estuvo
+disponible todo el tiempo.
