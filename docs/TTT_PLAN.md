@@ -71,6 +71,41 @@ estándar, sin GradScaler sobre los LoRA.
 (medido). Un harness fiel debe producir **pool no vacío** en tareas nuevas tras el TTT. Si no
 lo consigue, no se interpreta ningún resultado posterior.
 
+## 4-bis. T2a EJECUTADO (17-ago): la línea base, sin TTT
+
+38 tareas (24 nuevas del holdout + 14 del eval), teacher forcing, sin entrenar nada:
+
+| Métrica | Valor |
+|---|---|
+| GT bajo el umbral | **0 / 38** |
+| Pares de train bajo el umbral (leave-one-out) | **2 / 118** |
+| NLL total mediana | **16,79** (umbral 1,609) → hace falta **×10,4** de reducción |
+| NLL/token mediana | 0,088 → prob. media por token 0,9155 |
+
+**H2 confirmada en su forma más dura**: sin TTT el modelo no reproduce ni sus *propias*
+demostraciones bajo el criterio (2/118). El tamaño del salto que el TTT debe cubrir es de un
+orden de magnitud, no un ajuste fino. Confirma desde otro ángulo que *el TTT no refina el pool,
+es lo que hace que el pool exista*.
+
+**H1 sale al revés de lo que suponía, y es el hallazgo del día**: la correlación NLL/token vs L
+es **−0,612**. Las salidas grandes se modelan MEJOR por token (mediana 0,029 con L>300 vs 0,146
+con L≤300, 5× mejor), pero el umbral **absoluto** suma sobre más tokens y las excluye. O sea:
+el criterio de producción está sesgado en contra justo de las tareas que el modelo entiende
+mejor. Simulación con umbral por token sobre estos mismos datos:
+
+| criterio | pasan | L medio de las que pasan |
+|---|---|---|
+| absoluto `-log(0,2)` (producción) | 0/38 | — |
+| `NLL/token < 0,02` | 6/38 | **614** |
+| `NLL/token < 0,03` | 9/38 | 512 |
+| `NLL/token < 0,05` | 12/38 | 532 |
+
+⇒ **H4 asciende a palanca principal**, y no es de velocidad: ataca GT-en-pool. Implementación:
+sustituir la constante `max_score` de `turbo_dfs` por un **presupuesto lineal**
+`max_score(t) = c·t + holgura` — aprieta las salidas cortas y afloja las largas, así que puede
+resultar neutro o favorable en tiempo (a diferencia de `dfswide`, que aflojaba uniformemente y
+costaba +75%). Pendiente: re-medir con TTT, donde todas las magnitudes se mueven.
+
 ## 5. Orden de trabajo (todo en Colab)
 
 1. **T1 — harness fiel** (gate del §4). Sin esto, nada más es interpretable.
