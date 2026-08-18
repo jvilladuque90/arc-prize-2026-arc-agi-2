@@ -119,3 +119,49 @@ costaba +75%). Pendiente: re-medir con TTT, donde todas las magnitudes se mueven
 Regla del usuario para esta línea: **no se sube nada a Kaggle por unos pocos puntos
 porcentuales**. Se busca una línea de desempeño alta y sostenida en el banco de train antes de
 gastar un slot. Cada avance confirmado puede ir a submit cuando convenga, no antes.
+
+## 6. HALLAZGO (18-ago): el pipeline alimenta al modelo con el formato equivocado
+
+El tokenizador del campeon es **WordLevel, 13 entradas, 0 merges**. Sobre el texto exacto del
+formateador:
+
+```
+tk('<|im_start|>user\n')  -> [14, 10]      (NO [14, 11, 10])
+tk('user') -> []          tk('assistant') -> []
+```
+
+Los ids 11 (`user`) y 12 (`assistant`) **existen en el vocabulario pero el tokenizador nunca
+los emite**. Eso rompe DOS cosas a la vez:
+
+**(a) El prompt esta fuera de distribucion.** A/B limpio sobre el modelo original, 14 tareas
+nuevas, mismo proceso (`scripts/colab_format_ab.py`):
+
+| | produccion (sin roles) | con roles inyectados |
+|---|---|---|
+| NLL de la GT (mediana) | **18,605** | **0,037** |
+| GT bajo el umbral | **0 / 14** | **14 / 14** |
+| pool del DFS | **0** | **16 candidatos** |
+
+Factores por tarea entre ×13 y ×590.000. El modelo fue entrenado CON los marcadores de rol
+(por eso estan en el vocabulario y por eso el collator los busca), y la inferencia se los quita.
+
+**(b) El TTT no supervisa nada.** `QwenDataCollatorForCompletionOnlyLM` localiza los tramos de
+assistant buscando los ids 11/12; al no aparecer, `start_idx` queda vacio y **todas** las
+etiquetas quedan en -100. Replicado localmente sobre una secuencia real: 0 de 32 tokens con
+perdida. La CE con todo ignorado devuelve **NaN** (medido en GPU).
+
+Esto explica de golpe varios resultados sueltos de la campaña: por que `ttt8` (mitad de
+augmentaciones) salio neutro, por que el 34,8% del presupuesto en TTT no compraba calidad
+medible, y por que GT-en-pool estaba clavado en 0,42.
+
+**Caveat honesto**: las 14 tareas son del holdout del set de *training*, que el modelo vio en
+su SFT. Con el formato correcto las reproduce casi perfectamente (NLL 0,037) — eso es en parte
+memorizacion, asi que los valores ABSOLUTOS no se trasladan al test oculto. Lo que si es
+estructural es el **desajuste de formato**: el modelo recibe en inferencia algo distinto de lo
+que vio en entrenamiento, y eso no depende de la poblacion.
+
+**Fix minimo y quirurgico**: tras `tokenizer.encode(texto)`, inyectar 11/12 despues de cada
+`<|im_start|>` alternando user/assistant (validado en el A/B). Afecta al prompt del decode y al
+de `calc_scores`. El DFS no puede generarlos (no estan en `ARC_TOKENS`), asi que la salida no
+cambia de forma. Arreglar el collator (marcar los tramos por construccion, no por busqueda de
+ids) revive el TTT como efecto aparte.
