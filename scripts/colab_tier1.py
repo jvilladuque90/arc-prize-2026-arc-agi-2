@@ -40,7 +40,8 @@ os.environ["KAGGLE_API_TOKEN"] = TOKEN
 subprocess.run([sys.executable, "-m", "pip", "install", "-q", "-U", "kaggle"], check=True)
 os.makedirs("/content", exist_ok=True)
 os.chdir("/content")
-for f in ("arc-agi_training_challenges.json", "arc-agi_training_solutions.json"):
+for f in ("arc-agi_training_challenges.json", "arc-agi_training_solutions.json",
+          "arc-agi_evaluation_challenges.json", "arc-agi_evaluation_solutions.json"):
     subprocess.run(["kaggle", "competitions", "download", "arc-prize-2026-arc-agi-2",
                     "-f", f, "-p", "/content", "-q"], check=True)
 subprocess.run("cd /content && for z in *.zip; do unzip -o -q \"$z\"; done", shell=True)
@@ -83,6 +84,7 @@ N_TAREAS = int(os.environ.get("N_TAREAS", "24"))
 # modo de fallo que hundio a lb33-cap (umbral validado en una poblacion, aplicado en otra).
 OFFSET = int(os.environ.get("OFFSET", "0"))
 DS = (f"{os.environ.get('KAGGLE_USERNAME', 'juliancamilovilla')}/arcscale-tier1"
+      + (f"-{os.environ['POBLACION']}" if os.environ.get("POBLACION") else "")
       + (f"-{OFFSET}" if OFFSET else ""))
 
 
@@ -194,11 +196,21 @@ def dfs_scored(prompt, depth, budget=45):
     return leaves, time.time() - t0
 
 
-CHAL = json.load(open("/content/arc-agi_training_challenges.json"))
-SOLS = json.load(open("/content/arc-agi_training_solutions.json"))
+# POBLACION: el holdout no-AGI1 del TRAIN tiene solo 24 tareas -- las medimos todas, y el
+# modelo resuelve 16 (67%) con NLL de 0,0008-0,03. Eso no parece confianza sino MEMORIZACION:
+# son tareas del conjunto de entrenamiento de AGI-2 y el modelo base es de terceros. Si los
+# aciertos son memorizaciones, su confianza extrema es un artefacto y la separacion tambien.
+# El eval no-AGI1 (114 tareas) es la poblacion menos contaminada disponible. Lo que decide:
+# ¿aparecen aciertos con confianza INTERMEDIA (0,6-1,5), donde viven los errores?
+POB = os.environ.get("POBLACION", "train")
+_pre = "training" if POB == "train" else "evaluation"
+CHAL = json.load(open(f"/content/arc-agi_{_pre}_challenges.json"))
+SOLS = json.load(open(f"/content/arc-agi_{_pre}_solutions.json"))
 
 
 def is_holdout(tid):
+    if POB != "train":          # el eval entero es holdout: nunca se uso para nada nuestro
+        return True
     return int(hashlib.md5(tid.encode()).hexdigest(), 16) % 1000 < 105
 
 

@@ -480,3 +480,60 @@ es lo unico que puede romper el umbral.
 
 Coste medido del tier 1: **282 s de decode para las 24** (11,8 s/tarea); las 8 supervivientes
 suman 116 s, que es el unico decode que se pagaria dos veces.
+
+### 12-bis. CORRECCION y ampliacion: la poblacion, el eval, y la prueba contra PRODUCCION
+
+**Correccion**: dije "las 24 mas baratas". Falso — el holdout no-AGI1 del train tiene **exactamente
+24 tareas** (train AGI-2: 1000 total, 112 en la banda de holdout, 24 fuera de AGI-1). `[:24]` las
+coge todas. La advertencia sobre "tramo facil" era infundada por ese lado.
+
+Pero al verificarlo aparece algo peor: son tareas del conjunto de ENTRENAMIENTO de AGI-2 y el
+modelo base es de terceros. NLL de 0,0008 no es confianza, es **memorizacion**. Si los aciertos
+son memorizaciones, su confianza extrema es un artefacto y la separacion podria serlo.
+
+**Eval AGI-2 no-AGI1 (40 tareas)** — el test buscaba aciertos con confianza INTERMEDIA, que en el
+train no habia ninguno:
+
+| grupo | n | rango |
+|---|---|---|
+| correctas | 32 | 0,0002 – **0,6966** |
+| confiadas y EQUIVOCADAS | 3 | **0,8643** – 1,2273 |
+| sin candidato | 5 | — |
+
+Aparecieron los aciertos intermedios (0,6266 y 0,6966, muy por encima del peor acierto del train)
+**pero los errores se movieron con ellos**: el hueco se mantiene, ahora 1,24x en vez de 2,3x.
+Juntando las dos poblaciones (64 tareas): peor acierto **0,6966**, mejor error **0,8643** ⇒
+**τ=0,75 separa 48 aciertos de 7 errores sin fallar ni una vez**.
+
+Salvedad: el eval resuelve **32/40 = 80%** (el train, 67%) frente al ~30% de produccion. Las dos
+poblaciones estan casi con certeza vistas por el modelo.
+
+**LA PRUEBA CONTRA PRODUCCION (gratis, del log del propio campeon)**: `ArcDecoder` guarda el
+`beam_score` de cada candidato y `benchmark_selection_algos` imprime el resumen. En
+`arc-agi2-lb33-baseline`:
+
+```
+avg correct beam score:  0.03724
+max correct beam score:  0.48566
+```
+
+36 candidatos correctos, **todos por debajo de 0,486**, mediana 0,00082, p90 0,208. Es el stack
+REAL (4B + TTT + augmentaciones), no nuestro banco de 2B, y da la misma frontera.
+
+**Que prueba y que NO prueba**: el log solo imprime lineas `ALL_CORRECT`, asi que confirma
+**recall** (todo acierto tiene score bajo) pero **no dice nada de precision** — no vemos los
+scores de los candidatos equivocados de produccion. La precision la sostienen solo nuestras 64
+tareas. La combinacion es: recall validado en produccion con el modelo grande, precision medida
+en el 2B sobre dos poblaciones.
+
+**Consecuencia inmediata y barata**: el umbral de aceptacion del DFS del campeon es **1,609**,
+mas de 3x por encima del peor acierto que ese mismo kernel produjo (0,486). Esta admitiendo
+candidatos que **nunca** son correctos: gasta busqueda en ellos y ademas diluye el pool. Bajarlo
+podaria mas fuerte sin perder nada de lo observado.
+
+⚠️ **Pero es la MISMA FORMA de argumento que hundio a `lb33-cap`** (−2,5 pt): "es monotono, no
+puede perder". Alli fallo por desplazamiento de poblacion (el cap ataba el 54% de las subtareas
+del test contra el 16% del eval). Aqui el riesgo gemelo es que en el test oculto —mas dificil—
+un acierto tenga score 0,9 y un umbral de 0,6 lo pode. Mitigacion: elegir τ con margen (≈1,0,
+que sigue podando mucho respecto a 1,609 y deja 2x sobre el maximo observado) y tratarlo como
+A/B en el LB, no como verdad asumida.
