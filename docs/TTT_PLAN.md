@@ -395,3 +395,50 @@ su techo, el neto sale positivo mientras que en el 4B sale negativo.
 entrenar ARC-Heavy tendria que superar una base que ya esta en 0,0013/token; el mejor caso
 realista es "no dañar", no "mejorar". El modo `LRS` queda en el script por si hace falta, pero
 la prioridad vuelve al TTT con pasadas, que es donde vive el 34,8% del presupuesto.
+
+## 11. TTT con PASADAS (19-ago): tres pasadas para volver al punto de partida
+
+`scripts/colab_2b_epochs.py`, 6 tareas nuevas de holdout, midiendo tras CADA epoca de TTT.
+Base `original` (la configuracion del campeon):
+
+| tarea | base | pasada 1 | pasada 2 | pasada 3 | veredicto |
+|---|---|---|---|---|---|
+| 6bcdb01e | 0,007 ✓ | 0,002 ✓ | 0,001 ✓ | 0,001 ✓ | sigue bien |
+| 9caf5b84 | 2,625 | 2,267 | 2,274 | **0,481 ✓** | **GANA** |
+| 84551f4c | 2,582 | 7,416 | 14,246 | 13,760 | sigue mal |
+| 5ad8a7c0 | 0,004 ✓ | 0,004 ✓ | 0,002 ✓ | 0,002 ✓ | sigue bien |
+| b2bc3ffd | 0,022 ✓ | 7,791 | 9,922 | 10,181 | **PIERDE** |
+| 25e02866 | 0,001 ✓ | 0,001 ✓ | 0,000 ✓ | 0,000 ✓ | sigue bien |
+
+**4/6 sin TTT = 4/6 con TTT.** Curva por pasadas 3 → 3 → 4: la tercera pasada solo sirve para
+**volver al nivel que ya habia sin TTT**, nunca lo supera, y cuesta 224-400 s/tarea frente a los
+~103 s de una pasada. ⇒ **Mas pasadas de TTT tampoco son la palanca.** Cuarta muestra
+independiente con el mismo veredicto (T2a corregido, TTT fiel 0/10=0/10, 2x2 5/8=5/8, esta
+4/6=4/6).
+
+Dos observaciones nuevas:
+
+**(a) El efecto es DETERMINISTA, no ruido.** Gana y pierde exactamente las mismas dos tareas que
+el 2x2 de §9 (rescata 9caf5b84, hunde b2bc3ffd) en dos configuraciones distintas (1 pasada con
+n_aug del campeon vs 3 pasadas). Y las tres tareas que la base clava con NLL 0,001-0,007 salen
+intactas. El TTT no es neutro por no hacer nada: es neutro **porque se compensa**.
+
+**(b) El TTT infla el pool sin acertar mas**: 5 → 8 candidatos en la base original con las mismas
+4 correctas; 4 → 9 en la fusionada con 1 correcta mas. Añade candidatos equivocados y diluye la
+seleccion, que es el factor 0,90 de la descomposicion del score. Argumento adicional para
+`lb33-nottt`: quitar el TTT no solo libera 34,8% del presupuesto, tambien deja de contaminar el
+pool.
+
+### 11-bis. Idea derivada (HIPOTESIS, no resultado): TTT SELECTIVO por tarea
+
+Si se salta el TTT en las tareas que la base ya resuelve con confianza y solo se aplica donde
+falla: **5/6 en vez de 4/6** aqui, y **6/8 en vez de 5/8** en el 2x2. Con el reparto de tiempo
+de produccion (TTT 34,8% / decode 57,2%) el coste sale casi igual — decodificar primero sin TTT
+y parar si el candidato es confiable ahorra el TTT en la mayoria de tareas, a cambio de un
+segundo decode en la minoria.
+
+**Debilidad, por delante**: ese +1 descansa en **dos tareas concretas** (9caf5b84 y b2bc3ffd),
+medidas dos veces cada una. Son n=2 tareas distintas, no 14. Ademas el disparador tiene que ser
+OBSERVABLE sin conocer la respuesta — la confianza del mejor candidato sin TTT — y ese numero
+**no se registro** (`dfs` devuelve las hojas pero no sus scores). Medirlo es barato y es el
+siguiente paso natural; hasta entonces es una hipotesis.
