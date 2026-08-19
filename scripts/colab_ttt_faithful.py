@@ -86,7 +86,9 @@ IM_START, USER, ASSIST, NL, EOS, PAD = 14, 11, 12, 10, 15, 13
 ARC_TOKENS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15]
 _TOKID = torch.tensor(ARC_TOKENS, dtype=torch.long, device="cuda:0")
 THR = -float(np.log(0.2))
-MAX_LEN = 3072
+MAX_LEN = 2048      # v3: 3072 reventaba en las 4 tareas del smoke (grids 30x30 / 26x27).
+                    # Con 2048 se cae algun ejemplo de train en las tareas grandes -- es el
+                    # mismo recorte que hace cut_to_len en produccion, y se declara.
 N_AUG = 16          # x 8 vistas D4 = 128 secuencias, como el campeon
 
 
@@ -156,18 +158,37 @@ def build_ttt_batch(task, seed=1):
     return seqs
 
 
+
+@torch.no_grad()
+def prefill(model, toks, chunk=512):
+    """Consume el prompt por TROZOS con cache. Identico a un forward entero, pero la atencion
+    nunca ve una matriz LxL: con prompts de ~5000 tokens esa matriz pedia 2.74GB y reventaba
+    la T4 (el OOM no venia del entrenamiento -- bajar MAX_LEN no cambiaba ni un byte)."""
+    cache, out = None, None
+    for i in range(0, len(toks), chunk):
+        with sdpa_kernel(_SDPA):
+            out = model(input_ids=torch.tensor([toks[i:i + chunk]], device="cuda:0",
+                                               dtype=torch.long),
+                        past_key_values=cache, use_cache=True, return_dict=True)
+        cache = out.past_key_values
+    return out.logits[:, -1], cache
+
+
 @torch.no_grad()
 def nll_total(model, prompt_toks, ans_toks):
-    ids = torch.tensor([prompt_toks + ans_toks], device="cuda:0", dtype=torch.long)
-    if ids.shape[1] > 5000:
-        return None
-    with sdpa_kernel(_SDPA):
-        logits = model(ids).logits.float()
-    n = len(prompt_toks)
-    lp = torch.log_softmax(logits[0, n - 1:-1], -1)
+    last, cache = prefill(model, prompt_toks)          # prefill por trozos
+    logits = [last.float()]
+    if len(ans_toks) > 1:
+        with sdpa_kernel(_SDPA):
+            o = model(input_ids=torch.tensor([ans_toks[:-1]], device="cuda:0", dtype=torch.long),
+                      past_key_values=cache, use_cache=True, return_dict=True)
+        logits.append(o.logits[0].float())
+    lg = torch.cat([x.view(-1, x.shape[-1]) for x in logits], 0)
+    lp = torch.log_softmax(lg, -1)
     tgt = torch.tensor(ans_toks, device="cuda:0").unsqueeze(1)
     v = -lp.gather(1, tgt).sum().item()
-    del logits, lp
+    del logits, lp, lg, cache
+    torch.cuda.empty_cache()
     return v
 
 
@@ -175,10 +196,9 @@ def nll_total(model, prompt_toks, ans_toks):
 def dfs_pool(model, prompt_toks, max_new=931, budget=90):
     """turbo_dfs del campeon, batch 1, umbral de produccion. Devuelve nº de hojas."""
     t0 = time.time()
-    ids = torch.tensor([prompt_toks], device="cuda:0", dtype=torch.long)
-    with sdpa_kernel(_SDPA):
-        out = model(ids, use_cache=True, return_dict=True)
+    last, cache0 = prefill(model, prompt_toks)
     leaves = []
+    path = []
 
     def rec(logits, scores, pos, cache, depth):
         if time.time() - t0 > budget or depth <= 1:
@@ -191,7 +211,7 @@ def dfs_pool(model, prompt_toks, max_new=931, budget=90):
             sc = nll[0, j].item()
             if sc < THR:
                 if t == EOS:
-                    leaves.append(sc)
+                    leaves.append(list(path))
                 else:
                     cands.append((sc, t))
         for sc, t in sorted(cands):
@@ -200,10 +220,34 @@ def dfs_pool(model, prompt_toks, max_new=931, budget=90):
             with sdpa_kernel(_SDPA):
                 o = model(input_ids=torch.tensor([[t]], device="cuda:0", dtype=torch.long),
                           past_key_values=cache, use_cache=True, return_dict=True)
+            path.append(t)
             rec(o.logits[:, -1], [sc], pos + 1, o.past_key_values, depth - 1)
+            path.pop()
 
-    rec(out.logits[:, -1], [0.0], ids.size(1), out.past_key_values, max_new)
-    return len(leaves)
+    rec(last, [0.0], len(prompt_toks), cache0, max_new)
+    return leaves
+
+
+
+def toks_to_grid(toks):
+    rows, row = [], []
+    for t in toks:
+        if t == NL:
+            rows.append(row)
+            row = []
+        elif 0 <= t <= 9:
+            row.append(t)
+        else:
+            return None
+    if row:
+        rows.append(row)
+    if not rows or not rows[0] or any(len(r) != len(rows[0]) for r in rows):
+        return None
+    return rows
+
+
+def gt_en_pool(leaves, gt):
+    return any(toks_to_grid(l) == gt for l in leaves)
 
 
 def make_lora(r):
@@ -232,7 +276,14 @@ def cost(t):
 if len(sys.argv) > 2 and sys.argv[2] == "eval":
     CHAL = json.load(open("/content/arc-agi_evaluation_challenges.json"))
     SOLS = json.load(open("/content/arc-agi_evaluation_solutions.json"))
-    TASKS = sorted(CHAL, key=lambda k: cost(CHAL[k]))[:8]
+    TASKS = sorted(CHAL, key=lambda k: cost(CHAL[k]))[:10]
+elif len(sys.argv) > 2 and sys.argv[2] == "smoke":
+    # Las 4 tareas fijas del smoke de produccion: el campeon (CON TTT) resuelve 3 de 4.
+    # Es la unica poblacion donde el modelo tiene posibilidad, asi que es donde se puede
+    # medir cuanto APORTA el TTT (en las 10 mas baratas del eval ambos brazos dieron 0).
+    CHAL = json.load(open("/content/arc-agi_evaluation_challenges.json"))
+    SOLS = json.load(open("/content/arc-agi_evaluation_solutions.json"))
+    TASKS = ["0934a4d8", "36a08778", "981571dc", "aa4ec2a5"]
 else:
     TASKS = sorted([k for k in CHAL if is_holdout(k) and k not in AGI1],
                    key=lambda k: cost(CHAL[k]))[:8]
@@ -301,6 +352,9 @@ for ti, tk in enumerate(TASKS):
     model.config.use_cache = False
     model.eval()
 
+    _depth = min(931, len(gt_toks) + 40)   # basta para que la GT quepa; acota la memoria
+    pre_pool = dfs_pool(model, prompt, max_new=_depth, budget=75)
+    pre_solved = gt_en_pool(pre_pool, gt)
     pre_gt = nll_total(model, prompt, gt_toks)
     pre_tr = []
     for i, p in enumerate(task["train"]):
@@ -345,6 +399,11 @@ for ti, tk in enumerate(TASKS):
         print(f"  [{tk}] OOM en el paso {len(losses)} — se reporta lo entrenado", flush=True)
     ttt_secs = time.time() - t0
 
+    # liberar optimizador y gradientes ANTES de medir: la v1 corria el DFS con ~12GB aun
+    # ocupados por los estados de AdamW y reventaba en la atencion de las tareas grandes
+    del opt, sched
+    model.zero_grad(set_to_none=True)
+    torch.cuda.empty_cache()
     model.eval()
     model.config.use_cache = True
     post_gt = nll_total(model, prompt, gt_toks)
@@ -361,7 +420,9 @@ for ti, tk in enumerate(TASKS):
         v = nll_total(model, pr, grid_tokens(p["output"]) + [EOS])
         if v is not None:
             post_tr.append(v)
-    pool = dfs_pool(model, prompt)
+    post_pool = dfs_pool(model, prompt, max_new=_depth, budget=75)
+    post_solved = gt_en_pool(post_pool, gt)
+    pool = len(post_pool)
 
     row = {"task": tk, "L": len(gt_toks), "oom": oom, "pasos": len(losses),
            "loss_ini": round(float(np.mean(losses[:16])), 4) if losses else None,
@@ -372,15 +433,17 @@ for ti, tk in enumerate(TASKS):
            "train_pre": round(float(np.mean(pre_tr)), 3) if pre_tr else None,
            "train_post": round(float(np.mean(post_tr)), 3) if post_tr else None,
            "train_pasa": sum(1 for v in post_tr if v < THR), "train_n": len(post_tr),
-           "pool": pool, "ttt_secs": round(ttt_secs, 1)}
+           "pool_pre": len(pre_pool), "pool": pool,
+           "RESUELVE_pre": bool(pre_solved), "RESUELVE_post": bool(post_solved),
+           "ttt_secs": round(ttt_secs, 1)}
     RES["tasks"].append(row)
     red = (pre_gt / post_gt) if (pre_gt and post_gt) else 0
     print(f"[{ti+1}/{len(TASKS)}] {tk}: L={row['L']} | GT {row['gt_pre']}->{row['gt_post']} "
           f"(x{red:.1f}) pasa={row['gt_pasa']} | train {row['train_pre']}->{row['train_post']} "
-          f"({row['train_pasa']}/{row['train_n']} bajo umbral) | POOL={pool} | "
+          f"({row['train_pasa']}/{row['train_n']} bajo umbral) | POOL {len(pre_pool)}->{pool} | "
+          f"RESUELVE {pre_solved}->{post_solved} | "
           f"loss {row['loss_ini']}->{row['loss_fin']} | {ttt_secs:.0f}s", flush=True)
 
-    del opt, sched
     torch.cuda.empty_cache()
 
 rows = RES["tasks"]
@@ -388,6 +451,10 @@ if rows:
     ok = [r for r in rows if r["gt_pre"] and r["gt_post"]]
     summ = {"rank": RANK, "n": len(rows),
             "GATE_pool_no_vacio": sum(1 for r in rows if r["pool"] > 0),
+            "RESUELTAS_sin_ttt": sum(r["RESUELVE_pre"] for r in rows),
+            "RESUELTAS_con_ttt": sum(r["RESUELVE_post"] for r in rows),
+            "pool_pre_total": sum(r["pool_pre"] for r in rows),
+            "pool_post_total": sum(r["pool"] for r in rows),
             "gt_pasa": sum(r["gt_pasa"] for r in rows),
             "reduccion_gt_mediana": round(float(np.median([r["gt_pre"] / r["gt_post"]
                                                            for r in ok])), 2) if ok else None,
@@ -403,7 +470,7 @@ try:
     os.makedirs("/content/persist", exist_ok=True)
     json.dump(RES, open("/content/persist/ttt_faithful_result.json", "w"), indent=1)
     user = os.environ.get("KAGGLE_USERNAME", "juliancamilovilla")
-    json.dump({"title": "arcscale ttt faithful", "id": f"{user}/arcscale-ttt-eval" if (len(sys.argv)>2 and sys.argv[2]=="eval") else f"{user}/arcscale-ttt-faithful",
+    json.dump({"title": "arcscale ttt faithful", "id": f"{user}/arcscale-ttt-{sys.argv[2]}" if (len(sys.argv)>2 and sys.argv[2]=="eval") else f"{user}/arcscale-ttt-faithful",
                "licenses": [{"name": "CC0-1.0"}]},
               open("/content/persist/dataset-metadata.json", "w"))
     r = subprocess.run(["kaggle", "datasets", "create", "-p", "/content/persist", "-q"],
