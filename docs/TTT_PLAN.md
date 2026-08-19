@@ -442,3 +442,41 @@ medidas dos veces cada una. Son n=2 tareas distintas, no 14. Ademas el disparado
 OBSERVABLE sin conocer la respuesta — la confianza del mejor candidato sin TTT — y ese numero
 **no se registro** (`dfs` devuelve las hojas pero no sus scores). Medirlo es barato y es el
 siguiente paso natural; hasta entonces es una hipotesis.
+
+## 12. EL DISPARADOR EXISTE (19-ago): separacion perfecta en el tramo barato
+
+Idea del usuario: un **TTT auditado en cascada** — una pasada barata retira las tareas faciles y
+el presupuesto liberado se concentra en las dificiles. Para que el tier 1 sea seguro hace falta
+un disparador observable. `scripts/colab_tier1.py` registra el **score acumulado de cada hoja**
+del DFS (el DFS de produccion se queda con la hoja y tira el score), sin TTT, sobre las 24
+tareas mas baratas del holdout no-AGI1.
+
+| grupo | n | rango de `best_score` |
+|---|---|---|
+| **correctas** | **16** | 0,0008 – **0,4800** |
+| **confiadas y EQUIVOCADAS** | **4** | **1,1088** – 1,4996 |
+| sin candidato | 4 | — |
+
+**Separacion perfecta. τ=0,5 retira 16/24 con precision 1,000 Y recall 1,000**: no se equivoca en
+ninguna y no deja fuera ninguna resoluble. Hueco entre el peor acierto y el mejor error: **2,3x**.
+
+Barrido completo: τ ∈ {0,001 … 1,0} da precision 1,000 siempre (retirando de 1 a 16 tareas). Solo
+al llegar al **umbral que usa produccion, 1,609, la precision cae a 0,80** — deja entrar
+exactamente esos 4 candidatos equivocados.
+
+**Mecanismo, no coincidencia**: cuando el modelo acierta, el score de su mejor candidato ES la
+NLL de la verdad (0,0072 vs 0,007; 0,4800 vs 0,476 — coinciden en las 16). Cuando se equivoca,
+su mejor candidato vive en 1,1-1,5 mientras la verdad esta en 2,0-3,2. **El modelo no esta igual
+de seguro cuando se equivoca**, y esa es una propiedad del modelo, no de esta muestra.
+
+**LA ADVERTENCIA, que es lo que decide si esto llega a un submit**: estas 24 son las mas baratas
+del holdout y el modelo resuelve **16/24 = 67% sin ningun TTT**, frente al ~30% de produccion en
+el test real. Poblacion dramaticamente mas facil. Sobre el test el tier 1 retiraria muchas menos
+(el ahorro caeria de ~23% a quiza ~10%) y, peor, **en tareas dificiles los candidatos CORRECTOS
+son menos confiados y se mueven hacia la banda de los erroneos: el hueco puede cerrarse**. Es
+exactamente el modo de fallo de `lb33-cap` (−2,5 pt: umbral validado en una poblacion, aplicado
+en otra). Por eso lo siguiente que se mide es la **franja 24-48 por coste** (`OFFSET=24`), que
+es lo unico que puede romper el umbral.
+
+Coste medido del tier 1: **282 s de decode para las 24** (11,8 s/tarea); las 8 supervivientes
+suman 116 s, que es el unico decode que se pagaria dos veces.
