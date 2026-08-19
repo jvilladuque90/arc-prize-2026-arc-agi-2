@@ -355,11 +355,43 @@ dos veces identicas como control. La pregunta del barrido es la correcta, no "¿
 6/10 o 0,142?** Si ninguno lo hace, la rama se cierra con una razon medida en vez de una
 sospecha.
 
-**Control de formato en marcha**: la base de D1 marcaba NLL 0,327 y 1/12 exactas; esta marca
-0,142 y 6/10 con el MISMO modelo base. Si esa brecha es de formato (D1 tokenizaba por texto y
-perdia los ids 11/12), la "pendiente positiva fuerte" de D1 (1/12→5→7) era en gran parte el LoRA
-**reparando el formato roto**, no ganando capacidad — lo que explicaria el −1,8/−3,1 del 4B de
-produccion, que si recibe el formato correcto. Ojo: la base de D1 se midio sobre 12 tareas de
-las que **9 eran de AGI-1** (confound de memorizacion ya anotado en SCALE_PLAN), asi que formato
-y poblacion estan mezclados. `SIN_ROLES=1` mide la MISMA base sobre las MISMAS 10 tareas
-quitando 11/12 del prompt, que es lo unico que separa las dos causas.
+### 10-ter. CONTROL DE FORMATO: la curva de escala de ARC-Heavy medía reparación, no capacidad
+
+`SIN_ROLES=1` mide el MISMO modelo base sobre las MISMAS 10 tareas quitando del prompt
+unicamente los ids 11/12. Es la unica manipulacion, asi que la poblacion queda controlada:
+
+| base | resueltas | NLL total (mediana) | pool |
+|---|---|---|---|
+| CON marcadores de rol | **6/10** | 0,142 | 8 |
+| SIN marcadores | **0/10** | 18,567 | 0 |
+
+**CUIDADO CON LAS UNIDADES** (error que cometi y corrijo): `colab_data_scaling.py` promedia por
+token (`.mean()`) y este script suma sobre toda la rejilla (`.sum()`). Convertido a NLL/token
+con la longitud real de cada solucion:
+
+| | NLL/token (mediana) |
+|---|---|
+| base CON roles | **0,0013** |
+| base SIN roles | **0,2013** |
+| base de D1 (sin roles por construccion) | **0,327** |
+
+La base de D1 cae **junto a** la base sin roles de hoy, y **150x peor** que la base con formato
+correcto. Y el remate: el mejor punto que D1 alcanzo entrenando (0,055/token) sigue siendo
+**~40x peor que el modelo SIN ENTRENAR con formato correcto** (0,0013).
+
+⇒ **La curva de escala de ARC-Heavy (D1: 1/12→5→7→7) estaba saliendo de un agujero que cavo
+nuestro propio harness.** No midio que ARC-Heavy diera capacidad; midio que el LoRA aprende a
+operar sin marcadores de rol. Eso explica que D4 —el SFT del 4B construido sobre esa evidencia—
+se desplomara a 27,08 en produccion, que si recibe el formato correcto: se entreno para reparar
+un problema que produccion no tiene, y ademas a un lr que daña.
+
+**Cabo suelto honesto**: el 2B fusionado SUBIO +2,2 en el LB oculto (19,86 / 21,25 vs 18,33), y
+eso paso por produccion con formato correcto. Hipotesis no medida: el TTT de produccion (r=256,
+rango completo sobre embed/lm_head) repara parte del daño del SFT — es lo que muestra §9, donde
+el TTT ayuda sobre la base fusionada (3→4) y no sobre la original (5→5) — y en el 2B, lejos de
+su techo, el neto sale positivo mientras que en el 4B sale negativo.
+
+**Consecuencia sobre el plan**: el barrido de lr pierde casi todo su valor. Sea cual sea el lr,
+entrenar ARC-Heavy tendria que superar una base que ya esta en 0,0013/token; el mejor caso
+realista es "no dañar", no "mejorar". El modo `LRS` queda en el script por si hace falta, pero
+la prioridad vuelve al TTT con pasadas, que es donde vive el 34,8% del presupuesto.
