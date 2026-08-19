@@ -233,3 +233,133 @@ cumplir el criterio en los pares de train" se logra al 100% y no compra nada en 
 invertir por completo la lectura. Antes de declarar un hallazgo sobre produccion hay que
 verificarlo CONTRA produccion — aqui bastaba leer el log del campeon, que era gratis y estuvo
 disponible todo el tiempo.
+
+## 9. El 2x2 (19-ago): LoRA global y TTT, cruzados, con formato correcto
+
+Diseño del usuario ("el tercer camino"): 2B como **vehiculo de medida**, dos bases (original y
+fusionado con el SFT de ARC-Heavy) x dos brazos (sin/con TTT), 8 tareas nuevas de holdout,
+tokens construidos a mano CON marcadores de rol. `scripts/colab_2b_lora_ttt.py`, 2181s en T4,
+resultados en el dataset `arcscale-2b-lora-ttt`.
+
+| base | sin TTT | con TTT | NLL mediana | coste TTT |
+|---|---|---|---|---|
+| original | **5/8** | **5/8** | 0,029 → 0,095 | ~103 s/tarea |
+| fusionado | 3/8 | 4/8 | 2,774 → 1,972 | ~103 s/tarea |
+
+Lectura, tarea por tarea (brazo `original`, que es el del campeon): el TTT **gana** `9caf5b84`
+(NLL 2,625 → 0,105, cruza el umbral) y **pierde** `b2bc3ffd` (0,022 → 1,866, lo saca del pool).
+No es que no haga nada: mueve tareas en las dos direcciones y el neto es cero. La NLL mediana
+**empeora** (0,029 → 0,095): el TTT desplaza la distribucion incluso donde el modelo ya acertaba.
+
+Sobre el fusionado el TTT si suma (3 → 4, NLL mediana 2,774 → 1,972), coherente con §8: cuando
+el prior es peor, adaptar compra mas. Pero el fusionado parte tan por debajo del original que
+la suma no lo alcanza — misma conclusion que cerro la rama de escala en el LB.
+
+**Tercera muestra independiente que apunta al mismo sitio.** Ninguna de las tres (T2a corregido,
+TTT fiel sobre eval 0/10 = 0/10, este 2x2 5/8 = 5/8) encuentra un aporte neto del TTT, y cuesta
+**34,8% del presupuesto de produccion**. De ahi que `lb33-nottt` sea la submission de mayor
+valor esperado en cuanto vuelva la quota.
+
+Cautela honesta: n=8 y n=10 son muestras pequeñas; ninguna sola excluye un efecto de +1-2 pt.
+Lo que excluyen las tres juntas es el efecto GRANDE que justificaria un tercio del presupuesto.
+
+## 10. La corrida de EPOCAS del LoRA (19-ago) y el fallo de infra que costo 4h
+
+Pregunta del usuario: entrenar el LoRA global, ver que no acierta, **seguir entrenando** — ¿con
+mas pasadas se llega al objetivo, o solo satura? Nunca se midio: D1/D2 barrieron el VOLUMEN de
+datos (N = 2000 → 4000 → 8000: exactas 7 → 8 → 8, saturan), no las PASADAS sobre un corpus fijo.
+
+`scripts/colab_lora_epochs.py`: 2B + LoRA r=64 (config del SFT) sobre 2000 ejemplos fijos de
+ARC-Heavy, 3 epocas, midiendo en la epoca 0/1/2/3 sobre 10 tareas nuevas (NLL de la GT y si el
+DFS la encuentra al umbral de produccion). Es entrenamiento **continuo**: la epoca 2 son los
+pesos de la 1 seguidos entrenando, que es exactamente el "cargar los mismos pesos y seguir" que
+pide la decision sobre saturacion. Prediccion pre-registrada: **satura en la epoca 1-2**.
+
+**Primer intento: perdido entero.** 4h de T4 (timeout exacto a 14400s), **cero lineas de salida**
+y cero resultados. Causa: `colab run` ata la corrida al canal de salida del cliente; cuando ese
+canal se rompe, expira el timeout, la VM se libera y se pierde todo — y la persistencia estaba
+**solo al final**. Agravante: el ADC activo era de **cuenta4 (de agi-3)**, no de las cuentas 1-3
+de este proyecto, asi que ademas se quemo la quota del proyecto vecino.
+
+Tres correcciones, ya aplicadas:
+1. **Persistencia incremental**: `persistir()` sube la curva parcial a Kaggle tras CADA medida.
+2. **Guardado del adapter** por epoca (`/content/persist/adapter`, sobrescrito) — permite
+   continuar en la epoca 4/5 sin repetir las anteriores.
+3. **Ejecucion desacoplada**: `colab new` + `upload` + `exec` de un lanzador que hace
+   `Popen(start_new_session=True)` a `/content/log.txt`, y sondeo con llamadas de segundos. El
+   cliente ya no puede matar la corrida.
+
+**Segundo intento: el techo real de Colab libre son ~65 min de VM.** Con la plomeria nueva la
+corrida arranco bien y persistio la linea base:
+
+```
+[MEDIDA epoca0_base] resueltas 6/10 | NLL mediana 0.142 | pool 8
+[persist] epoca0_base subido a Kaggle          <- ya no se pierde nada
+  [epoca 1] 500/2000 loss 0.1103 (927s)
+  [epoca 1] 1000/2000 loss 0.1200 (1882s)
+  [epoca 1] 1500/2000 loss 0.1676 (2822s)
+```
+
+y a los **65 min** la VM fue reclamada a mitad de la epoca 1 (`Session appears to be lost
+(404/401)`). Numeros que salen de ahi y que valen para planificar cualquier corrida futura:
+**1,85 s/ejemplo** de entrenamiento en T4 (⇒ 62 min por epoca con N=2000, imposible en una
+sesion) y **~7 min por ronda de medida** (10 tareas, NLL + DFS con presupuesto 45 s).
+
+Rediseño en consecuencia: **N=500** (epoca ≈ 15 min, epoca+medida ≈ 22 min ⇒ dos epocas por
+sesion) y corrida **REANUDABLE** — `EPOCA_INI=k` descarga el adapter de la epoca k del dataset
+de Kaggle, lo carga con `set_peft_model_state_dict` y sigue, arrastrando las medidas previas.
+Nota metodologica: el estado del optimizador NO se persiste, asi que en cada frontera de sesion
+el momento de AdamW se reinicia; como las fronteras coinciden con fronteras de epoca, el efecto
+es pequeño, pero esta anotado por si la curva muestra escalones justo ahi.
+
+**Dato sustantivo ya visible, antes de la curva**: la perdida de entrenamiento arranca en
+**0,11** y la NLL de la GT en holdout es **0,142** con el modelo base. El 2B ya SFT-eado
+**modela ARC-Heavy casi perfectamente desde el primer paso** — no hay apenas perdida que
+reducir. Refuerza la prediccion pre-registrada (satura en la epoca 1-2) y explica por que el
+barrido de VOLUMEN de D1/D2 saturaba: el cuello no es cuanto se entrena sobre este corpus.
+
+**Aviso de lectura**: la base ya resuelve **6/10**, asi que solo quedan 4 tareas por ganar y
+una vale 10 puntos porcentuales. La señal fiable sera la **NLL mediana**, que se mueve de forma
+continua; si baja epoca a epoca sin que suban las resueltas, la lectura correcta es "mejora
+real que no alcanza a cruzar el umbral", que no es lo mismo que "no mejora".
+
+### 10-bis. RESULTADO: la curva no satura, DESTRUYE (y el porque no es el que parecia)
+
+| etapa | resueltas | NLL mediana | pool | loss (mismos 200 ejemplos) |
+|---|---|---|---|---|
+| base | **6/10** | **0,142** | 8 | — |
+| epoca 1 | 3/10 | 2,996 | 3 | 0,11971 |
+| epoca 2 | **2/10** | **9,089** | 2 | 0,12471 |
+
+Monotono y sistematico: en la epoca 1 empeoran **9 de las 10 tareas**, incluidas las que la base
+clavaba (6bcdb01e 0,007→3,738; b2bc3ffd 0,022→2,254; 4df5b0ae 0,247→9,246). La prediccion
+pre-registrada era "satura en la epoca 1-2"; el resultado la refuta por el lado malo — no
+satura, degrada. **Pregunta del usuario respondida: dos pasadas no son mejores que una, y una
+ya es peor que ninguna.**
+
+**El dato que reinterpreta todo lo anterior**: `TRAIN` se baraja UNA vez y no se rebaraja entre
+epocas, asi que `loss_final` (media de las ultimas 200 perdidas) cubre **los mismos 200
+ejemplos** en ambas pasadas. Una segunda pasada sobre datos identicos deberia BAJAR su perdida.
+**Subio: 0,11971 → 0,12471.** Eso no es desplazamiento de distribucion, es el optimizador sin
+converger: **lr 1e-4 constante, sin warmup, sobre un modelo que ya esta en perdida 0,11 es
+demasiado caliente**, y cada paso salta por encima del minimo.
+
+Y esa es **exactamente la receta de D1/D2/D4** (`colab_data_scaling.py:237`: AdamW lr=1e-4,
+ACCUM=8, sin scheduler; identica aqui) — toda la familia de escala que fracaso en 27,08 y 28,33.
+
+⇒ La conclusion correcta NO es "las epocas no sirven" sino: **a lr 1e-4 el entrenamiento es
+destructivo, y hay prueba interna de que 1e-4 es demasiado alto**. Falsable y barato: barrido de
+lr a UNA epoca (`LRS=2e-5,5e-6` en el mismo script, con `SALTAR_BASE=1`), con la base ya medida
+dos veces identicas como control. La pregunta del barrido es la correcta, no "¿cual daña menos?"
+(a lr→0 se recupera la base trivialmente) sino **¿existe algun lr al que ARC-Heavy MEJORE sobre
+6/10 o 0,142?** Si ninguno lo hace, la rama se cierra con una razon medida en vez de una
+sospecha.
+
+**Control de formato en marcha**: la base de D1 marcaba NLL 0,327 y 1/12 exactas; esta marca
+0,142 y 6/10 con el MISMO modelo base. Si esa brecha es de formato (D1 tokenizaba por texto y
+perdia los ids 11/12), la "pendiente positiva fuerte" de D1 (1/12→5→7) era en gran parte el LoRA
+**reparando el formato roto**, no ganando capacidad — lo que explicaria el −1,8/−3,1 del 4B de
+produccion, que si recibe el formato correcto. Ojo: la base de D1 se midio sobre 12 tareas de
+las que **9 eran de AGI-1** (confound de memorizacion ya anotado en SCALE_PLAN), asi que formato
+y poblacion estan mezclados. `SIN_ROLES=1` mide la MISMA base sobre las MISMAS 10 tareas
+quitando 11/12 del prompt, que es lo unico que separa las dos causas.
