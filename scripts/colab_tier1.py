@@ -115,11 +115,16 @@ def query_tokens(inp):
     return [IM_START, USER, NL] + grid_tokens(inp) + [EOS] + [IM_START, ASSIST, NL]
 
 
-MODEL = AutoModelForCausalLM.from_pretrained(MDIR, torch_dtype=torch.float16,
+# El intento del 21-ago con el 4B en fp16 sobre T4 dio 0/16 y gt_nll de 5-28 donde el 2B saca
+# 0,01-0,7: medicion NULA. Los checkpoints vienen en bfloat16 y la T4 no lo soporta nativo
+# (capacidad 7.5, hace falta 8.0). Por defecto el 4B se carga en float32.
+_DT = {"fp16": torch.float16, "fp32": torch.float32, "bf16": torch.bfloat16}[
+    os.environ.get("DTYPE", "fp32" if MODELO == "4b" else "fp16")]
+MODEL = AutoModelForCausalLM.from_pretrained(MDIR, torch_dtype=_DT,
                                              device_map="cuda:0", attn_implementation="sdpa")
 MODEL.eval()
 MODEL.config.use_cache = True
-print(f"[setup] 2B base | mem={torch.cuda.memory_allocated()/1e9:.1f}GB", flush=True)
+print(f"[setup] {MODELO} base {_DT} | mem={torch.cuda.memory_allocated()/1e9:.1f}GB", flush=True)
 
 
 @torch.no_grad()
@@ -231,6 +236,20 @@ KEYS = sorted([k for k in CHAL if is_holdout(k) and k not in AGI1],
               key=lambda k: cost(CHAL[k]))[OFFSET:OFFSET + N_TAREAS]
 print(f"[setup] {len(KEYS)} tareas (franja {OFFSET}-{OFFSET+N_TAREAS} por coste) | "
       f"umbral {THR:.3f}", flush=True)
+
+GATE = os.environ.get("GATE_TAREA", "")
+if GATE:
+    # Failsafe barato: si el modelo no puntua bien UNA tarea que sabemos facil, aborta antes de
+    # gastar la sesion. El intento del 4B del 21-ago se comio una sesion entera para producir
+    # 16 medidas nulas; esto lo habria cazado en 30 segundos.
+    _t = CHAL[GATE]
+    _p = []
+    for _x in _t["train"]:
+        _p += pair_tokens(_x["input"], _x["output"])
+    _p += query_tokens(_t["test"][0]["input"])
+    _n = nll_gt(_p, grid_tokens(SOLS[GATE][0]) + [EOS])
+    print(f"[gate] {GATE}: NLL de la verdad {_n:.4f}", flush=True)
+    assert _n < 1.0, f"gate FALLA ({_n:.3f} >= 1.0): el modelo esta mal cargado, se aborta"
 
 RES = {"tareas": [], "umbral": THR}
 if os.environ.get("REANUDAR", "0") == "1":

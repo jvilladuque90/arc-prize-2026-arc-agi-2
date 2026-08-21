@@ -537,3 +537,30 @@ del test contra el 16% del eval). Aqui el riesgo gemelo es que en el test oculto
 un acierto tenga score 0,9 y un umbral de 0,6 lo pode. Mitigacion: elegir τ con margen (≈1,0,
 que sigue podando mucho respecto a 1,609 y deja 2x sobre el maximo observado) y tratarlo como
 A/B en el LB, no como verdad asumida.
+
+### 12-ter. El intento con el 4B: NULO (medicion rota, no resultado)
+
+`MODELO=4b` sobre 16 tareas de eval dio **0/16 correctas**, con NLL de la verdad entre 5 y 28 en
+tareas donde el 2B marca 0,01-0,7. **No es un resultado, es una medicion rota**: el 4B es el
+campeon a 30,14 y el 2B ronda 18-21; no puede sacar cero donde el pequeño acierta el 80%.
+
+Firma del fallo, que apunta a la CARGA del modelo y no al umbral:
+- **12 de 16 tareas con pool 0 y solo 4-9 s de decode**, lejos del presupuesto de 45 s ⇒ no se
+  quedo sin tiempo: **ningun token paso el umbral en la primera posicion**, o sea distribucion
+  de salida plana o desplazada.
+- `gt_nll` es teacher-forced (un forward, sin busqueda) ⇒ no depende del presupuesto. Que salga
+  15-28 donde el 2B saca 0,03 solo se explica por el modelo.
+- Excepcion: `bf45cf4b` da gt_nll 0,033 pero pool 0 agotando los 45 s. Es el unico caso
+  compatible con "modelo bien, busqueda lenta", asi que el diagnostico no es del todo limpio.
+
+Causa mas probable: se carga con `torch_dtype=torch.float16` un checkpoint distribuido en
+**bfloat16**, y **la T4 no soporta bf16 nativo** (capacidad 7.5; hace falta 8.0). Al 2B le sento
+bien; el 4B tiene rangos mayores y la conversion puede desbordar. Alternativa: que el 4B espere
+alguna variacion de formato que el 2B tolera.
+
+**Antes de volver a correrlo**: (1) cargar en float32 o usar L4/A100 con bf16; (2) validar con un
+gate barato — NLL de la verdad en UNA tarea que el 2B clava; si no baja de ~1, abortar sin gastar
+la sesion. Es el mismo failsafe que ya nos salvo en el commit de E1-v2.
+
+⇒ **La casilla de precision del 4B sigue VACIA.** El cambio de umbral del DFS no debe ir a un
+slot hasta cerrarla.
