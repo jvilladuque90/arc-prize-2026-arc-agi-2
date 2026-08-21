@@ -45,8 +45,14 @@ for f in ("arc-agi_training_challenges.json", "arc-agi_training_solutions.json",
     subprocess.run(["kaggle", "competitions", "download", "arc-prize-2026-arc-agi-2",
                     "-f", f, "-p", "/content", "-q"], check=True)
 subprocess.run("cd /content && for z in *.zip; do unzip -o -q \"$z\"; done", shell=True)
-subprocess.run(["kaggle", "models", "instances", "versions", "download",
-                "sorokin/qwen3_2b_grids15_sft141/Transformers/bfloat16/1",
+# MODELO=4b usa el modelo DEL CAMPEON. Toda nuestra evidencia de PRECISION (no hay errores
+# confiados bajo el umbral) es del 2B; el log del campeon solo imprime lineas ALL_CORRECT, asi
+# que valida su recall pero no su precision. Si el 4B produce errores confiados, la cascada y
+# el cambio de umbral se caen. Es el unico hueco que queda en el argumento.
+MODELO = os.environ.get("MODELO", "2b")
+_SLUG = ("sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1" if MODELO == "4b"
+         else "sorokin/qwen3_2b_grids15_sft141/Transformers/bfloat16/1")
+subprocess.run(["kaggle", "models", "instances", "versions", "download", _SLUG,
                 "-p", "/content/m2b", "--untar", "-q"], check=True)
 MDIR = None
 for root, dirs, files in os.walk("/content/m2b"):
@@ -75,7 +81,7 @@ _SDPA = [SDPBackend.EFFICIENT_ATTENTION, SDPBackend.FLASH_ATTENTION, SDPBackend.
 IM_START, USER, ASSIST, NL, EOS = 14, 11, 12, 10, 15
 ARC_TOKENS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15]
 _TOKID = torch.tensor(ARC_TOKENS, dtype=torch.long, device="cuda:0")
-THR = -float(np.log(0.2))
+THR = float(os.environ.get("THR_DFS", 0) or 0) or -float(np.log(0.2))
 N_TAREAS = int(os.environ.get("N_TAREAS", "24"))
 # OFFSET recorta una FRANJA por coste. El tramo 0-24 (las mas baratas) dio separacion perfecta,
 # pero ahi el modelo resuelve 16/24 = 67% frente al ~30% de produccion: poblacion demasiado
@@ -85,6 +91,8 @@ N_TAREAS = int(os.environ.get("N_TAREAS", "24"))
 OFFSET = int(os.environ.get("OFFSET", "0"))
 DS = (f"{os.environ.get('KAGGLE_USERNAME', 'juliancamilovilla')}/arcscale-tier1"
       + (f"-{os.environ['POBLACION']}" if os.environ.get("POBLACION") else "")
+      + (f"-{MODELO}" if MODELO != "2b" else "")
+      + (f"-thr{os.environ['THR_DFS'].replace('.', '')}" if os.environ.get("THR_DFS") else "")
       + (f"-{OFFSET}" if OFFSET else ""))
 
 
@@ -263,7 +271,12 @@ for i, k in enumerate(KEYS):
     prompt += query_tokens(t["test"][0]["input"])
     gt_toks = grid_tokens(gt) + [EOS]
 
-    hojas, secs = dfs_scored(prompt, min(931, len(gt_toks) + 40))
+    try:
+        hojas, secs = dfs_scored(prompt, min(931, len(gt_toks) + 40))
+    except torch.cuda.OutOfMemoryError:               # el 4B en T4 va justo; se anota y sigue
+        print(f"[{i+1}/{len(KEYS)}] {k}: OOM, se salta", flush=True)
+        torch.cuda.empty_cache()
+        continue
     hojas.sort(key=lambda x: x[0])                    # menor NLL acumulada = mas confiable
     grids = [(sc, toks_to_grid(p)) for sc, p in hojas]
     best_sc = grids[0][0] if grids else None
