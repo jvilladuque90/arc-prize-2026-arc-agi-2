@@ -690,3 +690,41 @@ el PRIOR, no la regla.
 Los vectores por celda completos de las 40 verdades quedaron en el dataset del kernel
 (`dfs_spikes.json`): cualquier regla futura se evalua offline sin GPU. No gastar mas L4 en
 reglas de aceptacion de vista unica.
+
+## 15. VEREDICTO (22-ago): lb33-nottt = 9,58. El TTT es EL MOTOR del pipeline
+
+Submission 55680284 COMPLETE: **9,58** contra el 30,14 del campeon. Lectura prerreg `<28`
+en su version extrema. La descomposicion del score quedo medida en tres puntos limpios:
+
+| configuracion | score | fuente |
+|---|---|---|
+| 4B base, vista unica, sin TTT | ~7,5% | banco (3/40 eval) |
+| + ensemble de 16 augmentaciones | **9,58** | LB, test oculto |
+| + TTT por tarea | **30,14** | LB, campeon |
+
+⇒ augmentaciones solas ≈ +2 pt; **TTT ≈ +20,6 pt (dos tercios del score) por el 34,8% del
+reloj**. Coherente con la anatomia de §14: la base llega a las celdas de decision con picos de
+2-10 nats y el TTT es lo unico que los aplasta. El smoke 3,0/4 que valido el submit media
+tareas de TRAIN (memorizadas) — valido el pipeline, no el techo, como estaba anotado.
+
+**Todo el "TTT neto cero" del banco 2B queda refutado en el oculto** — era contaminacion, como
+anticipo tier1-4b (§13). El experimento costo 1 slot y compro: (a) el A/B mas limpio posible
+del componente mas caro del sistema; (b) la refutacion definitiva de un banco viciado antes de
+que motivara mas decisiones; (c) la reparticion augs/TTT que ningun banco podia dar.
+
+**Reordenamiento estrategico**:
+1. **El campeon sigue siendo 30,14** (nottt era una submission experimental; nada que revertir).
+2. **"Liberar el 34,8% para cobertura" esta MUERTO.** El TTT produce 20,6 pt con ese tercio del
+   reloj: es el componente MAS rentable, no el menos.
+3. La pregunta correcta pasa a ser **como amplificar el TTT**, no como quitarlo:
+   - **CE ponderado hacia celdas de pico** durante el TTT (la anatomia lo motiva: su trabajo es
+     aplastar picos; una perdida enfocada en ellos podria aplastarlos mas rapido/mejor).
+   - **TTT selectivo re-encuadrado**: ya no "saltarlo donde la base acierta" (la base casi nunca
+     acierta: 3/40) sino **reasignar presupuesto DENTRO del TTT** — menos pasos donde converge
+     rapido, mas donde los picos resisten.
+   - **SFT transductivo del test** como etapa previa barata (un adapter sobre las demos de las
+     240 tareas) si hiciera falta recuperar reloj.
+4. ⚠️ **ttt8 (n_aug 16→8) queda en cuarentena**: su luz verde se midio en el banco 2B
+   contaminado. Re-verificar sobre 4B limpio antes de confiar en el.
+5. Los bancos futuros de TTT: **4B + eval + augmentaciones** — la vista unica quedo invalidada
+   como instrumento para preguntas de TTT (§14-bis) y el 2B para cualquier pregunta (§13).
