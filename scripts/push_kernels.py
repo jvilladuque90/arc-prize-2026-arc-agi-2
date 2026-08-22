@@ -113,6 +113,14 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # DESCUENTO DE PICOS en la aceptacion del DFS (4B, eval): la anatomia (dfs-budget) mostro
+    # que la NLL de la GT es llanura + 2-5 picos (mediana: 50% en 2 celdas, 82% en top-5) y el
+    # presupuesto lineal fue nulo (3->3). Regla: (suma - top3 picos) < 1.609, paso < 2.0, cota
+    # monotona (poda intacta). Guarda vectores por celda COMPLETOS -> reglas futuras offline.
+    # LANZAR CON --accelerator NvidiaL4. ~30-60 min.
+    "dfs-spikes": {"notebook": "notebooks/dfs_spikes.ipynb", "slug": "arc-agi2-dfs-spikes",
+                   "title": "arc agi2 dfs spikes", "gpu": True,
+                   "defaults": {"model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # UMBRAL POR POSICION en el DFS (4B, eval): tau(pos)=max(1.609, 0.0202*pos) + anatomia por
     # celda de la NLL de la GT + barrido estructural de b. Ataca GT-en-pool (0,42, la palanca
     # x2): con el umbral fijo 37/40 GT quedan fuera, 9 con confianza/celda >=98%.

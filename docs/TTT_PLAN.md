@@ -624,3 +624,38 @@ score de nottt.
 
 Nota de coste: el 4B en L4 decodifico las 40 en 397 s (menos que el 2B en T4, 581 s) porque 25
 pools salieron vacios — la base sin TTT ni augmentaciones apenas encuentra candidatos en eval.
+
+## 14. La NLL revisada (22-ago): el defecto esta en la AGREGACION, y la anatomia lo prueba
+
+Pregunta del usuario: ¿es la NLL la perdida adecuada? La NLL aparece 3 veces (perdida de
+entrenamiento, regla de aceptacion del DFS, seleccion). Analisis de los datos ya medidos: la
+regla de aceptacion suma NLLs contra un presupuesto FIJO (1,609) ⇒ impuesto al tamaño (L=30
+entra con 94,8%/celda; L=300 exige 99,5%). En el 4B/eval: 37/40 verdades fuera del pool, 9 con
+confianza/celda ≥98% — extremo 135a2760: 870 celdas al 99,8%, excluida por 0,04 nats.
+
+**Experimento 1 — presupuesto LINEAL por posicion (`dfs-budget`, L4): NULO, y falsifica mi
+prediccion.** τ(pos)=max(1.609, b·pos): admisibilidad estructural 3→7 (predije 8-12), barrido
+de b PLANO (7 con cualquier b∈[0.015, 0.03]), busqueda real 3→3 resueltas con +56% de decode
+(621 s vs 397) y pools inflados de basura (1818057f: pool 10, 0 correctos).
+
+**El hallazgo que deja: la ANATOMIA por celda.** Mediana sobre 40 tareas (L mediana 260):
+- celdas que concentran el 50% de la NLL total: **2**
+- fraccion de la NLL en las 5 peores celdas: **82%**
+
+La NLL de una verdad es una **llanura en ~0 con 2-5 picos** en las celdas donde se decide la
+regla. Consecuencias:
+1. **Aceptacion**: un pico de 1,5 nats consume casi todo el presupuesto ⇒ produccion solo
+   resuelve tareas donde el modelo no duda en NINGUNA celda de decision. La forma correcta no
+   es escalar con la longitud sino **descontar los top-k picos**.
+2. **Entrenamiento**: la señal vive en ~5 celdas de 260 ⇒ el CE uniforme la diluye ~50x. La
+   perdida PONDERADA hacia celdas dificiles pasa de especulacion a experimento motivado.
+3. **TTT selectivo** (idea del usuario): "¿cuantas celdas dudosas tiene el mejor candidato?" es
+   la observable fina para decidir por tarea — el trabajo del TTT, cuando funciona, es aplastar
+   exactamente esos picos.
+
+**Experimento 2 — descuento de picos (`dfs-spikes`, en vuelo):** aceptar si (suma − top-3
+picos) < 1,609 con tope de 2,0 nats/paso. La cota descontada es monotona no-decreciente ⇒ la
+poda del DFS sobrevive. Prerreg: admisibilidad ≥12/40; el riesgo es el coste de busqueda (las
+exenciones abren ramas en las celdas de decision); si el decode excede ~2x, la regla pide K/CAP
+mas estrictos. Guarda los **vectores por celda completos** ⇒ toda regla futura se evalua
+offline gratis.
