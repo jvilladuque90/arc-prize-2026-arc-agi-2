@@ -329,6 +329,22 @@ def main() -> int:
     if docker:
         meta["docker_image"] = docker
 
+    # ── AVISOS DE CUOTA (reglas del usuario, ver CLAUDE.md) ─────────────────────────
+    # La L4x4 quema cuota a TARIFA 2x del wall-clock y son 4 GPUs que se pagan enteras:
+    # los kernels de banco DEBEN shardear en las 4 (patron: scripts/plantilla_kernel_4gpu.py).
+    if args.accelerator == "NvidiaL4":
+        nb_txt = (ROOT / cfg["notebook"]).read_text(encoding="utf-8")
+        print("\n" + "=" * 76)
+        print("⚠  L4x4: la cuota corre a 2x del wall-clock POR LA MAQUINA COMPLETA (4 GPUs).")
+        if "CUDA_VISIBLE_DEVICES" not in nb_txt and args.kernel not in (
+                "lb33", "lb33-graft", "lb33-cap", "lb33-roles", "lb33-nottt",
+                "lb33-selens", "lb33-2b"):
+            print("⚠  ESTE NOTEBOOK PARECE MONO-GPU (no menciona CUDA_VISIBLE_DEVICES):")
+            print("   pagaras 4x de mas. Shardea con el patron de")
+            print("   scripts/plantilla_kernel_4gpu.py salvo razon explicita.")
+        print("   Tope semanal del proyecto: 10 h-quota; ledger SIEMPRE en horas-quota.")
+        print("=" * 76 + "\n")
+
     tmp = Path(tempfile.mkdtemp(prefix="arc_kernel_"))
     shutil.copy(ROOT / cfg["notebook"], tmp / meta["code_file"])
     (tmp / "kernel-metadata.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
