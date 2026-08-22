@@ -113,6 +113,13 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # UMBRAL POR POSICION en el DFS (4B, eval): tau(pos)=max(1.609, 0.0202*pos) + anatomia por
+    # celda de la NLL de la GT + barrido estructural de b. Ataca GT-en-pool (0,42, la palanca
+    # x2): con el umbral fijo 37/40 GT quedan fuera, 9 con confianza/celda >=98%.
+    # LANZAR CON --accelerator NvidiaL4. ~25-45 min (presupuesto 60s/tarea).
+    "dfs-budget": {"notebook": "notebooks/dfs_budget.ipynb", "slug": "arc-agi2-dfs-budget",
+                   "title": "arc agi2 dfs budget", "gpu": True,
+                   "defaults": {"model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # PRECISION del 4B (banco tier1) en bf16 nativo de L4: cierra la casilla vacia del argumento
     # del umbral del DFS (el log del campeon solo valida recall). Ids de eval embebidos (offline).
     # GATE de 30s al frente. LANZAR CON --accelerator NvidiaL4. ~20-30 min.
