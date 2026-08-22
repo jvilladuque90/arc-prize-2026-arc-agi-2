@@ -589,3 +589,38 @@ que acierta; sin TTT el mismo acierto sale menos confiado. ⇒ **el umbral y el 
 **Regla que queda**: si nottt se convierte en campeon, el τ de poda se deriva de SU log (los
 ALL_CORRECT del kernel que realmente corre), no del log del campeon viejo ni del banco 2B. Cada
 pipeline calibra su propio umbral — cuarta vez que el instrumento es parte del experimento.
+
+## 13. tier1-4b (22-ago): la casilla se cierra EN CONTRA, y reinterpreta el banco entero
+
+Kernel `arc-agi2-tier1-4b` (L4, bf16 nativo, gate PASADO con 0,472 < 1,0 — el modelo cargo
+bien), las MISMAS 40 tareas de eval del banco 2B:
+
+| | 2B | 4B |
+|---|---|---|
+| correctas | 32/40 | **3/40** |
+| peor acierto | 0,6966 | 0,8742 |
+| mejor error | 0,8643 | **0,5800** |
+| separacion | limpia (hueco 1,24x) | **SE SOLAPA** (τ=0,75 → precision 0,333) |
+
+**(a) La cascada/tier-1 muere para el 4B.** Los errores confiados del 4B (0,58-0,71) viven por
+debajo de aciertos (0,87). No hay τ que separe en el modelo que realmente se envia. El barrido
+completo: precision 1,0 solo hasta τ=0,5 reteniendo 1 sola tarea; a 0,75 cae a 0,333.
+
+**(b) El 3/40 vs 32/40 reinterpreta TODO el banco 2B.** El 2B resolvia el 80% del eval con NLL
+0,0002 porque LO TIENE MEMORIZADO (checkpoint sft141); el 4B (sft139), con gt_nll de 4-18 en las
+mismas tareas, no. Consecuencia grave: **las "4 muestras de TTT neto cero" se midieron sobre
+poblaciones donde la base 2B ya sabia las respuestas** — sin margen para que el TTT aportara. En
+el 4B, cuya base saca 3/40 en tareas no memorizadas, el TTT + augmentaciones + 1200 s/tarea
+pueden ser exactamente lo que lo sube al ~30% de produccion.
+
+**(c) El submit de nottt (55680284, en vuelo) queda como el experimento DEFINITIVO**: A/B limpio
+del valor del TTT en el test oculto contra 30,14. Las lecturas prerreg ya cubrian este giro:
+<28 = el TTT era esencial y el banco 2B engañaba por contaminacion. El smoke 3,0/4 que valido el
+submit era sobre tareas de TRAIN (memorizadas por el 4B) — valida el pipeline, no el techo.
+
+**(d) Los experimentos pendientes de Colab (poda 2B, TTT selectivo 2B) pierden valor**: median
+propiedades de un modelo contaminado en poblaciones vistas. No gastar en ellos hasta ver el
+score de nottt.
+
+Nota de coste: el 4B en L4 decodifico las 40 en 397 s (menos que el 2B en T4, 581 s) porque 25
+pools salieron vacios — la base sin TTT ni augmentaciones apenas encuentra candidatos en eval.
