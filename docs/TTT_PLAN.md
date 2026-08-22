@@ -564,3 +564,28 @@ la sesion. Es el mismo failsafe que ya nos salvo en el commit de E1-v2.
 
 ⇒ **La casilla de precision del 4B sigue VACIA.** El cambio de umbral del DFS no debe ir a un
 slot hasta cerrarla.
+
+### 12-quater. El smoke de lb33-nottt (22-ago) CORRIGE la lectura del umbral
+
+Commit de `lb33-nottt` COMPLETO: **smoke reload 3,0/4 vs 2,5 historico del campeon** con ambos
+algoritmos de seleccion — pipeline intacto sin TTT, submitido (55680284, PENDING).
+
+Pero su log añade el dato que faltaba y que CORRIGE §12-bis: **sin TTT, los candidatos
+correctos del 4B suben de score**. En el smoke (mismas tareas que el campeon usa de reload):
+
+- con TTT (log del campeon): max correct beam score **0,486**
+- sin TTT (log de nottt): correctos en **1,55 / 1,48 / 1,44 / 1,28** (aa4ec2a5, 36a08778...)
+
+Mecanismo obvio en retrospectiva: el TTT adapta el modelo a la tarea y AFILA su confianza en lo
+que acierta; sin TTT el mismo acierto sale menos confiado. ⇒ **el umbral y el TTT interactuan**:
+
+1. "1,609 esta mal puesto" era cierto **para el campeon CON TTT** (3x sobre su max de 0,486).
+2. Para el pipeline SIN TTT — que es el que acabamos de submitir — **1,609 esta casi bien
+   calibrado**: hay aciertos en 1,55, y τ=0,75 o 1,0 los podaria.
+3. Matiz: esos scores son por-augmentacion y la seleccion agrega sobre augmentaciones (aa4ec2a5
+   tambien aparece en 0,71/0,91), asi que una poda a 1,0 debilita pero no necesariamente mata al
+   candidato. Aun asi, el margen de seguridad que §12-bis daba por sobrado ya no lo esta.
+
+**Regla que queda**: si nottt se convierte en campeon, el τ de poda se deriva de SU log (los
+ALL_CORRECT del kernel que realmente corre), no del log del campeon viejo ni del banco 2B. Cada
+pipeline calibra su propio umbral — cuarta vez que el instrumento es parte del experimento.
