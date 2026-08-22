@@ -659,3 +659,34 @@ poda del DFS sobrevive. Prerreg: admisibilidad ≥12/40; el riesgo es el coste d
 exenciones abren ramas en las celdas de decision); si el decode excede ~2x, la regla pide K/CAP
 mas estrictos. Guarda los **vectores por celda completos** ⇒ toda regla futura se evalua
 offline gratis.
+
+### 14-bis. RESULTADO: la familia de reglas de aceptacion queda CERRADA (tres puntos)
+
+| regla | GT en pool | decode | pool total |
+|---|---|---|---|
+| fija 1,609 (produccion) | 3/40 | 397 s | ~40 |
+| lineal τ(pos) | 3/40 | 621 s | 84 |
+| descuento de picos (K=3, cap 2,0) | 3/40 | **1.095 s** | **173** |
+
+Cada iteracion duplica el coste y resuelve LO MISMO. Prerreg de picos falsificada tambien:
+admisibilidad 5/40 (peor que la lineal, 7) — el tope de 2,0 nats/paso mata casi todo, y ese
+detalle revela el fondo del asunto:
+
+**Los picos son PROFUNDOS: 2-10 nats por celda de decision** (p(token correcto) ≤ 8%). Ninguna
+cirugia de agregacion rescata eso: la informacion NO esta en la distribucion del modelo base
+en esas celdas, y explorar tokens al 8% abre ~12 ramas por celda dudosa (la explosion es el
+decode de 1.095 s con pools de basura). Tres reglas distintas con 3/40 identico ⇒ el cuello es
+el PRIOR, no la regla.
+
+**Lo que si mata picos** (reencuadre que deja el nulo):
+1. El **TTT** — su trabajo mecanico ahora tiene nombre: aplastar picos de 2-10 nats en celdas
+   de decision. El veredicto de si lo consigue en el oculto es el score de nottt.
+2. El **ensemble de augmentaciones** de produccion (n_aug=16): una celda dudosa en la vista
+   identidad puede ser obvia en la rotada. Nuestro banco decodifica UNA vista — por eso ve
+   3/40 donde produccion con augs+TTT ve ~30%. Las augmentaciones SON el mata-picos existente.
+3. La **perdida ponderada** en entrenamiento sube de prioridad: la señal vive en celdas al 8%
+   y el CE uniforme la promedia con 250 celdas triviales.
+
+Los vectores por celda completos de las 40 verdades quedaron en el dataset del kernel
+(`dfs_spikes.json`): cualquier regla futura se evalua offline sin GPU. No gastar mas L4 en
+reglas de aceptacion de vista unica.
