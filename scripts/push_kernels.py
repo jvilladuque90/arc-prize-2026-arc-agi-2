@@ -113,6 +113,17 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # GRAFT ttt05: campeon con num_train_epochs=0.5 en el TTT (UN numero). Evidencia del banco
+    # 4B limpio (22-ago): 48 pasos = peor politica (regret 94,5 vs 37,9 en 12); el sobreajuste
+    # del TTT destruye el ajuste a la GT en 8/20; mitad del reloj de TTT -> cobertura (~17% del
+    # total). Prerreg: >=30,14 adoptar / 29-30,14 ruido / <29 revertir (la adaptacion reducida
+    # duele a escala). Smoke gate: reload >=2,5. LANZAR CON --accelerator NvidiaL4.
+    "lb33-ttt05": {"notebook": "notebooks/lb33_ttt05.ipynb", "slug": "arc-agi2-lb33-ttt05",
+                   "title": "arc agi2 lb33 ttt05", "gpu": True,
+                   "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                              "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+                   "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                                "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # LOO EARLY-STOPPING (paso siguiente del triage): ¿la NLL de una demo APARTADA (observable)
     # predice el punto optimo de parada del TTT (oraculo)? 20 tareas, curvas cada 6 pasos,
     # PRIMER kernel shardeado en 4 GPUs (patron plantilla_kernel_4gpu). ~15 min de pared.

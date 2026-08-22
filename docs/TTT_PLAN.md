@@ -760,3 +760,39 @@ CLAUDE.md): ¿la NLL de una demo APARTADA (observable en produccion) predice el 
 de parada (oraculo)? Curvas pareadas cada 6 pasos. Si correlacionan, el graft es **early
 stopping por LOO en el TTT del campeon** — politica de control, barata, y con doble
 dividendo: protege el optimo de las sobreajustadas Y devuelve reloj de las dañadas/rapidas.
+
+### 16-bis. LOO vs politica FIJA (22-ago): la fija corta gana — graft lb33-ttt05
+
+`ttt-loo` (10 min de pared shardeado ×4, ~0,35 h-quota — el patron nuevo rinde): optimos
+coinciden solo 10/20, pero el regret dice mas:
+
+| politica | regret mediano | regret total |
+|---|---|---|
+| parar por LOO (adaptativo) | 0,25 | 34,4 |
+| no parar (48 fijo) | 1,45 | 82,6 |
+
+El LOO captura ~60% del beneficio... pero **apartar la demo debilita el TTT mismo**
+(2b83f449: 1,31 con todas las demos vs 17,08 con k−1) y le corta el rescate a 28a6681f
+(parar@6 → 7,39 vs 3,05@36). Coste de informacion alto con 2-3 demos.
+
+**La politica FIJA corta, medida sobre las curvas del triage (todas las demos):**
+
+| parar en | regret total | tareas mejor que @48 |
+|---|---|---|
+| 0 (sin TTT) | 81,3 | 10 |
+| **12** | **37,9** | 12 |
+| 24 | 61,6 | 11 |
+| 48 | **94,5** (la PEOR) | — |
+
+⇒ parar en 12 ≈ LOO sin sacrificar demos. **El TTT de produccion sobre-entrena ×2-4 para la
+mayoria.** Salvedad: los rescates tardios existen (28a6681f necesita ~36) ⇒ el graft
+conservador es LA MITAD, no un cuarto.
+
+**GRAFT `lb33-ttt05` (commiteado):** el campeon con `num_train_epochs=0.5` en el TTT — UN
+numero. Media exposicion conservando la diversidad de las 16 vistas. Doble efecto esperado:
+menos sobreajuste (8/20 tareas destruidas por el exceso en el banco) + ~17% del reloj total
+liberado a cobertura. Converge con lo que ttt8 intentaba (menos vistas), pero con evidencia
+del 4B limpio en vez del banco contaminado. Caveats anotados: mapeo banco(48)↔produccion
+(1 epoca) es aproximado; proxy = NLL de la GT en vista identidad vs decode agregado.
+**Prerreg: ≥30,14 adoptar / 29-30,14 ruido / <29 revertir** (la adaptacion reducida duele a
+escala). Gate: smoke reload ≥2,5 o no se submite.
