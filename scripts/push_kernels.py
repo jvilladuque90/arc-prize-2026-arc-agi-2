@@ -113,6 +113,14 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # TRIAGE del TTT en el 4B (post-veredicto nottt=9,58): TTT fiel r=256+embed/head+rsLoRA
+    # pareado base/TTT sobre 20 tareas eval (incl. las 3 que la base resuelve = riesgo de
+    # muerte). Produce: categorias mantiene/MATA/RESCATA, curvas de convergencia (pasos
+    # 12/24/36/48), vectores por celda pre/post (picos), y POOLS VOLCADOS para el verificador.
+    # LANZAR CON --accelerator NvidiaL4. ~60-90 min.
+    "ttt-triage": {"notebook": "notebooks/ttt_triage.ipynb", "slug": "arc-agi2-ttt-triage",
+                   "title": "arc agi2 ttt triage", "gpu": True,
+                   "defaults": {"model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # DESCUENTO DE PICOS en la aceptacion del DFS (4B, eval): la anatomia (dfs-budget) mostro
     # que la NLL de la GT es llanura + 2-5 picos (mediana: 50% en 2 celdas, 82% en top-5) y el
     # presupuesto lineal fue nulo (3->3). Regla: (suma - top3 picos) < 1.609, paso < 2.0, cota
