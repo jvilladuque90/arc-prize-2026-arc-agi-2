@@ -728,3 +728,35 @@ que motivara mas decisiones; (c) la reparticion augs/TTT que ningun banco podia 
    contaminado. Re-verificar sobre 4B limpio antes de confiar en el.
 5. Los bancos futuros de TTT: **4B + eval + augmentaciones** — la vista unica quedo invalidada
    como instrumento para preguntas de TTT (§14-bis) y el 2B para cualquier pregunta (§13).
+
+## 16. TRIAGE del TTT en el 4B (22-ago): el presupuesto fijo de pasos esta mal para el 75%
+
+`ttt-triage` (L4, 35 min, TTT fiel r=256+embed/head+rsLoRA, 48 pasos, 20 tareas eval con las
+3 que la base resuelve): base 2/20 → TTT 3/20 en vista identidad; **MATA: 0** (el TTT del 4B
+NO destruye tareas resueltas — el fenomeno b2bc3ffd no aparece; la proteccion por salto es
+innecesaria); RESCATA: 1 (28a6681f, 7,75→0,78, sus 2 picos >2n aplastados a 0 — el mata-picos
+en vivo). Picos netos 31→37: el TTT CREA picos nuevos en el grupo que daña.
+
+**El hallazgo esta en las CURVAS (NLL de la GT en pasos 0/12/24/36/48)** — taxonomia:
+
+| grupo | n | implicacion |
+|---|---|---|
+| mejora y sigue a 48 | 5 | querrian MAS pasos (2b83f449: 18,0→1,31 y bajando) |
+| mejora y SOBREAJUSTA | 8 | optimo en 12-36; seguir destruye (eee78d87: 3,87@12→17,2@48; 4c3d4a41: 2,30@24→8,14@48) |
+| dañada desde el paso 12 | 7 | el TTT nunca les ayuda en esta vista |
+
+⇒ **el presupuesto fijo de pasos (48 aqui, ~128 en produccion) esta mal para ~75% de las
+tareas**. El "TTT selectivo" correcto no es saltar/aplicar sino **early stopping por tarea**.
+
+**Gate del meta-aprendizaje: NEGATIVO.** Las que mejoran convergen en 12-36 pasos — el
+problema no es velocidad de adaptacion sino cuando parar y en quien invertir. Reptile/MAML
+archivado con razon medida.
+
+**Verificador sobre pools volcados: caza 11,8%** (2/17 incorrectos, 0 FP). Los candidatos
+equivocados de la transduccion conservan paleta y tamaño. Cerrado como filtro de adorno.
+
+**En vuelo: `ttt-loo`** (primer kernel shardeado en 4 GPUs — patron obligatorio nuevo, ver
+CLAUDE.md): ¿la NLL de una demo APARTADA (observable en produccion) predice el punto optimo
+de parada (oraculo)? Curvas pareadas cada 6 pasos. Si correlacionan, el graft es **early
+stopping por LOO en el TTT del campeon** — politica de control, barata, y con doble
+dividendo: protege el optimo de las sobreajustadas Y devuelve reloj de las dañadas/rapidas.

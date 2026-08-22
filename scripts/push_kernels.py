@@ -113,6 +113,12 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # LOO EARLY-STOPPING (paso siguiente del triage): ¿la NLL de una demo APARTADA (observable)
+    # predice el punto optimo de parada del TTT (oraculo)? 20 tareas, curvas cada 6 pasos,
+    # PRIMER kernel shardeado en 4 GPUs (patron plantilla_kernel_4gpu). ~15 min de pared.
+    "ttt-loo": {"notebook": "notebooks/ttt_loo.ipynb", "slug": "arc-agi2-ttt-loo",
+                "title": "arc agi2 ttt loo", "gpu": True,
+                "defaults": {"model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # TRIAGE del TTT en el 4B (post-veredicto nottt=9,58): TTT fiel r=256+embed/head+rsLoRA
     # pareado base/TTT sobre 20 tareas eval (incl. las 3 que la base resuelve = riesgo de
     # muerte). Produce: categorias mantiene/MATA/RESCATA, curvas de convergencia (pasos
