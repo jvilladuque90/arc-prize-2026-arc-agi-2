@@ -113,6 +113,12 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # PRECISION del 4B (banco tier1) en bf16 nativo de L4: cierra la casilla vacia del argumento
+    # del umbral del DFS (el log del campeon solo valida recall). Ids de eval embebidos (offline).
+    # GATE de 30s al frente. LANZAR CON --accelerator NvidiaL4. ~20-30 min.
+    "tier1-4b": {"notebook": "notebooks/tier1_4b.ipynb", "slug": "arc-agi2-tier1-4b",
+                 "title": "arc agi2 tier1 4b", "gpu": True,
+                 "defaults": {"model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # Descarga BARC-8B desde HF (repo abierto) a su output; su output se adjunta luego al probe
     # como kernel_source (evita la copia gated de ironbar). Internet ON -> T4, sin docker pin.
     "barc-download": {"notebook": "notebooks/barc_download.ipynb", "slug": "arc-agi2-barc-download",
