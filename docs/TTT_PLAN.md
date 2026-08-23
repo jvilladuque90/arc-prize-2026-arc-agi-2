@@ -796,3 +796,29 @@ del 4B limpio en vez del banco contaminado. Caveats anotados: mapeo banco(48)↔
 (1 epoca) es aproximado; proxy = NLL de la GT en vista identidad vs decode agregado.
 **Prerreg: ≥30,14 adoptar / 29-30,14 ruido / <29 revertir** (la adaptacion reducida duele a
 escala). Gate: smoke reload ≥2,5 o no se submite.
+
+## 17. VEREDICTO ttt05 (23-ago): 26,39 — rama "revertir", y el post-mortem del mapeo
+
+Submission 55701778 = **26,39** (−3,75 vs 30,14). El campeon sigue 30,14. El error fue de
+MAPEO, y el banco lo predecia leido correctamente:
+
+**El TTT del campeon entrena 1 EPOCA: cada secuencia augmentada se ve UNA vez.** Eso ES el
+"paso 12" del banco (cada vista una pasada) — el punto dulce. El regimen sobreentrenado eran
+NUESTRAS 4 epocas, no los 128 pasos de produccion (128 secuencias × 1 pasada, no 4 × 32).
+Con 0.5 epocas, la mitad de las vistas NUNCA se adapto → sus decodes llegaron debiles a la
+agregacion → la votacion de 16 vistas perdio la mitad de sus votantes entrenados.
+
+**Lo que queda establecido:**
+1. **El eje de pasos esta cerrado por los DOS extremos**: <1 epoca = −3,75 en LB (medido);
+   >1 epoca = sobreajuste en banco (4 epocas destruian 8/20). **La receta del campeon ya esta
+   en su optimo en ese eje.** La amplificacion debe venir de: forma de la perdida (CE
+   ponderado a celdas de pico, dentro de la unica epoca), dosis de augmentaciones por tarea,
+   o seleccion — NO de la cantidad de pasos.
+2. Confirmacion redundante del valor marginal del TTT: −50% de su tiempo = −3,75 pt que la
+   cobertura extra no compenso. La calidad por tarea domina sobre el conteo de tareas.
+3. **Regla de banco endurecida**: proxy de vista identidad + epocas propias NO mapea al
+   decode agregado con epoca unica. Todo banco de TTT futuro replica el calendario EXACTO de
+   produccion (1 epoca sobre n_aug secuencias) y decodifica con agregacion.
+
+Coste del aprendizaje: 1 slot (idle de todas formas) + ~1,8 h-quota ya contadas. Ledger de
+la semana: ~7/10.
