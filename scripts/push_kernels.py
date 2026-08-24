@@ -113,6 +113,14 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # CE FOCAL vs ESTANDAR en la epoca unica, banco FIEL a produccion (post-ttt05=26,39):
+    # 1 epoca exacta, decode AGREGADO de 8 vistas con des-transformacion (inversion verificada
+    # 300/300) y voto probmul-like, 12 tareas estratificadas por el triage, shardeado x4.
+    # ~20 min de pared (~0,7 h-quota). Prerreg: efecto modesto (+0 a +2), primero en el grupo
+    # "sobreajusta".
+    "ttt-focal": {"notebook": "notebooks/ttt_focal.ipynb", "slug": "arc-agi2-ttt-focal",
+                  "title": "arc agi2 ttt focal", "gpu": True,
+                  "defaults": {"model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # GRAFT ttt05: campeon con num_train_epochs=0.5 en el TTT (UN numero). Evidencia del banco
     # 4B limpio (22-ago): 48 pasos = peor politica (regret 94,5 vs 37,9 en 12); el sobreajuste
     # del TTT destruye el ajuste a la GT en 8/20; mitad del reloj de TTT -> cobertura (~17% del
