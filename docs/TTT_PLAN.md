@@ -822,3 +822,26 @@ agregacion → la votacion de 16 vistas perdio la mitad de sus votantes entrenad
 
 Coste del aprendizaje: 1 slot (idle de todas formas) + ~1,8 h-quota ya contadas. Ledger de
 la semana: ~7/10.
+
+## 18. CE focal (24-ago): NEGATIVO con mecanismo — y la agregacion validada
+
+`ttt-focal` (shardeado x4, 12 min, ~0,4 h-quota): CE focal (1-p)^2 vs estandar, epoca unica
+exacta, decode agregado de 8 vistas con des-transformacion (inversion verificada 300/300) y
+voto probmul-like, 12 tareas estratificadas.
+
+- **Resueltas 1/12 = 1/12, pero focal produce MENOS candidatos siempre** (estandar 2-4 donde
+  llena pool; focal 0-1). Mecanismo: la aceptacion del DFS exige confianza casi perfecta en
+  TODAS las celdas del camino; el focal sacrifica el grueso para afilar picos y los caminos
+  caen del umbral. **Familia focal-multiplicativa CERRADA.** Si el CE ponderado revive, sera
+  ADITIVO (peso extra solo en celdas >2 nats, resto en 1.0).
+- **BONUS: la agregacion validada en nuestro banco** — e8686506 ("dañada", jamas resuelta en
+  vista identidad) salio resuelta en AMBOS brazos via la votacion de 8 vistas. El mecanismo
+  central de produccion, reproducido.
+- Limitacion: presupuesto de 15 s/vista (incluye prefill) hambreo los decodes medianos
+  (38007db0, resoluble por la base, salio pool 0). El veredicto es "focal <= estandar", no un
+  conteo confiable. NO se re-corre: la señal direccional es consistente y el margen de quota
+  (~2,3 h) no se gasta en re-litigar.
+
+Linea de amplificacion, estado: (a) pasos CERRADO (§17); (a') focal CERRADO; quedan (b) dosis
+de augmentaciones por tarea, (c) seleccion, (a'') CE aditivo en celdas de pico. Bancos futuros
+de decode agregado: presupuesto >=45 s/vista.
