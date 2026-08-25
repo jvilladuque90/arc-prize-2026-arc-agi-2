@@ -845,3 +845,21 @@ voto probmul-like, 12 tareas estratificadas.
 Linea de amplificacion, estado: (a) pasos CERRADO (§17); (a') focal CERRADO; quedan (b) dosis
 de augmentaciones por tarea, (c) seleccion, (a'') CE aditivo en celdas de pico. Bancos futuros
 de decode agregado: presupuesto >=45 s/vista.
+
+## 19. BANDA DE RUIDO del campeon (24-ago): 30,14 y 29,31
+
+Re-run identico del campeon (seed process-salted resamplea): **29,31** vs 30,14 original.
+Diferencia 0,83 por puro ruido de ejecucion, consistente con la banda ±0,7 del 2B
+(19,86/21,25). Con dos muestras: centro ~29,7, banda util ~±0,85.
+
+**Regla de decision recalibrada (vale para TODO A/B futuro):**
+- adoptar un graft: **>=31** (una banda por encima de 30,14)
+- revertirlo: **<=28,5**
+- 28,5-31 = RUIDO: no se adopta ni se revierte por si solo; pide segunda muestra.
+
+Veredictos pasados re-examinados: ttt05 (26,39, -3,75) y nottt (9,58) se sostienen con
+holgura; la familia de escala (27,08 real; 28,33 a ~2 bandas) se sostiene. El nivel real del
+campeon es ~29,5-30,1; el peloton (33,89) esta a ~4 puntos reales.
+
+Prueba candidata para el slot de manana: TERCERA muestra de varianza (dos puntos definen mal
+una banda; tres la definen razonablemente). Costo cero quota.
