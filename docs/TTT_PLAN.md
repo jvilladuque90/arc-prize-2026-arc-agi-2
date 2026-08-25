@@ -863,3 +863,29 @@ campeon es ~29,5-30,1; el peloton (33,89) esta a ~4 puntos reales.
 
 Prueba candidata para el slot de manana: TERCERA muestra de varianza (dos puntos definen mal
 una banda; tres la definen razonablemente). Costo cero quota.
+
+## 20. Analisis offline (25-ago): mueren SELECCION y CE aditivo; nace "consenso entre vistas"
+
+Cero GPU, sobre los JSON ya persistidos (triage + focal).
+
+**Seleccion: MUERTA.** En las 4 configuraciones medidas (triage base/ttt, focal
+estandar/focal), las perdidas por seleccion son **0**: cuando la GT entra al pool, siempre se
+elige como top-1. El factor 0,90 no tiene margen recuperable; el cuello esta aguas arriba
+(que la GT ENTRE al pool).
+
+**CE aditivo hacia celdas de pico: CONTRAINDICADO.** El TTT aplasta 8 picos pero **CREA 14**,
+y en **7/20 tareas crea mas de los que quita**. Enfocar la perdida en picos amplificaria un
+proceso que ya genera picos nuevos. Cerrada antes de nacer (junto con la focal
+multiplicativa de §18, la familia de perdidas ponderadas queda cerrada entera).
+
+**Hallazgo nuevo: la DISPERSION DEL VOTO entre vistas es una observable util.** En el decode
+agregado, el perfil de votos separa dos regimenes:
+- consenso fuerte: b0039139 [17,51 / 5,74], e8686506 [11,25 / 2,96 / 1,63] — jerarquia clara
+- consenso debil: 78332cb0 [1,457 / 1,417 / 1,408] — empate tecnico, las vistas discrepan
+
+⇒ **Palanca viva unica: DOSIS DE AUGMENTACIONES POR TAREA.** Produccion reparte 16 vistas
+uniformes; reasignarlas segun el consenso observado (mas vistas donde el voto esta empatado,
+menos donde ya hay jerarquia) es politica de asignacion — barata, injertable, y ataca
+GT-en-pool. Diseño del banco: medir curva de GT-en-pool vs n_vistas (4/8/16/24) y correlacionar
+con la dispersion del voto a 8 vistas, para saber si la dispersion PREDICE que mas vistas
+ayuden. Presupuesto >=45 s/vista (leccion del focal).
