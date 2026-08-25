@@ -889,3 +889,47 @@ menos donde ya hay jerarquia) es politica de asignacion — barata, injertable, 
 GT-en-pool. Diseño del banco: medir curva de GT-en-pool vs n_vistas (4/8/16/24) y correlacionar
 con la dispersion del voto a 8 vistas, para saber si la dispersion PREDICE que mas vistas
 ayuden. Presupuesto >=45 s/vista (leccion del focal).
+
+## 21. LA BANDA REAL (25-ago, n=3): 29,03 ± 1,27 — y casi todos los A/B del mes eran ruido
+
+Tres corridas del MISMO kernel, misma version: **30,14 · 29,31 · 27,64**.
+
+```
+media 29,03 | desv 1,27 | rango 2,50
+diferencias = 0,83 / 1,67 / 2,50 = exactamente 1, 2 y 3 x 0,8333
+=> quantum = 1 tarea de ~120. El ruido son POCAS TAREAS que entran o no.
+```
+
+**El campeon nunca fue 30,14**: esa fue la tirada afortunada. Su nivel real es ~29.
+
+**Re-lectura honesta de los veredictos del mes** (z contra 29,03 ± 1,27):
+
+| submission | score | z | veredicto real |
+|---|---|---|---|
+| lb33-cap | 27,64 | −1,09 | **DENTRO del ruido** (identico a un re-run del campeon) |
+| merged+fast | 28,33 | −0,55 | DENTRO del ruido |
+| merged | 27,08 | −1,54 | DENTRO del ruido (borde) |
+| ttt05 | 26,39 | −2,08 | fuera: real |
+| nottt | 9,58 | −15,3 | fuera: real |
+
+⚠️ **CORRECCION IMPORTANTE**: llevo toda la semana citando "la leccion de lb33-cap" (−2,5 pt)
+como ancla metodologica. **Ese experimento no fallo**: saco exactamente lo que saca el campeon
+en una mala tirada. El PRINCIPIO (calibrar en la poblacion correcta) sigue siendo sano, pero
+no lo demostro ese experimento. Igual la familia de escala: se sostiene cerrada por el control
+de formato del banco (§10-ter), NO por el leaderboard.
+
+**Consecuencia estrategica dura**: con 1 submission/dia y banda ±1,27, un A/B de una sola
+muestra solo detecta efectos >2,5 pt. Nuestras palancas vivas valen ~1 tarea (0,83 pt).
+**Sin reducir el ruido, ninguna se puede validar jamas en el LB.**
+
+**LA PALANCA METODOLOGICA: fijar la semilla.** El kernel usa
+`aug_dataset.augment(seed=hash(bk) % 1024**2)` en la fase de scoring, y `hash()` de strings en
+Python va **salado por proceso** (PYTHONHASHSEED aleatorio). Cada corrida sortea augmentaciones
+distintas. Fijando `PYTHONHASHSEED=0` (o un hash estable tipo md5) el kernel pasa a ser
+reproducible y los A/B se vuelven **pareados**: la diferencia observada es el efecto del graft,
+no el sorteo. No sube el score por si mismo; **hace legibles todos los experimentos futuros**.
+(Nota: queda ruido residual de timing — que tareas caben en las 12 h depende de la maquina.)
+
+**Plan**: (1) mie/jue: re-submits gratis del campeon → n=4, n=5, banda mas fina; (2) viernes
+tras el reset de quota: commit del kernel determinista y re-submits repetidos para verificar
+que la varianza colapsa; (3) solo entonces, A/B de las palancas de ~1 tarea.
