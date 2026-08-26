@@ -961,3 +961,35 @@ ya no cambian ninguna decision.
 buena era la v3. El CLI no dice cual es el problema; el replay con `kagglesdk` lo revelo
 ("Did not find provided Notebook Output File"). Al re-submitir kernels viejos: probar sin `-v`
 o con la version mas alta.
+
+## 23. Preparado sin gastar cuota (26-ago): el par determinista del viernes
+
+Todo el trabajo del viernes construido y verificado en local, coste **CERO**:
+
+**Auditoria de no-determinismo del campeon**: `hash(bk)` es la **unica** fuente salada. Todo
+lo demas usa semillas explicitas (42/1/2) y las permutaciones de numpy van tras
+`np.random.seed(seed)` dentro de `augment()`. Un solo punto que arreglar.
+
+**Descubrimiento al desempaquetar `lb33_cap`**: no eran uno sino **dos injertos aplicados** —
+(a) **cheap-first**: el campeon ordena las tareas ALFABETICAMENTE (`sorted(data.keys())`);
+el injerto ordena por coste proxy (celdas de sus grids) barata→cara, drenando mas tareas antes
+de `end_time`. Cobertura pura, **sin coste por tarea**. (b) **tope de longitud por tarea**
+(`task_max_new`), ×1,10-1,13. El comentado "GRAFT 3" (tiempo 1200→600 s) **nunca se aplico**:
+el codigo sigue en `spend_time > 1200`. ⇒ el bundle que salio neutro en el LB (§22) contiene
+solo los dos injertos monotonos, ambos ya justificados.
+
+**Par construido** (cambio comun: `seed=hash(bk)` → `md5(bk)[:8]`, mas un import):
+- **`lb33-det`** = CONTROL: campeon + determinismo. Nada mas.
+- **`lb33-stack`** = TRATAMIENTO: determinismo + cheap-first + tope de longitud.
+
+Verificado en local: 1 reemplazo exacto de seed y 1 import por notebook (asserts en el
+builder), `hash(bk)` ausente, las 6 celdas de codigo compilan en ambos (las celdas 2 y 7 son
+magias de shell `!pip`/`!UNSLOTH`, identicas al baseline), y las semillas md5 dan enteros
+estables.
+
+**Protocolo del viernes**: commit de `lb33-det` (~1,8 h-cuota) → submit 2 dias seguidos.
+**Si los dos scores son IDENTICOS, el determinismo funciona** y los A/B pasan a ser pareados
+(un efecto de 1 tarea, hoy invisible bajo ±1,27, se vuelve legible). Entonces commit de
+`lb33-stack` y su submit da el A/B pareado de los injertos de cobertura. Si los scores
+difieren, domina el ruido de timing (que tareas caben en 12 h) y el LB queda confirmado como
+instrumento de baja resolucion — el banco carga con todo.

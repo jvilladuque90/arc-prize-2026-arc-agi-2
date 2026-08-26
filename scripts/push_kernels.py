@@ -121,6 +121,25 @@ KERNELS = {
     "ttt-focal": {"notebook": "notebooks/ttt_focal.ipynb", "slug": "arc-agi2-ttt-focal",
                   "title": "arc agi2 ttt focal", "gpu": True,
                   "defaults": {"model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # PAR DETERMINISTA (viernes 28-ago). Unico cambio comun: seed de scoring pasa de
+    # hash(bk) -- salado por proceso, la fuente de la banda +-1,27 -- a md5 estable.
+    # lb33-det = CONTROL (campeon determinista). Dos submits: si dan el MISMO score, el
+    # determinismo funciona y a partir de ahi los A/B son PAREADOS (§21).
+    "lb33-det": {"notebook": "notebooks/lb33_det.ipynb", "slug": "arc-agi2-lb33-det",
+                 "title": "arc agi2 lb33 det", "gpu": True,
+                 "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                            "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+                 "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                              "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # lb33-stack = TRATAMIENTO: determinista + los dos injertos de cobertura rehabilitados
+    # (cheap-first y tope de longitud por tarea; el "GRAFT 3" de 600s nunca se aplico -- el
+    # codigo sigue en 1200). Ambos monotonos y ya validados como no-daninos (§22).
+    "lb33-stack": {"notebook": "notebooks/lb33_stack.ipynb", "slug": "arc-agi2-lb33-stack",
+                   "title": "arc agi2 lb33 stack", "gpu": True,
+                   "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                              "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+                   "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                                "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # GRAFT ttt05: campeon con num_train_epochs=0.5 en el TTT (UN numero). Evidencia del banco
     # 4B limpio (22-ago): 48 pasos = peor politica (regret 94,5 vs 37,9 en 12); el sobreajuste
     # del TTT destruye el ajuste a la GT en 8/20; mitad del reloj de TTT -> cobertura (~17% del
