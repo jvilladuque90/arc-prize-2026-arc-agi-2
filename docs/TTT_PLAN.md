@@ -933,3 +933,31 @@ no el sorteo. No sube el score por si mismo; **hace legibles todos los experimen
 **Plan**: (1) mie/jue: re-submits gratis del campeon → n=4, n=5, banda mas fina; (2) viernes
 tras el reset de quota: commit del kernel determinista y re-submits repetidos para verificar
 que la varianza colapsa; (3) solo entonces, A/B de las palancas de ~1 tarea.
+
+## 22. lb33-cap RECUPERADO (26-ago): su "fallo" era ruido, y vuelve al stack
+
+Re-test gratis (kernel ya commiteado, cero cuota): **30,14** — exactamente la mejor tirada del
+campeon.
+
+| brazo | muestras | media |
+|---|---|---|
+| campeon | 30,14 · 29,31 · 27,64 | 29,03 |
+| **lb33-cap** | **27,64 · 30,14** | **28,89** |
+
+Diferencia de medias **−0,14 pt (−0,17 tareas), z = −0,12** ⇒ **INDISTINGUIBLES**. Los dos
+brazos producen literalmente el mismo conjunto de valores {27,64 · 29,31 · 30,14}.
+
+⇒ **El tope de longitud no daña.** Queda rehabilitado como acelerador **×1,10-1,13** con doble
+respaldo: banco (la GT cabe en el 100% de 1248 subtareas) y LB (2 muestras indistinguibles).
+Entra al stack de velocidad del viernes.
+
+**Leccion de metodo, ahora con dos casos**: re-testear ramas descartadas cuesta CERO cuota
+(los kernels ya estan commiteados; solo el commit gasta) y recupero un activo real. Es la
+mejor prueba por defecto para un slot ocioso — mejor que acumular muestras de varianza, que
+ya no cambian ninguna decision.
+
+⚠️ Detalle operativo caro de aprender: `kaggle competitions submit -v 1` fallo con 400 porque
+**solo la ULTIMA version del kernel conserva el output**. `lb33-cap` tenia 3 versiones y la
+buena era la v3. El CLI no dice cual es el problema; el replay con `kagglesdk` lo revelo
+("Did not find provided Notebook Output File"). Al re-submitir kernels viejos: probar sin `-v`
+o con la version mas alta.
