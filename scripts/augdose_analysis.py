@@ -44,10 +44,20 @@ def resuelta(vistas, gt, k=2):
 
 
 def dispersion(vistas):
-    """Metricas OBSERVABLES (no usan la GT) del perfil de voto."""
+    """Metricas OBSERVABLES (no usan la GT) del perfil de voto.
+
+    `productividad` = fraccion de vistas que devolvieron ALGUN candidato. El smoke del 26-ago
+    mostro que es la observable buena y que `ratio` NO lo es: 7b5033c1 (beneficio +0,60 al
+    pasar de 4 a 16 vistas) y e8686506 (beneficio 0,00) tienen ratio identico (0,000) y un solo
+    candidato -- con pocas vistas no hay competencia que medir. Lo que las separa es que la
+    primera solo produce candidato en la mitad de las vistas: vistas vacias = el modelo apenas
+    encuentra nada = mas vistas son mas billetes de loteria.
+    """
     v = votar(vistas)
+    prod = sum(1 for cs in vistas if cs) / len(vistas) if vistas else 0.0
     if not v:
-        return {"n_cands": 0, "ratio": 0.0, "margen": 0.0, "masa_top1": 0.0}
+        return {"n_cands": 0, "ratio": 0.0, "margen": 0.0, "masa_top1": 0.0,
+                "productividad": prod}
     v1 = v[0][1]
     v2 = v[1][1] if len(v) > 1 else 0.0
     total = sum(x for _, x in v)
@@ -56,6 +66,7 @@ def dispersion(vistas):
         "ratio": (v2 / v1) if v1 else 0.0,        # 0 = dominio total; ~1 = empate tecnico
         "margen": v1 - v2,
         "masa_top1": (v1 / total) if total else 0.0,
+        "productividad": prod,
     }
 
 
@@ -87,24 +98,35 @@ def analizar(datos):
     return filas
 
 
+def _pearson(xs, ys):
+    if len(xs) < 3:
+        return None
+    mx, my = sum(xs) / len(xs), sum(ys) / len(ys)
+    num = sum((a - mx) * (b - my) for a, b in zip(xs, ys))
+    den = (sum((a - mx) ** 2 for a in xs) * sum((b - my) ** 2 for b in ys)) ** 0.5
+    return num / den if den else 0.0
+
+
 def informe(filas):
     print(f"{'tarea':10} " + " ".join(f"n={n:<5}" for n in NS)
-          + f" {'benef':>7} {'ratio@4':>8} {'cands@4':>8}")
+          + f" {'benef':>7} {'prod@4':>7} {'ratio@4':>8} {'cands@4':>8}")
     for f in filas:
         cs = " ".join(f"{f['curva'].get(n, float('nan')):<7.2f}" for n in NS)
         print(f"{f['task']:10} {cs} {f['beneficio']:+7.2f} "
-              f"{f['disp4']['ratio']:8.3f} {f['disp4']['n_cands']:8d}")
-    # LA correlacion que decide la palanca
-    xs = [f["disp4"]["ratio"] for f in filas]
+              f"{f['disp4']['productividad']:7.2f} {f['disp4']['ratio']:8.3f} "
+              f"{f['disp4']['n_cands']:8d}")
     ys = [f["beneficio"] for f in filas]
-    if len(xs) > 2:
-        mx, my = sum(xs) / len(xs), sum(ys) / len(ys)
-        num = sum((a - mx) * (b - my) for a, b in zip(xs, ys))
-        den = (sum((a - mx) ** 2 for a in xs) * sum((b - my) ** 2 for b in ys)) ** 0.5
-        r = num / den if den else 0.0
-        print(f"\ncorrelacion( dispersion@4 , beneficio de 4->16 ) = {r:+.3f}")
-        print("  r > 0  => el empate tecnico PREDICE que mas vistas ayudan -> palanca VIVA")
-        print("  r ~ 0  => la dispersion no informa -> palanca MUERTA")
+    for nom, clave, signo in (("productividad@4", "productividad", "<"),
+                              ("dispersion@4", "ratio", ">")):
+        r = _pearson([f["disp4"][clave] for f in filas], ys)
+        if r is None:
+            continue
+        print(f"\ncorrelacion( {nom} , beneficio de 4->16 ) = {r:+.3f}")
+        if clave == "productividad":
+            print("  r NEGATIVA fuerte => la ESCASEZ de candidatos predice que mas vistas")
+            print("     ayudan -> disparador observable para la reasignacion -> palanca VIVA")
+        else:
+            print("  (contraste: el empate de votos resulto NO discriminar en el smoke)")
 
 
 # ----------------------------- tests (corren sin GPU) -----------------------------

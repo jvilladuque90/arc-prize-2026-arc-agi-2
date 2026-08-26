@@ -993,3 +993,35 @@ estables.
 `lb33-stack` y su submit da el A/B pareado de los injertos de cobertura. Si los scores
 difieren, domina el ruido de timing (que tareas caben en 12 h) y el LB queda confirmado como
 instrumento de baja resolucion — el banco carga con todo.
+
+## 24. Smoke del banco de dosis (26-ago, Colab 2B): el observable era el equivocado
+
+Cadena completa validada end-to-end sin gastar cuota de Kaggle: banco → persistencia →
+descarga → analisis offline por submuestreo. 4 tareas, 16 vistas, 533 s en T4.
+
+**Vistas que contienen la GT: [16/16 · 10/16 · 3/16 · 15/16]** — hay rango dinamico real
+incluso en el 2B contaminado, que es lo que hace la pregunta interesante.
+
+| tarea | n=2 | n=4 | n=8 | n=12 | n=16 | beneficio | prod@4 | ratio@4 |
+|---|---|---|---|---|---|---|---|---|
+| e8686506 | 1,00 | 1,00 | 1,00 | 1,00 | 1,00 | +0,00 | 1,00 | 0,000 |
+| 20270e3b | 0,93 | 0,97 | 1,00 | 1,00 | 1,00 | +0,07 | 0,75 | 0,322 |
+| **7b5033c1** | **0,40** | 0,68 | 0,62 | 0,95 | **1,00** | **+0,60** | **0,50** | 0,000 |
+| b0039139 | 1,00 | 1,00 | 1,00 | 1,00 | 1,00 | +0,00 | 1,00 | 0,134 |
+
+**El smoke hizo justo lo que un smoke debe hacer: refutar mi eleccion de observable.** La
+dispersion del voto (§20) NO discrimina — `7b5033c1` (beneficio +0,60) y `e8686506` (beneficio
+0,00) tienen ratio identico (0,000) y un solo candidato. Con pocas vistas no hay competencia
+que medir, asi que el empate de votos no distingue "ya resuelta" de "apenas encuentra nada".
+
+**El observable bueno es la ESCASEZ**: `productividad` = fraccion de vistas que devuelven algun
+candidato. Correlacion con el beneficio de 4→16 vistas: **−0,924** (contra −0,399 de la
+dispersion). Mecanismo: vistas vacias = el modelo apenas engancha = mas vistas son mas billetes
+de loteria; vistas todas productivas y coincidentes = la tarea ya esta decidida.
+
+⚠️ **n=4 y modelo contaminado**: esto NO es veredicto, es una **hipotesis sobre que medir**,
+que es exactamente el producto legitimo de un banco de mecanismo. El veredicto sale del 4B en
+L4 (~0,75 h-cuota shardeado) con el harness ya depurado y el observable ya corregido — sin
+gastar L4 en descubrir que la metrica no servia.
+
+Coste del hallazgo: **cero cuota de Kaggle** (T4 gratis + analisis local).
