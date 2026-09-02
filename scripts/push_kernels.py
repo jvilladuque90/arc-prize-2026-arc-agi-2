@@ -121,8 +121,14 @@ KERNELS = {
     "ttt-focal": {"notebook": "notebooks/ttt_focal.ipynb", "slug": "arc-agi2-ttt-focal",
                   "title": "arc agi2 ttt focal", "gpu": True,
                   "defaults": {"model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
-    # PAR DETERMINISTA (viernes 28-ago). Unico cambio comun: seed de scoring pasa de
-    # hash(bk) -- salado por proceso, la fuente de la banda +-1,27 -- a md5 estable.
+    # PAR DETERMINISTA (1-sep). DOS cambios comunes, ambos contra el no-determinismo:
+    #  (1) seed de scoring: hash(bk) -- salado por proceso -- pasa a md5 estable.
+    #  (2) se elimina el tope de RELOJ por tarea (spend_time > 1200). Medido en el log
+    #      del campeon: 981571dc arranco su ultimo lote a 1159,6 s, a 40,4 s del tope
+    #      -> un 3,5% de jitter decidia 16 vistas vs 12. Una tarea = 0,8333 pt y la
+    #      sigma observada es 1,27 (~1,5 tareas): la granularidad del ruido cuadra.
+    #      El deadline GLOBAL se conserva (proteccion de submission). El DFS mantiene
+    #      su propio tope de 540 s, que nunca mordio (lote mas lento medido: 203,7 s).
     # lb33-det = CONTROL (campeon determinista). Dos submits: si dan el MISMO score, el
     # determinismo funciona y a partir de ahi los A/B son PAREADOS (§21).
     "lb33-det": {"notebook": "notebooks/lb33_det.ipynb", "slug": "arc-agi2-lb33-det",

@@ -1025,3 +1025,50 @@ L4 (~0,75 h-cuota shardeado) con el harness ya depurado y el observable ya corre
 gastar L4 en descubrir que la metrica no servia.
 
 Coste del hallazgo: **cero cuota de Kaggle** (T4 gratis + analisis local).
+
+## 25. La SEGUNDA fuente de no-determinismo (1-sep): el tope de reloj por tarea
+
+Antes de gastar cuota en `lb33-det` audité si las compuertas de reloj del pipeline llegan a
+morder. Los logs del campeón son gratis, así que la auditoría costó **cero cuota**.
+
+El commit de `lb33-cap` corre el smoke público de 4 tareas, una por GPU. Tiempos por tarea:
+
+| rank | tarea | TTT+setup | decode | total | lote más lento |
+|---|---|---|---|---|---|
+| 0 | 36a08778 | 215,2 s | 859,6 s | 1074,9 s | 203,7 s |
+| 1 | aa4ec2a5 | 324,2 s | 308,5 s | 632,8 s | 90,2 s |
+| 2 | 0934a4d8 | 400,2 s | 145,3 s | 545,6 s | 43,3 s |
+| 3 | 981571dc | 865,5 s | 386,2 s | **1252,1 s** | 107,6 s |
+
+Dos lecturas, una tranquilizadora y otra no.
+
+**El tope de 540 s del DFS nunca muerde.** El lote más lento medido es 203,7 s, a menos de la
+mitad del límite. El DFS termina por agotamiento de haces (`num_alive_beams == 0`), que es una
+salida *determinista*: la poda por `max_score` es el presupuesto real, no el reloj. Esa
+compuerta se deja intacta.
+
+**El tope de 1200 s por tarea sí muerde, y por un pelo.** `981571dc` terminó en 1252,1 s. No
+imprimió timeout porque la compuerta se evalúa **al inicio de cada lote**: su último lote
+arrancó con `spend_time` = 1159,6 s y corrió hasta 1252,1. Es decir, **40,4 s de margen sobre
+1160 — un 3,5% de jitter de reloj decidía si esa tarea decodificaba 16 vistas o 12.**
+
+Y ahí está el mecanismo que faltaba: una tarea vale 0,8333 pt y la sigma observada es 1,27
+(≈1,5 tareas). **La granularidad del ruido coincide con "una o dos tareas pierden su último
+lote según cómo venga la máquina ese día".** El seed salado (§21) explicaba una parte; esto
+explica la otra, y `md5` no la toca.
+
+Corolario incómodo: commitear `lb33-det` con solo el fix de md5 habría dado dos scores
+distintos **aunque el fix fuese correcto**, y lo habríamos leído como "el determinismo falló".
+
+**Injerto 2**: se elimina el tope de reloj por tarea; se conserva el deadline global (la
+protección contra morir sin escribir submission, que con σ pequeña y cero `stop!` en el log no
+parece morder). El cambio es **monótono positivo** por añadidura: las tareas que perdían su
+último lote ahora decodifican las 16 vistas. Riesgo aceptado: el run crece unos pocos puntos
+porcentuales, acotado estructuralmente en 4 lotes por entrada de test.
+
+Dato de presupuesto corregido de paso: el commit son **1734 s de pared ≈ 0,96 h-cuota**, no las
+1,8 que tenía estimadas. El rerun de scoring sobre el oculto va por cuenta de Kaggle.
+
+⚠️ Salvedad: las 4 tareas del smoke son la muestra pública, no el oculto de 120. Que el
+mecanismo existe y muerde está **medido**; qué fracción del oculto roza el tope es
+extrapolación.
