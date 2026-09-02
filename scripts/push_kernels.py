@@ -146,6 +146,16 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # BANCO DE DOSIS en el 4B (1-sep), L4x4 SHARDEADO x4. Prerreg: r(productividad@4,
+    # beneficio 4->16) <= -0,6 con n=16 => disparador real; >= -0,3 => la rama muere.
+    # El observable salio del smoke del 2B (r=-0,924, n=4) que REFUTO la dispersion del voto.
+    # Decodifica 16 vistas UNA vez y persiste que produjo cada una: la curva sale offline.
+    "augdose-4b": {"notebook": "notebooks/augdose_4b.ipynb", "slug": "arc-agi2-augdose-4b",
+                   "title": "arc agi2 augdose 4b", "gpu": True,
+                   "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                              "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+                   "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                                "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # GRAFT ttt05: campeon con num_train_epochs=0.5 en el TTT (UN numero). Evidencia del banco
     # 4B limpio (22-ago): 48 pasos = peor politica (regret 94,5 vs 37,9 en 12); el sobreajuste
     # del TTT destruye el ajuste a la GT en 8/20; mitad del reloj de TTT -> cobertura (~17% del
