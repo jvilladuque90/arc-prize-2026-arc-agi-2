@@ -1148,3 +1148,36 @@ Arreglado de paso un bug de reporte en `augdose_analysis.py`: `informe()` imprim
 interpretación "r NEGATIVA fuerte ⇒ palanca VIVA" **cualquiera que fuese el signo de r**. Ahora
 aplica la regla prerreg por signo y magnitud, y avisa cuántas tareas son degeneradas — que es
 justo el aviso que faltaba aquí.
+
+## 28. lb33-det = 31,11 (2-sep): el score más alto del proyecto, y una predicción cumplida
+
+`lb33-det` (campeón + los dos injertos de determinismo) puntúa **31,11**. Contexto: la banda
+del campeón es 29,03 ± 1,27 (n=3) y su mejor tirada histórica fue 30,14. Esto es **z = +1,63**
+y **+2,08 pt sobre la media**, ≈ 2,5 tareas.
+
+Lo que sostiene la lectura no es el z —una muestra sola nunca lo sostendría— sino que
+**la predicción estaba prerregistrada y con mecanismo**. Antes de ver el número quedó escrito
+que quitar el tope de reloj por tarea es *monótono positivo* porque las tareas truncadas
+recuperan su último lote de 4 vistas, y que por tanto se esperaba ≥ 29,03. La magnitud
+observada (≈2,5 tareas) encaja con "una o dos tareas por corrida perdían su último lote",
+que es exactamente lo medido en §25 (40,4 s de margen sobre el tope en `981571dc`).
+
+Es decir: la auditoría de los logs no solo evitó un experimento confundido — **encontró
+puntos**. El tope de 1200 s no era solo una fuente de ruido, era una fuga de cobertura.
+
+**Esto reordena el uso del slot de mañana.** Con 31,11 en la mano, el segundo submit de
+`lb33-det` deja de medir una cosa y pasa a medir dos a la vez:
+
+- Si devuelve **exactamente 31,11** ⇒ el determinismo está cerrado (misma salida bit a bit)
+  **y** el +2,08 no es una tirada afortunada, porque un kernel determinista no puede tener
+  suerte dos veces. Nuevo campeón confirmado y, desde ese momento, todos los A/B son legibles.
+- Si devuelve **otra cosa** ⇒ queda una tercera fuente de no-determinismo y 31,11 es una
+  muestra de una distribución todavía ancha.
+
+Frente a eso, submitir `lb33-stack` primero daría un número difícil de leer: sin saber si el
+determinismo aguanta, una diferencia de ~1 pt contra 31,11 cabe en cualquier banda plausible.
+El orden vuelve a ser **3-sep: `det` #2 · 4-sep: `stack`**, que es el que maximiza información
+por slot. `lb33-stack` ya está commiteado, así que no se pierde nada esperando un día.
+
+⚠️ Hasta que llegue esa segunda muestra, 31,11 es **n=1**: prometedor y con mecanismo, no
+todavía un veredicto.
