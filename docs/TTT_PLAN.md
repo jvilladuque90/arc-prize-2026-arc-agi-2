@@ -1072,3 +1072,37 @@ Dato de presupuesto corregido de paso: el commit son **1734 s de pared ≈ 0,96 
 ⚠️ Salvedad: las 4 tareas del smoke son la muestra pública, no el oculto de 120. Que el
 mecanismo existe y muerde está **medido**; qué fracción del oculto roza el tope es
 extrapolación.
+
+## 26. El banco de dosis v1 salió INVÁLIDO (1-sep): el TTT vio 16 secuencias, no 128
+
+Corrida mecánicamente perfecta y científicamente nula. Los 4 shards terminaron, las 16 tareas
+se procesaron, los JSON se fundieron. Y el resultado es basura: **GT en alguna vista en solo
+3 de 16 tareas**, 6 aciertos de vista sobre 256 posibles.
+
+La delación está en el propio registro: **`n_seqs_ttt` = 16 en las 16 tareas, y `ttt_s` entre
+14 y 27 s** — cuando el TTT de producción tarda 215-865 s por tarea. Un orden de magnitud de
+menos no es ruido, es otro experimento.
+
+**Causa**: confundí el `n` de `augment(n)` con el número de vistas. En producción
+`augment(n)` = **8 transformaciones D4 × n permutaciones de color**, así que el entrenamiento
+`augment(n=16)` son **128 secuencias** y el decode `augment(n=2)` son 16. Mi harness generaba
+16 vistas sueltas para AMBOS. El lado del decode estaba bien por coincidencia numérica; el del
+TTT iba **8× corto**. Con 16 pasos en vez de 128 el 4B sencillamente no se adapta, y sin
+adaptación no hay nada que dosificar: la pregunta del banco no llega ni a plantearse.
+
+**Por qué el smoke del 2B no lo cazó** — y esta es la lección que vale más que el experimento:
+el 2B memoriza el eval, así que resuelve esas tareas **sin necesitar TTT**. Un vehículo
+contaminado puede validar la fontanería (des-transformación, persistencia, submuestreo) pero es
+**estructuralmente incapaz de validar la fidelidad de la adaptación**, porque no depende de
+ella. El smoke del 26-ago hizo bien su trabajo declarado y aun así dejó pasar esto: no fue
+descuido del smoke, fue un límite del vehículo. Al catálogo de reglas de banco (§8) se añade:
+**lo que el banco no necesita para funcionar, el banco no lo verifica.**
+
+Coste: **0,84 h-cuota** (1516 s de pared × 2).
+
+**Arreglo**, con test local que ejecuta la función real del worker antes de gastar GPU:
+`build_vistas_train` construye el producto cruzado 8×16 y se comprueba que salen 128
+secuencias, 8 transformaciones D4 distintas, 16 permutaciones distintas, la identidad
+exactamente una vez, y que la misma semilla da las mismas vistas. Además el worker lleva
+`assert len(v_train) == 128` en caliente: si el calendario se vuelve a desviar, el shard muere
+en la primera tarea en vez de gastar la corrida entera produciendo números creíbles y falsos.

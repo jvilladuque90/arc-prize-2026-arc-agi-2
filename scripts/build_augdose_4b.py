@@ -131,6 +131,7 @@ def invertir(g, k, perm):
 
 
 def build_vistas(pares, seed, n):
+    # vistas de DECODE: produccion usa augment(n=2) = 8 D4 x 2 perms = 16 vistas.
     rng = random.Random(seed)
     vistas = []
     for v in range(n):
@@ -141,6 +142,23 @@ def build_vistas(pares, seed, n):
             perm = rng.sample(range(10), 10)
             orden = rng.sample(range(len(pares)), len(pares))
         vistas.append({"k": k, "perm": perm, "orden": orden})
+    return vistas
+
+
+def build_vistas_train(pares, seed, n_perm=16):
+    # vistas de TTT: produccion usa augment(n=16) = 8 transformaciones D4 x 16
+    # permutaciones de color = 128 SECUENCIAS, cada una vista UNA vez (1 epoca).
+    # El PRODUCTO CRUZADO importa: 128 pasos, no 16. La primera version de este banco
+    # generaba 16 vistas sueltas -> 8x menos adaptacion -> el 4B no aprendia nada
+    # (3 de 16 tareas con GT en alguna vista). El smoke del 2B no lo detecto porque
+    # ese modelo memoriza el eval y resuelve sin necesitar TTT.
+    rng = random.Random(seed)
+    perms = [list(range(10))] + [rng.sample(range(10), 10) for _ in range(n_perm - 1)]
+    vistas = []
+    for k in range(8):
+        for perm in perms:
+            vistas.append({"k": k, "perm": perm,
+                           "orden": rng.sample(range(len(pares)), len(pares))})
     return vistas
 
 
@@ -281,7 +299,8 @@ for i, k in enumerate(MIS_KEYS):
     seed = int(hashlib.md5(k.encode()).hexdigest()[:8], 16) % 1024**2
 
     set_peft_model_state_dict(MODEL, {kk: v.clone() for kk, v in INIT.items()})
-    v_train = build_vistas(pares, seed, 16)
+    v_train = build_vistas_train(pares, seed)
+    assert len(v_train) == 128, "el TTT debe ver 128 secuencias como produccion"
     t0 = time.time()
     n_seqs = entrenar_ttt(task, v_train)
     t_ttt = time.time() - t0
@@ -420,8 +439,25 @@ def main():
     assert WORKER.count("json.dump(RES, open(OUT") == 2, "falta persistencia incremental"
     assert "num_train_epochs" not in WORKER
     assert "hashlib.md5" in WORKER, "la semilla debe ser estable entre procesos"
+
+    # FIDELIDAD DEL TTT: el fallo de la v1 fue entrenar con 16 secuencias en vez de 128.
+    # Se ejecuta la funcion real del worker y se cuenta.
+    ns = {"random": __import__("random")}
+    ini = WORKER.index("def build_vistas_train")
+    exec(WORKER[ini:WORKER.index("\n\n\n", ini)], ns)          # noqa: S102
+    pares = [(0, 0)] * 3
+    vt = ns["build_vistas_train"](pares, 123)
+    assert len(vt) == 128, "el TTT debe ver 128 secuencias, vio %d" % len(vt)
+    assert len({v["k"] for v in vt}) == 8, "faltan transformaciones D4"
+    assert len({tuple(v["perm"]) for v in vt}) == 16, "faltan permutaciones de color"
+    assert sum(1 for v in vt if v["k"] == 0 and v["perm"] == list(range(10))) == 1, \
+        "la vista identidad debe aparecer exactamente una vez"
+    # determinismo: misma semilla -> mismas vistas
+    assert ns["build_vistas_train"](pares, 123) == vt, "build_vistas_train no es determinista"
+
     print("OK notebooks/augdose_4b.ipynb")
     print("  worker y lanzador compilan; shard, aislamiento de GPU y persistencia presentes")
+    print("  TTT: %d secuencias (8 D4 x 16 perms) = calendario de produccion" % len(vt))
 
 
 if __name__ == "__main__":
