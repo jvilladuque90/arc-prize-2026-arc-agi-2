@@ -1106,3 +1106,45 @@ secuencias, 8 transformaciones D4 distintas, 16 permutaciones distintas, la iden
 exactamente una vez, y que la misma semilla da las mismas vistas. Además el worker lleva
 `assert len(v_train) == 128` en caliente: si el calendario se vuelve a desviar, el shard muere
 en la primera tarea en vez de gastar la corrida entera produciendo números creíbles y falsos.
+
+## 27. Banco de dosis v2 (2-sep): el arreglo funcionó, la rama se cierra por prerreg
+
+Con el calendario corregido el banco pasa a ser fiel: **`n_seqs_ttt` = 128 en las 16 tareas y
+`ttt_s` entre 103 y 206 s**, ya en el orden de producción (215-865 s en tareas más caras). El
+TTT hace su trabajo: las vistas que contienen la GT suben de **6 a 13** y los candidatos por
+vista de ~0,4 a ~0,7. El arreglo era el correcto.
+
+**Lectura prerregistrada: `r(productividad@4, beneficio 4→16) = +0,215`.** El prerreg decía
+r ≥ −0,30 ⇒ **cerrar la rama de dosis**. Se cierra. La dispersión del voto tampoco discrimina
+(+0,133), consistente con su refutación en el smoke.
+
+Y hay que decir lo que debilita esa lectura, porque es visible sin mirar la r: **13 de 16
+tareas no se resuelven a NINGUNA dosis**, así que su "beneficio 0" es una propiedad de la
+construcción y no evidencia sobre la hipótesis. Tareas informativas reales: **3**. El prerreg
+suponía n=16 informativas y se ejecutó con n=3.
+
+| tarea | n=2 | n=4 | n=8 | n=12 | n=16 | beneficio | prod@4 |
+|---|---|---|---|---|---|---|---|
+| e8686506 | 0,50 | 0,82 | 0,85 | 1,00 | 1,00 | **+0,50** | 0,75 |
+| 4c3d4a41 | 0,70 | 0,85 | 0,95 | 1,00 | 1,00 | **+0,30** | 1,00 |
+| 20270e3b | 0,23 | 0,35 | 0,60 | 0,42 | 0,00 | **−0,23** | 0,50 |
+
+Hallazgo lateral con mecanismo: **`20270e3b` empeora con más vistas** (0,60 en n=8 → 0,00 en
+n=16). Más vistas no son gratis: un candidato equivocado pero consistente acumula voto y ahoga
+al correcto. Eso ya rompe por sí solo la premisa cómoda de "más vistas nunca hacen daño".
+
+**Por qué NO se re-corre con más tareas.** El banco costó 1,27 h-cuota para 3 tareas
+informativas; llegar a 16 informativas pide ~5× ≈ 6 h-cuota, el presupuesto de experimentos de
+la semana entera. Y el cálculo cambió hoy: **si el determinismo se confirma, un injerto de
+dosis se puede medir DIRECTAMENTE en producción como A/B pareado por ~1 h-cuota**, contra el
+score real del oculto en vez de contra una correlación proxy sobre una población que el modelo
+apenas resuelve. El banco era la herramienta correcta cuando los A/B eran ilegibles; deja de
+serlo en cuanto dejen de serlo.
+
+Coste: 1,27 h-cuota (2278 s de pared × 2). Día completo: 0,97 (det) + 0,84 (v1 inválida)
++ 1,27 = **3,08 h-cuota**.
+
+Arreglado de paso un bug de reporte en `augdose_analysis.py`: `informe()` imprimía la
+interpretación "r NEGATIVA fuerte ⇒ palanca VIVA" **cualquiera que fuese el signo de r**. Ahora
+aplica la regla prerreg por signo y magnitud, y avisa cuántas tareas son degeneradas — que es
+justo el aviso que faltaba aquí.

@@ -122,11 +122,25 @@ def informe(filas):
         if r is None:
             continue
         print(f"\ncorrelacion( {nom} , beneficio de 4->16 ) = {r:+.3f}")
-        if clave == "productividad":
-            print("  r NEGATIVA fuerte => la ESCASEZ de candidatos predice que mas vistas")
-            print("     ayudan -> disparador observable para la reasignacion -> palanca VIVA")
-        else:
+        if clave != "productividad":
             print("  (contraste: el empate de votos resulto NO discriminar en el smoke)")
+            continue
+        # lectura PRERREGISTRADA, aplicada por signo y magnitud (no narrada a mano)
+        if r <= -0.6:
+            print("  <= -0,60: la ESCASEZ predice el beneficio -> disparador real, injertable")
+        elif r < -0.3:
+            print("  entre -0,60 y -0,30: senal debil -> NO injertar")
+        else:
+            print("  >= -0,30: la lectura prerreg dice CERRAR la rama de dosis")
+
+    # Sanidad del propio test: una tarea nunca resuelta a ninguna dosis tiene beneficio 0
+    # por construccion y no informa la hipotesis. Si dominan, la r no mide lo que se cree.
+    degen = [f["task"] for f in filas if all(v == 0.0 for v in f["curva"].values())]
+    if degen:
+        print(f"\n⚠️  {len(degen)}/{len(filas)} tareas NO se resuelven a NINGUNA dosis "
+              f"(beneficio 0 por construccion, no por evidencia):")
+        print("   " + " ".join(degen))
+        print(f"   tareas informativas reales: {len(filas) - len(degen)}")
 
 
 # ----------------------------- tests (corren sin GPU) -----------------------------
