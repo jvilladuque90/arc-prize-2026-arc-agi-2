@@ -1181,3 +1181,36 @@ por slot. `lb33-stack` ya está commiteado, así que no se pierde nada esperando
 
 ⚠️ Hasta que llegue esa segunda muestra, 31,11 es **n=1**: prometedor y con mecanismo, no
 todavía un veredicto.
+
+## 29. Auditoría de descartes silenciosos (3-sep): `cut_to_len` NO es una fuga — cerrado gratis
+
+Tras descubrir que el tope de reloj por tarea era una fuga de cobertura (§25, §28), apliqué el
+mismo método al resto del solver: buscar dónde se **descarta trabajo en silencio**.
+
+El candidato serio era `cut_to_len`. No trunca la secuencia: **elimina demostraciones enteras
+del prompt**, una a una desde el principio, hasta que cabe en `max_seq_length = 8192`. Se aplica
+al entrenamiento del TTT (`max_len=8192`) y al decode (`max_len=8192−931=7261`). Si mordiera,
+las tareas grandes estarían aprendiendo y decodificando con menos ejemplos de los que tienen —
+exactamente la misma forma de fuga que el tope de reloj.
+
+Medido **offline y sin gastar cuota**, contando tokens de rejilla (celdas + saltos + marcadores):
+
+| población | tareas | TTT (>8192) | decode (>7261) | demos descartadas |
+|---|---|---|---|---|
+| eval AGI-2 | 120 | **0 (0%)** | 2 (2%) | **2** de 358 |
+| test público | 240 | **0 (0%)** | 0 (0%) | **0** de 767 |
+
+**No muerde.** Subir `max_seq_length` recuperaría 2 demostraciones en 120 tareas, a cambio de
+más memoria y más tiempo de prefill en todas. La rama se cierra antes de gastar un solo minuto
+de L4.
+
+Vale la pena registrar el contraste con §25: **el mismo método, aplicado con el mismo esfuerzo,
+dio +2 pt en un caso y un cierre en el otro.** Esa es la proporción normal, y es barata: ambas
+respuestas salieron de leer datos que ya teníamos.
+
+Pendiente sin resolver, anotado para no perderlo: `arc-agi_test_challenges.json` trae **240
+tareas / 259 entradas de test**, mientras que el eval son 120 / 172. Si el oculto fuese de 240,
+la extrapolación de reloj (~7,3 h con 120) se iría a ~14,6 h contra un deadline de 11,83 h y el
+recorte global sería habitual. La evidencia disponible apunta a 120 (el quantum de ruido de
+0,8333 = 1/120, y que las corridas terminan sin `stop!`), pero **no está verificado** y conviene
+tenerlo presente antes de añadir más trabajo por tarea.
