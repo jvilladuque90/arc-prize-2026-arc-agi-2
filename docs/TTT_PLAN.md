@@ -1214,3 +1214,54 @@ la extrapolación de reloj (~7,3 h con 120) se iría a ~14,6 h contra un deadlin
 recorte global sería habitual. La evidencia disponible apunta a 120 (el quantum de ruido de
 0,8333 = 1/120, y que las corridas terminan sin `stop!`), pero **no está verificado** y conviene
 tenerlo presente antes de añadir más trabajo por tarea.
+
+## 30. VEREDICTO (3-sep): el determinismo NO se cerró — pero el canal mejoró y el quantum es 1/240
+
+`lb33-det`, dos corridas del kernel idéntico: **31,11 y 30,69**. El prerreg era explícito: si no
+son iguales, **queda una tercera fuente de no-determinismo**. Queda. Los dos injertos (semilla
+md5 + eliminación del tope de reloj por tarea) no bastan.
+
+Y a la vez, el canal de medida es otro:
+
+| | corridas | media | rango |
+|---|---|---|---|
+| campeón (`lb33-cap`) | 30,14 · 29,31 · 27,64 | 29,03 | **2,50** |
+| `lb33-det` | 31,11 · 30,69 | **30,90** | **0,42** |
+
+**Nivel +1,87 pt y dispersión ~6× más estrecha.** Ambas cosas son lo que predice el mecanismo:
+quitar el tope de reloj añade cobertura (sube el nivel) y elimina una moneda al aire gobernada
+por el jitter (estrecha el rango). ⚠️ Con n=2 el rango **no** es una estimación de σ; es una
+observación compatible con el mecanismo, no un resultado establecido.
+
+**El quantum queda resuelto, y no es el que suponíamos.** Todas las diferencias observadas son
+múltiplos casi exactos de **1/240 = 0,4167**, no de 1/120:
+
+| diferencia | pt | tareas a 1/240 |
+|---|---|---|
+| 30,14 − 29,31 | 0,83 | **1,99** |
+| 29,31 − 27,64 | 1,67 | **4,01** |
+| 31,11 − 30,69 | 0,42 | **1,01** |
+
+Es decir: **el oculto son 240 unidades de puntuación**, coherente con las 240 tareas de
+`arc-agi_test_challenges.json`, y las dos corridas de `det` difieren en **exactamente una
+tarea**. Eso cierra la pregunta abierta en §29 con la respuesta incómoda: la extrapolación de
+reloj relevante es **~14,6 h contra un deadline de 11,83 h**, no las ~7,3 h que calculé
+suponiendo 120.
+
+**Esto reformula el A/B de mañana.** Si el deadline global muerde, se están descartando tareas
+de la cola cada corrida — lo que sería a la vez la tercera fuente de ruido *y* una pérdida
+sistemática de cobertura. Y `lb33-stack` es justo la sonda: **cheap-first** hace que el recorte
+caiga en la cola cara en vez de en un punto arbitrario, y el **tope de longitud** mete más
+tareas antes del corte. Deja de ser "dos injertos monótonos que quizá suman un poco" y pasa a
+ser un test de si el deadline muerde.
+
+**Prerreg de `lb33-stack`** (escrito antes de submitir):
+- **≥ 31,3** (≥ +1 tarea sobre la media de `det`): el deadline muerde y el orden de la cola es
+  palanca de cobertura → adoptar y explorar la familia de presupuesto global.
+- **30,5 – 31,3**: indistinguible de `det` con el rango observado → el deadline no muerde de
+  forma apreciable; los dos injertos son marginales y la rama se archiva.
+- **≤ 30,3**: alguno de los dos injertos hace daño → revertir.
+
+Nota metodológica: aunque el determinismo no esté cerrado, **el canal ya sirve para mucho más
+que antes**. Con un rango de ~1 tarea, un injerto que valga 2-3 tareas es legible con una sola
+muestra; con la banda vieja hacía falta >2,5 pt (6 tareas).
