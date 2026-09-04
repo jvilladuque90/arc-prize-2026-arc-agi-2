@@ -1293,3 +1293,48 @@ re-commitear `lb33-det` sin cambiar una línea y comparar los dos logs del smoke
 beam score**. Si los 4 puzzles dan números bit a bit idénticos, la GPU es determinista y la
 tercera fuente está en otro sitio; si difieren en los últimos decimales, queda identificada.
 Cuesta ~1 h-cuota y es una respuesta limpia.
+
+## 31. VEREDICTO `lb33-stack` (4-sep): 29,44 — REVERTIR, y una corrección al historial
+
+`lb33-stack` = `det` + cheap-first + tope de longitud por tarea: **29,44**. El prerreg era
+≤ 30,3 ⇒ revertir. **Se revierte.** `lb33-det` sigue siendo el campeón.
+
+| | score | vs media de `det` (30,90) |
+|---|---|---|
+| `det` #1 | 31,11 | +0,21 |
+| `det` #2 | 30,69 | −0,21 |
+| **`stack`** | **29,44** | **−1,46 pt = −3,5 tareas** |
+
+La caída es de **3 tareas incluso contra la peor corrida de `det`**, siete veces el rango
+observado entre las dos corridas del campeón. No es ruido de la banda nueva.
+
+**Mi predicción de §30 bis era errónea.** Escribí que `stack` caería en la banda central por ser
+los injertos marginales; cayó por debajo de la banda inferior. La hipótesis de que el deadline
+global no muerde sigue viva por el argumento de magnitud, pero **este resultado no la apoya**:
+lo que muestra es que al menos uno de los dos injertos hace daño activo.
+
+**Corrección al historial (§22).** `lb33-cap` llevaba **estos mismos dos injertos** sobre la base
+vieja y puntuó 27,64 y 30,14. En §22 leí el 30,14 como "recuperado, vuelve al stack" porque
+igualaba al campeón. Con el canal estrecho se ve que aquello era **la tirada afortunada de una
+configuración peor**: la media de esas dos corridas es 28,89, consistente con el 29,44 de hoy.
+**El "rescate" de lb33-cap fue un error de lectura**, y el mes pasado se adoptaron dos injertos
+que restan.
+
+Esto es exactamente el pago del canal estrecho: un efecto de **1,46 pt** era **invisible** con la
+regla vieja (que exigía >2,5 pt para declarar nada) y hoy se lee sin ambigüedad.
+
+**Defecto de diseño propio, que hay que anotar**: empaqueté DOS injertos en un brazo, así que el
+resultado negativo **no dice cuál de los dos es el culpable** (ni si es la interacción). Con un
+solo slot al día, agrupar cambios ahorra días pero compra ambigüedad; con el canal ya estrecho,
+esa economía dejó de compensar. **Regla nueva: un injerto por brazo.**
+
+**Sospechoso principal, con mecanismo**: el tope de longitud
+`task_max_new = min(931, 4·max(salidas de train, entrada de test) + 2)`. Si en el oculto alguna
+tarea tiene la salida más larga que ese tope, su respuesta **no se puede generar jamás** — pérdida
+garantizada, no probabilística. La verificación de que "la GT cabe en el 100% de 1248 subtareas"
+se hizo sobre **train+eval**, no sobre el oculto, que es justo la población que decide. Es el
+mismo error de vehículo de §26 en otra forma: validar en la población cómoda.
+
+**Siguiente A/B (un solo injerto)**: `det` + cheap-first, sin tope de longitud. Si iguala a `det`,
+el tope de longitud es el culpable y cheap-first se puede conservar; si también cae, el culpable
+es cheap-first o la interacción.
