@@ -1265,3 +1265,31 @@ ser un test de si el deadline muerde.
 Nota metodológica: aunque el determinismo no esté cerrado, **el canal ya sirve para mucho más
 que antes**. Con un rango de ~1 tarea, un injerto que valga 2-3 tareas es legible con una sola
 muestra; con la banda vieja hacía falta >2,5 pt (6 tareas).
+
+### 30 bis. Predicción escrita ANTES del resultado de `stack`: el deadline probablemente NO muerde
+
+La magnitud del ruido residual discrimina entre las dos hipótesis, y apunta en contra de la mía.
+
+Si el deadline global mordiera y estuviera cortando la cola, la variación entre corridas vendría
+de **dónde cae el corte**. La velocidad de máquina en Kaggle varía fácil un ±3%, y un ±3% sobre
+~200 tareas procesadas desplaza el corte unas **±6 tareas**. Lo observado entre las dos corridas
+de `det` es **1 tarea**. Un orden de magnitud menos.
+
+Con el deadline no mordiendo, en cambio, todas las tareas se procesan y la única variación es la
+no-determinación de coma flotante en GPU (atómicos en los kernels de atención/matmul) volteando
+tareas que están justo en la frontera de decisión. **Una tarea de 240 encaja exactamente con eso.**
+
+Entonces mi extrapolación de ~14,6 h es probablemente **demasiado alta**: sale de promediar 4
+tareas del smoke público, que no tienen por qué representar al oculto.
+
+**Predicción, escrita antes de ver el número**: si esto es correcto, `lb33-stack` debería caer en
+la banda central prerregistrada (**30,5-31,3**, "indistinguible de `det`, archivar"), porque sin
+deadline mordiendo tanto cheap-first como el tope de longitud son marginales. Si en cambio sale
+**≥ 31,3**, mi razonamiento es erróneo, el deadline sí muerde y se abre la familia de
+presupuesto global.
+
+**Siguiente test si sale la banda central** (queda como candidata única la coma flotante):
+re-commitear `lb33-det` sin cambiar una línea y comparar los dos logs del smoke **beam score a
+beam score**. Si los 4 puzzles dan números bit a bit idénticos, la GPU es determinista y la
+tercera fuente está en otro sitio; si difieren en los últimos decimales, queda identificada.
+Cuesta ~1 h-cuota y es una respuesta limpia.
