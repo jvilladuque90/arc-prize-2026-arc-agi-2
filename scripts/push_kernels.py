@@ -146,6 +146,19 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # BARRIDO DEL RANGO DEL TTT (5-sep), L4x4 SHARDEADO x4. Solo fase de TTT, sin decode.
+    # A r=256 el TTT entrena 529,8 M params y el 99,75% esta en las 7 proyecciones; embed/head
+    # son 1,3 M y ya son rango completo (matrices [16,2560]). Por eso se barre el rango de las
+    # proyecciones (256/64/16/4) con embed/head clavadas en 256. Control: alpha = 2*sqrt(r)
+    # mantiene la escala rsLoRA en 2,0, si no se mediria escala en vez de capacidad.
+    # PRERREG: candidato si el delta de loss pareado no se distingue de 0 (n=12) y el reloj
+    # del TTT baja >=15%. La loss es proxy: verde aqui => confirmar en LB antes de injertar.
+    "ttt-rank": {"notebook": "notebooks/ttt_rank.ipynb", "slug": "arc-agi2-ttt-rank",
+                 "title": "arc agi2 ttt rank", "gpu": True,
+                 "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                            "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+                 "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                              "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # BANCO DE DOSIS en el 4B (1-sep), L4x4 SHARDEADO x4. Prerreg: r(productividad@4,
     # beneficio 4->16) <= -0,6 con n=16 => disparador real; >= -0,3 => la rama muere.
     # El observable salio del smoke del 2B (r=-0,924, n=4) que REFUTO la dispersion del voto.
