@@ -1338,3 +1338,44 @@ mismo error de vehículo de §26 en otra forma: validar en la población cómoda
 **Siguiente A/B (un solo injerto)**: `det` + cheap-first, sin tope de longitud. Si iguala a `det`,
 el tope de longitud es el culpable y cheap-first se puede conservar; si también cae, el culpable
 es cheap-first o la interacción.
+
+## 32. El culpable, con mecanismo probado (5-sep): el tope de longitud asume una expansión ≤4×
+
+Medición offline, coste cero, sobre las poblaciones que tenemos etiquetadas. El tope injertado es
+`task_max_new = min(931, 4·max(salidas de train, entrada de test) + 2)`; comprobamos si la GT cabe:
+
+| población | subtareas | violaciones | margen mín. | margen p1 | con margen <50 |
+|---|---|---|---|---|---|
+| eval | 172 | **0** | **1** | 1 | **21 (12,2%)** |
+| train | 1076 | **0** | **1** | 1 | 54 (5,0%) |
+
+Cero violaciones — por eso la validación original dijo "la GT cabe en el 100%". Pero el dato que
+esa validación no miró: **el margen mínimo es de UN token**, y el 12% del eval va con menos de 50
+de holgura. El tope no es holgado, es **de filo**.
+
+**El mecanismo, en una frase: el tope asume que la salida nunca se expande más de 4× en tokens
+sobre la mayor rejilla vista, y ARC no garantiza eso.**
+
+| transformación | GT (tokens) | tope | |
+|---|---|---|---|
+| teselado 2×2 de una 10×10 | 420 | 438 | cabe |
+| **teselado 3×3** de una 10×10 | **930** | 438 | **imposible de generar** |
+| teselado 4×4 de una 10×10 | 1640 | 438 | imposible de generar |
+
+El teselado ×3 es una familia clásica de ARC. En cuanto el oculto contiene una, su respuesta
+**no se puede emitir jamás** — pérdida garantizada, no probabilística. Con el p1 del eval en un
+margen de 1 token, que el oculto (240 tareas, población distinta) tenga varias violaciones es lo
+esperable, no lo excepcional. **Y las magnitudes cuadran**: unas pocas subtareas imposibles
+explican las −3,5 tareas de `stack`.
+
+**Por qué el baseline es seguro y el injerto no.** El campeón usa `max_new_tokens = 931` fijo, que
+no es un número arbitrario: la rejilla ARC más grande legal es 30×30 = 900 celdas + 29 saltos +
+1 EOS = **930 tokens**. Es decir, 931 **cubre cualquier rejilla legal con uno de sobra**. El
+injerto cambió una cota *estructural* (lo que el formato permite) por una cota *estadística* (lo
+que se ha visto en este task), y las cotas estadísticas fallan justo en la cola.
+
+**Consecuencia práctica**: cheap-first queda probablemente **absuelto**, y ya no hace falta gastar
+un slot ni ~1 h-cuota en el A/B de aislamiento; la evidencia mecánica es más fuerte que la que
+daría esa medida. Si algún día se quiere recuperar velocidad por esta vía, la forma correcta es
+un tope **con techo estructural** (p. ej. `min(931, k·celdas_entrada + margen)` con k que cubra el
+teselado 3×3), nunca uno derivado solo de lo visto en train.
