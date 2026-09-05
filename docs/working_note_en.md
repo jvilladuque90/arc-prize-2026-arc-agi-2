@@ -509,6 +509,18 @@ closed negative or invalidated.
    can regress in production, so a green in loss requires pool-level confirmation before
    grafting.
 
+   **EXECUTED 2026-09-05 (rank axis).** 12 tasks, 4 ranks, paired, TTT only: **r=64 → 1.34×
+   faster with no detectable degradation** (mean, median and sign test agree; 25.5% of TTT =
+   **8.9% of the whole pipeline**). r=16 → 1.46× but **10/12 tasks worse** (sign p=0.039): the
+   mean hid it because one outlier improves by −0.204 while the other eleven sum to +0.163 —
+   without the sign test we would have adopted a degradation believing there was none. r=4
+   rejected (11/12 worse). **Speed SATURATES at r=16**: r=4 takes the same time with 3.6× fewer
+   params ⇒ below that the cost lives in the frozen base model and trimming more parameters
+   **cannot** help; the next lever is **adapting only the top K layers**, which does shorten the
+   backward pass. ⚠️ A faster TTT **does not raise the score on its own**: the pipeline does not
+   reinvest the time, it just finishes earlier. It only pays if the global deadline bites or if
+   the saving is explicitly **spent** on more decode views.
+
 - *(status: the coverage family delivered its single largest piece (+4 tasks) through free
   offline auditing, not through the LB. That is now the engine: offline analysis found both the
   +2 pts and the length-cap diagnosis without spending a slot. The leaderboard is reserved for

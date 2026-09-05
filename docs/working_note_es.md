@@ -526,6 +526,18 @@ TTT con leave-one-out, CE focal y ponderada, verificador de objetos, dosis de au
    *proxy*: `ttt05` ya enseñó que un calendario que parece sano puede regresar en producción, así
    que un verde en loss exige confirmación con el pool antes de injertar.
 
+   **EJECUTADO 2026-09-05 (eje del rango).** 12 tareas, 4 rangos, pareado, solo TTT: **r=64 →
+   1,34× más rápido sin degradación detectable** (media, mediana y test de signo de acuerdo;
+   25,5% del TTT = **8,9% del pipeline**). r=16 → 1,46× pero **10/12 tareas peores** (signo
+   p=0,039): la media lo ocultaba porque un outlier mejora −0,204 mientras las otras once suman
+   +0,163 — sin el test de signo habríamos adoptado una degradación creyendo que no la había.
+   r=4 descartado (11/12 peores). **La velocidad SATURA en r=16**: r=4 tarda lo mismo con 3,6×
+   menos parámetros ⇒ por debajo de ahí el coste está en el modelo base congelado y recortar más
+   parámetros **no puede** ayudar; la siguiente palanca es **adaptar solo las últimas K capas**,
+   que sí acorta el backward. ⚠️ Un TTT más rápido **no sube el score por sí solo**: el pipeline
+   no reinvierte el tiempo, termina antes. Solo paga si el deadline global muerde o si el ahorro
+   se **gasta** en más vistas de decode.
+
 - *(estado: la familia de cobertura dio su mayor pieza (+4 tareas) por auditoría offline gratuita,
   no por el LB. Ese es ahora el motor: el análisis offline encontró tanto el +2 pt como el
   diagnóstico del tope de longitud sin gastar un slot. El leaderboard queda para confirmar
