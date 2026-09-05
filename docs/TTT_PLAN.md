@@ -1413,3 +1413,43 @@ monótona sale por azar 1 de 6 veces, así que no prueba nada. Pero si continuar
 **deriva** (la máquina del rerun volviéndose más lenta, o carga creciente en Kaggle) y eso
 reabriría la hipótesis del deadline global, que §30 bis daba por poco probable. La cuarta muestra
 lo dirá; es gratis.
+
+## 34. Barrido del rango del TTT (5-sep): r=64 es gratis, r=16 es el filo, y la velocidad SATURA
+
+12 tareas del eval, 4 rangos, pareado dentro de tarea, solo fase de TTT. Rango de las 7
+proyecciones; `embed_tokens`/`lm_head` clavadas en 256 (ahí r=256 ya es rango completo sobre
+matrices [16, 2560]); escala rsLoRA fijada en 2,0 en todos los brazos con `alpha = 2·√r`.
+
+| r | params | loss media | Δ media | Δ mediana | peores | p (signo) | TTT medio | speedup |
+|---|---|---|---|---|---|---|---|---|
+| **256** | 529,8 M | 0,0469 | — | — | — | — | 147,4 s | 1,00× |
+| **64** | 133,4 M | 0,0460 | −0,0010 | +0,0034 | 8/12 | 0,39 | 109,9 s | **1,34×** |
+| **16** | 34,4 M | 0,0436 | −0,0034 | +0,0063 | 10/12 | **0,039** | 101,0 s | **1,46×** |
+| 4 | 9,6 M | 0,0980 | +0,0511 | +0,0478 | 11/12 | 0,006 | 100,8 s | 1,46× |
+
+**La media miente en r=16 y el test de signo lo destapa.** Su Δ media es negativa (parece
+mejor) pero **10 de 12 tareas empeoran**; la media está dominada por un único outlier,
+`20270e3b`, que mejora −0,2037 mientras las otras once suman +0,1631. Con la mediana y el
+signo, r=16 **sí degrada de forma sistemática**, aunque poco. Es exactamente el tipo de lectura
+que un promedio solo habría dejado pasar.
+
+**Veredicto prerregistrado**: **r=64 es el candidato limpio** — ningún test detecta degradación
+(media, mediana y signo de acuerdo) y ahorra **25,5% del TTT = 8,9% del pipeline completo**.
+r=16 es el filo: 31,5% de ahorro pero con degradación sistemática detectable. r=4 queda
+descartado (11/12 peores, p=0,006).
+
+**Hallazgo estructural: la velocidad SATURA en r=16.** r=4 tarda 100,8 s frente a los 101,0 s
+de r=16 — dos décimas de diferencia con 3,6× menos parámetros. Es decir, **por debajo de r=16
+el coste ya no está en los parámetros del adaptador sino en el forward/backward del modelo
+base congelado**. Corolario para la familia de "reducción de dimensionalidad": seguir
+recortando parámetros **no puede** dar más velocidad. La siguiente palanca tiene que atacar el
+cómputo del base, y la candidata natural es **adaptar solo las últimas K capas**: si la capa
+adaptada más temprana está en la posición K, el backward no necesita propagarse por debajo de
+ella, y eso sí recorta cómputo real.
+
+⚠️ **Y el aviso que decide si esto vale algo: un TTT más rápido, por sí solo, NO sube el score.**
+El pipeline no reinvierte el tiempo liberado; simplemente termina antes. La ganancia solo se
+materializa si (a) el deadline global muerde, en cuyo caso caben más tareas, o (b) el ahorro se
+**gasta** explícitamente en más vistas de decode. Por eso el veredicto de la cuarta muestra de
+`det` (¿hay deriva? ¿muerde el deadline?) es el que gobierna qué hacer con estos 8,9%: si el
+deadline no muerde, r=64 debe injertarse **junto a un gasto**, no solo.
