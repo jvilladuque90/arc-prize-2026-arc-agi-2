@@ -146,6 +146,22 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # INJERTO r64 (5-sep): UN solo cambio conceptual sobre lb33-det = el rango del TTT
+    # 256 -> 64 (alpha 32 -> 16 para dejar la escala rsLoRA en 2,0, la de produccion).
+    # Evidencia: banco ttt-rank pareado en 12 tareas -> 1,34x mas rapido (25,5% del TTT =
+    # 8,9% del pipeline) sin degradacion detectable (media, mediana y test de signo).
+    # embed_tokens/lm_head son [16,2560], rango efectivo min(r,16)=16 con 256 y con 64:
+    # siguen en rango completo, por eso no hace falta rank_pattern.
+    # PRERREG: >=31,3 el deadline muerde y el tiempo liberado se convierte en tareas
+    # (adoptar); 30,3-31,3 neutro => el deadline NO muerde y el ahorro hay que GASTARLO
+    # en mas vistas de decode, pero r=64 queda validado como financiacion; <=30,0 el
+    # rango si importaba en produccion y la loss era mal proxy => revertir.
+    "lb33-r64": {"notebook": "notebooks/lb33_r64.ipynb", "slug": "arc-agi2-lb33-r64",
+                 "title": "arc agi2 lb33 r64", "gpu": True,
+                 "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                            "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+                 "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                              "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # BARRIDO DEL RANGO DEL TTT (5-sep), L4x4 SHARDEADO x4. Solo fase de TTT, sin decode.
     # A r=256 el TTT entrena 529,8 M params y el 99,75% esta en las 7 proyecciones; embed/head
     # son 1,3 M y ya son rango completo (matrices [16,2560]). Por eso se barre el rango de las

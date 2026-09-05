@@ -18,6 +18,22 @@
 5. `push_kernels.py` SIEMPRE con `PYTHONUTF8=1` y, para kernels del pipeline campeón o
    bancos 4B, `--accelerator NvidiaL4`.
 
+## La naturaleza del sistema bajo prueba (regla del usuario, NO negociable)
+
+- **Estamos midiendo un LLM. NO es determinista, y eso es normal, no un defecto.** La varianza
+  entre corridas es parte de la naturaleza del objeto (coma flotante en GPU, orden de reducción
+  en los kernels, temporización). **NO buscar determinismo donde no puede haberlo.**
+- **El objetivo es SUBIR EL SCORE AL MÁXIMO y hacerlo lo más CONSISTENTE posible** — que es
+  literalmente lo que premia la competencia, porque el veredicto sale de una sola corrida sobre
+  el oculto. Nivel alto + varianza baja, en ese orden.
+- Corolario operativo: **no gastar slots ni cuota en perseguir reproducibilidad bit a bit.** Se
+  reduce varianza solo cuando cae como *subproducto* de una mejora real (ejemplo bueno: quitar
+  el tope de reloj por tarea subió el nivel +4 tareas Y estrechó σ de 1,27 a 0,415; nadie pagó
+  por la σ). Un injerto cuyo único efecto sea "más reproducible" no vale un slot.
+- Corolario metodológico: la respuesta al ruido es **estadística adecuada**, no exactitud
+  binaria — comparación pareada cuando se pueda, y **mediana y test de signo junto a la media**
+  (en el barrido de rango la media decía "sin cambio" mientras 10/12 tareas empeoraban).
+
 ## Bancos de medida — lecciones pagadas con puntos de LB
 
 - **El vehículo de medida debe coincidir con producción en modelo, formato y población.**
