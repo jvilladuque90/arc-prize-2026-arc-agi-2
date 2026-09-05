@@ -384,9 +384,133 @@ from scratch) to exceed the public models' ceiling.
   emoji → a 0-byte `.log` that hid the real error for three attempts; `PYTHONUTF8=1`). Also
   discovered that **agi-3 shares the same Kaggle account**: same 2 GPU sessions and same weekly
   quota ⇒ this repo's hour ledger is unreliable.
-- *(next: the COVERAGE route is near exhaustion — six levers measured, every survivor between
-  ×1.10 and ×1.25 against a total ceiling of +7.5 pts. The real gap lives in GT-in-pool (0.42):
-  in more than half the processed tasks the model cannot generate the answer at any threshold.
-  Remaining levers: stable hash (methodological), scoring prefix-KV cache, and the
-  induction/hybrid branch, the only one with a high ceiling. Operational: split the weekly
-  Kaggle quota with agi-3)*
+- **2026-08-22/23. TTT is THE ENGINE, and its schedule is already optimal.** Two submissions pin
+  both ends. **Without TTT: 9.58** (vs ~30 for the champion) ⇒ **TTT contributes ~+20 pts, two
+  thirds of the score, for 34.8% of the clock.** It is not a refinement: it is what makes the
+  pool exist at all. And **TTT at half an epoch: 26.39** ⇒ a real regression. Mapping
+  post-mortem: production's 128 steps **are** 1 epoch (each augmented sequence seen ONCE), which
+  is exactly the sweet spot the bench had measured; half an epoch leaves half the views
+  unadapted and the vote loses voters. **The "amount of TTT" axis is closed at both ends.**
+- **2026-08-24/26. The noise band: nearly every A/B of the month was unreadable.** Three runs of
+  the **same kernel, same version**: 30.14 / 29.31 / 27.64 → mean **29.03**, σ **1.27**. The
+  champion was never 30.14; that was the lucky roll. With 1 submission/day and that band, **a
+  single sample only detects effects >2.5 pts**, and the live levers are worth ~1 task. Cause
+  located in the code: scoring seeds its augmentations with `hash(bk)`, and Python's string
+  `hash()` is **process-salted**.
+- **2026-09-01. Auditing the champion's logs (ZERO cost) → a second source, and a leak.** Before
+  spending quota we audited whether the clock gates bite. The DFS's **540 s cap never bites**
+  (slowest batch 203.7 s; it exits on beam exhaustion, which is deterministic). But the
+  **per-task 1200 s cap does**, by a hair: `981571dc` started its last batch at **1159.6 s —
+  40.4 s of margin, a 3.5% jitter** — so machine speed decided whether that task decoded 16
+  views or 12. **Not just noise: a coverage leak.**
+- **2026-09-02/05. `lb33-det` = NEW CHAMPION, on a pre-registered prediction.** Two grafts:
+  stable `md5` seed and **removal of the per-task clock cap** (global deadline kept). Three runs:
+  **31.11 / 30.69 / 30.28** → mean **30.69**, σ **0.415**. **Complete separation** from the old
+  champion (det's worst, 30.28, beats the old best, 30.14) → Mann-Whitney n=m=3, **p = 0.05**.
+  **+1.66 pts = +4 tasks**, and the measurement channel is **3.1× narrower**. Operational
+  corollary: at σ≈0.42 **a single sample resolves ~1 pt (2.5 tasks)**; before it took >2.5 pts.
+- **2026-09-03. The quantum is 1/240, not 1/120.** Every historical difference is a near-exact
+  multiple of 0.4167: 0.83→1.99 tasks · 1.67→4.01 · 0.42→1.01. Confirmed in the code: the rerun
+  scores against `arc-agi_test_challenges.json`, which holds **240 tasks / 259 test inputs**.
+  ⚠️ Determinism was **NOT** closed (31.11 ≠ 30.69): a third source remains, probably GPU
+  floating-point. We **abandoned chasing it**: it is worth ~1 task and removing it would require
+  slower deterministic algorithms.
+- **2026-09-04/05. The narrow channel pays immediately: `stack` 29.44, and a false rescue
+  corrected.** `stack` (= `det` + cheap-first + length cap) lands **−3.5 tasks** below det's mean
+  and −2 below its worst run ⇒ revert. And it forces a correction to the record: `lb33-cap`
+  carried **those same two grafts** and its 30.14 had been read as "recovered"; it was **the
+  lucky roll of a worse configuration**. A 1.46-pt effect was **invisible** under the old rule.
+  Lesson: **a wide band does not merely hide real effects — it manufactures false rescues.** The
+  culprit was identified **offline and for free**: the cap
+  `4·max(train outputs, test input)+2` produces no violations on eval/train, but its **minimum
+  margin is ONE token** and 12.2% of eval sits under 50 tokens of slack; it assumes a ≤4×
+  expansion that ARC does not guarantee — **a 3×3 tiling of a 10×10 needs 930 tokens against a
+  cap of 438: ungeneratable**. The baseline's `max_new_tokens=931`, by contrast, is a
+  **structural** bound (30×30 = 900 cells + 29 newlines + 1 EOS = 930) and is therefore safe.
+  Own design flaw noted: **two** grafts were bundled into one arm ⇒ **new rule: one graft per
+  arm**.
+- **2026-09-01/02. Augmentation-dosage bench: closed, with a post-mortem worth more than the
+  experiment.** v1 ran mechanically flawless and came out **scientifically void**: TTT trained on
+  **16 sequences instead of 128** (I conflated the `n` in `augment(n)` with the number of views;
+  in production `augment(n)` = 8 D4 × n colour permutations). What exposed it was logging the
+  *schedule* — `n_seqs_ttt`=16 and `ttt_s` of 14-27 s against production's 215-865 s — not the
+  result. **Why the 2B smoke missed it: that model memorises eval and solves without needing
+  TTT.** General rule: **whatever a bench does not need in order to run, the bench does not
+  verify.** v2, now faithful, gave r(scarcity, benefit of more views) = **+0.215** against a
+  pre-registered ≤−0.60 ⇒ **branch closed**.
+
+### Consolidated table: all 24 leaderboard submissions
+
+⚠️ Everything before 2026-09-02 was measured at σ=1.27, where a single sample only resolves
+effects >2.5 pts. Verdicts from that era are marked inconclusive where they are.
+
+| date | what it tested | score | verdict |
+|---|---|---|---|
+| 07-07 | initial 3B v10 pipeline | 0.83 | superseded |
+| 07-11 | **LB33 baseline** (NVARC 4B + TTT r=256 + DFS) | 28.47 | starting point |
+| 07-13 | + cheap-first | 30.14 | inconclusive |
+| 07-14 | + adaptive decode budget | 28.06 | negative |
+| 07-15 | Qwen3-2B alone | 18.33 | not competitive |
+| 07-17 | TRM alone (7M recursive) | 8.33 | not competitive |
+| 07-19 | ensemble 4B + TRM | 27.22 | negative |
+| 07-20 | champion cheap-first cap1200 | 29.72 | band sample |
+| 07-22 | selection ensemble (kgmon + probmul) | 29.31 | neutral |
+| 08-12 | scale 2B + ARC-Heavy n4000 | 0.00 | bug (rope_theta) |
+| 08-13 | scale 2B v2 | 19.86 | — |
+| 08-14 | variance of the above | 21.25 | σ of the 2B |
+| 08-15 | **4B + ARC-Heavy N=8000** | 27.08 | negative → scale family closed |
+| 08-16 | merged + ttt8 + scoring4 | 28.33 | inconclusive |
+| 08-17 | **per-task length cap** | 27.64 | **negative (confirmed 09-04 with mechanism)** |
+| 08-22 | **no TTT** | **9.58** | **TTT is worth ~+20 pts** |
+| 08-23 | TTT at half an epoch | 26.39 | negative → 1 epoch is optimal |
+| 08-24 / 08-25 / 08-26 | old champion variance | 29.31 / 27.64 / 30.14 | **σ = 1.27** |
+| **09-02 / 09-03 / 09-05** | **`lb33-det`** (md5 + no clock cap) | **31.11 / 30.69 / 30.28** | **CHAMPION · +4 tasks · p=0.05** |
+| 09-04 | `stack` (det + cheap-first + length cap) | 29.44 | reverted |
+
+Benches that never reached the LB (offline, Colab or Kaggle): triage of which tasks need TTT,
+leave-one-out TTT, focal and weighted CE, object verifier, augmentation dosage (two runs). All
+closed negative or invalidated.
+
+### What the champion actually is (`lb33-det`, 30.69 ± 0.415)
+
+| component | configuration |
+|---|---|
+| base model | Qwen3-**4B**, checkpoint `qwen3_4b_grids15_sft139` (**SFT comes pre-made**, NVARC-derived) |
+| parallelism | 4×L4, one worker per GPU, shared task queue |
+| **TTT** (per task) | LoRA **r=256, α=32 with rsLoRA**, over 7 projections **+ `embed_tokens` + `lm_head`** (~530 M params); AdamW **lr 5e-5 cosine**, batch 1, **1 epoch over 128 sequences** (`augment(n=16)` = 8 D4 × 16 colour permutations) |
+| decode | 16 views (`augment(n=2)`) in 4 batches of 4; DFS pruned at `max_score = −log(0.2)`; **`max_new_tokens = 931` fixed** |
+| re-scoring | each candidate re-scored over 8 augmented views by NLL (md5-stable seed) |
+| selection | 2 attempts: `score_full_probmul_3` and `score_kgmon` |
+| budget | global deadline 11 h 50 m · per-task 1200 s cap **removed** · DFS 540 s cap kept |
+| **thinking** | **not used** — the pipeline never goes through the chat template; it feeds raw digit tokens with role markers (ids 11/12) |
+
+### Open, pre-registered next steps
+
+1. **SFT with *thinking* — an untouched lever, never tested.** Today the pipeline uses **no
+   thinking at all**: no chat template, the model consumes raw digits, and the checkpoint's SFT
+   was done on that format, so it emits no reasoning chains. Turning it on **is not a flag: it
+   requires another SFT**. Plan: **bench it in Colab first (free T4)** — does a 2B given a short
+   SFT on reasoning traces improve answer NLL against the same 2B without them? ⚠️ The vehicle
+   must avoid the §26 trap: the 2B memorises eval, so the comparison must be **paired and
+   restricted to tasks the 2B does not already solve**, or it measures nothing. Only a green
+   light justifies spending L4.
+2. **Efficient TTT by hyper-parameter ablation** (user's proposal). Idea: TTT is the engine
+   **and** 34.8% of the clock; if only part of what it trains moves the loss, training *only
+   that part* frees budget for decode **without cutting adaptation** — the known failure mode
+   (`ttt05`, `ttt8`). First step, now done: **inventory what TTT touches today** (table above).
+   The ablatable axes are: (a) the **9 target modules**, with a strong prior that
+   `embed_tokens`/`lm_head` are special — they are [16, 2560] matrices of **rank at most 16**, so
+   r=256 over them is *full rank* and TTT **rewrites the entire symbol table** per task; (b) the
+   **rank r** (256 is enormous for the projections); (c) **lr and scheduler**; (d) the **number
+   of sequences** (closed at both ends, do not touch). Bench design: measure **the TTT loss curve
+   per configuration**, which needs no decode and is therefore cheap (~150-200 s per task on the
+   4B). ⚠️ It must run on **4B over eval** — the 2B is useless because it memorises and its loss
+   starts at zero. And loss is a *proxy*: `ttt05` already showed a schedule that looks healthy
+   can regress in production, so a green in loss requires pool-level confirmation before
+   grafting.
+
+- *(status: the coverage family delivered its single largest piece (+4 tasks) through free
+  offline auditing, not through the LB. That is now the engine: offline analysis found both the
+  +2 pts and the length-cap diagnosis without spending a slot. The leaderboard is reserved for
+  confirming effects ≥2-3 tasks. Still pending: splitting the weekly quota with agi-3, which
+  shares the account, GPU sessions and quota)*

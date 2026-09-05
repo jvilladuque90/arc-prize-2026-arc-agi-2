@@ -399,9 +399,135 @@ para superar el techo de los modelos públicos.
   unsloth → `.log` de 0 bytes que ocultó el error real durante tres intentos; `PYTHONUTF8=1`).
   Descubierto además que **agi-3 comparte la misma cuenta de Kaggle**: mismas 2 sesiones GPU y
   misma cuota semanal ⇒ el ledger de horas de este repo no es fiable.
-- *(siguiente: la vía de COBERTURA está cerca de agotarse — seis palancas medidas, todas las
-  supervivientes entre ×1,10 y ×1,25 sobre un techo total de +7,5 pt. El gap real vive en
-  GT-en-pool (0,42): en más de la mitad de las tareas procesadas el modelo no sabe generar la
-  respuesta a ningún umbral. Palancas restantes: hash estable (metodológica), caché de prefijo
-  KV en scoring, y la rama de inducción/híbridos, única con techo alto. Pendiente operativo:
-  repartir la cuota semanal con agi-3)*
+- **2026-08-22/23. El TTT es EL MOTOR, y su calendario ya está en el óptimo.** Dos submissions
+  que fijan los extremos. **Sin TTT: 9,58** (contra ~30 del campeón) ⇒ **el TTT aporta ~+20 pt,
+  dos tercios del score, por el 34,8% del reloj.** No es un refinamiento: es lo que hace que el
+  pool exista. Y **TTT a media época: 26,39** ⇒ regresión real. Post-mortem del mapeo: los 128
+  pasos de producción **son** 1 época (cada secuencia augmentada vista UNA vez), que es justo el
+  punto dulce que el banco había medido; media época deja la mitad de las vistas sin adaptar y
+  el voto pierde votantes. **Eje "cantidad de TTT" cerrado por ambos lados.**
+- **2026-08-24/26. La banda de ruido: casi todos los A/B del mes eran ilegibles.** Tres corridas
+  del **mismo kernel, misma versión**: 30,14 / 29,31 / 27,64 → media **29,03**, σ **1,27**.
+  El campeón nunca fue 30,14; esa fue la tirada afortunada. Con 1 submission/día y esa banda,
+  **una sola muestra solo detecta efectos >2,5 pt**, y las palancas vivas valen ~1 tarea. Causa
+  localizada en el código: el scoring siembra augmentaciones con `hash(bk)`, y `hash()` de
+  strings va **salteado por proceso**.
+- **2026-09-01. Auditoría de los logs del campeón (coste CERO) → segunda fuente, y una fuga.**
+  Antes de gastar cuota se auditó si las compuertas de reloj muerden. El tope de **540 s del
+  DFS nunca muerde** (lote más lento 203,7 s; sale por agotamiento de haces, que es
+  determinista). Pero el tope de **1200 s por tarea sí**, y por un pelo: `981571dc` arrancó su
+  último lote a **1159,6 s — 40,4 s de margen, un 3,5% de jitter** — de modo que la velocidad de
+  la máquina decidía si esa tarea decodificaba 16 vistas o 12. **No era solo ruido: era una fuga
+  de cobertura.**
+- **2026-09-02/05. `lb33-det` = NUEVO CAMPEÓN, con predicción prerregistrada.** Dos injertos:
+  semilla `md5` estable y **eliminación del tope de reloj por tarea** (deadline global
+  conservado). Tres corridas: **31,11 / 30,69 / 30,28** → media **30,69**, σ **0,415**.
+  **Separación completa** frente al campeón viejo (la peor de `det`, 30,28, supera a la mejor
+  del viejo, 30,14) → Mann-Whitney n=m=3, **p = 0,05**. **+1,66 pt = +4 tareas**, y el canal de
+  medida queda **3,1× más estrecho**. Corolario operativo: con σ≈0,42 **una sola muestra
+  distingue ~1 pt (2,5 tareas)**; antes hacían falta >2,5 pt.
+- **2026-09-03. El quantum es 1/240, no 1/120.** Todas las diferencias históricas son múltiplos
+  casi exactos de 0,4167: 0,83→1,99 tareas · 1,67→4,01 · 0,42→1,01. Confirmado en el código:
+  el rerun puntúa contra `arc-agi_test_challenges.json`, que son **240 tareas / 259 entradas**.
+  ⚠️ El determinismo **NO** se cerró (31,11 ≠ 30,69): queda una tercera fuente, probablemente
+  coma flotante en GPU. Se decidió **abandonar su persecución**: vale ~1 tarea y quitarla
+  exigiría algoritmos deterministas más lentos.
+- **2026-09-04/05. El canal estrecho paga inmediatamente: `stack` 29,44 y un falso rescate
+  corregido.** `stack` (= `det` + cheap-first + tope de longitud) queda **−3,5 tareas** bajo la
+  media de `det` y −2 bajo su peor corrida ⇒ revertir. Y obliga a corregir el historial:
+  `lb33-cap` llevaba **esos mismos dos injertos** y su 30,14 se había leído como "recuperado";
+  era **la tirada afortunada de una configuración peor**. Un efecto de 1,46 pt era **invisible**
+  con la regla vieja. Lección: **una banda ancha no solo esconde efectos reales, también fabrica
+  falsos rescates.** El culpable se identificó **offline y gratis**: el tope
+  `4·max(salidas de train, entrada de test)+2` no produce violaciones en eval/train, pero su
+  **margen mínimo es de UN token** y el 12,2% del eval va con menos de 50 de holgura; asume una
+  expansión ≤4× que ARC no garantiza — **un teselado 3×3 de una 10×10 pide 930 tokens contra un
+  tope de 438: ingenerable**. El `max_new_tokens=931` del baseline, en cambio, es una cota
+  **estructural** (30×30 = 900 celdas + 29 saltos + 1 EOS = 930) y por eso es seguro. Error de
+  diseño propio anotado: se empaquetaron **dos** injertos en un brazo ⇒ **regla nueva: un
+  injerto por brazo**.
+- **2026-09-01/02. Banco de dosis de augmentaciones: cerrado, con un post-mortem que vale más
+  que el experimento.** La v1 corrió mecánicamente perfecta y salió **científicamente nula**: el
+  TTT entrenaba con **16 secuencias en vez de 128** (confundí el `n` de `augment(n)` con el
+  número de vistas; en producción `augment(n)` = 8 D4 × n permutaciones). Lo delató el registro
+  del *calendario* — `n_seqs_ttt`=16 y `ttt_s` de 14-27 s contra los 215-865 s de producción —
+  no el resultado. **Por qué el smoke del 2B no lo cazó: ese modelo memoriza el eval y resuelve
+  sin necesitar TTT.** Regla general: **lo que el banco no necesita para funcionar, el banco no
+  lo verifica.** La v2, ya fiel, dio r(escasez, beneficio de más vistas) = **+0,215** contra un
+  prerreg de ≤−0,60 ⇒ **rama cerrada**.
+
+### Tabla consolidada: las 24 submissions al leaderboard
+
+⚠️ Todo lo anterior al 2026-09-02 se midió con σ=1,27, donde una muestra sola solo resuelve
+efectos >2,5 pt. Los "veredictos" de esa época se marcan como no concluyentes cuando lo son.
+
+| fecha | qué probaba | score | veredicto |
+|---|---|---|---|
+| 07-07 | pipeline 3B v10 inicial | 0,83 | superado |
+| 07-11 | **LB33 baseline** (NVARC 4B + TTT r=256 + DFS) | 28,47 | punto de partida |
+| 07-13 | + cheap-first | 30,14 | no concluyente |
+| 07-14 | + presupuesto de decode adaptativo | 28,06 | negativo |
+| 07-15 | Qwen3-2B solo | 18,33 | no compite |
+| 07-17 | TRM solo (7M recursivo) | 8,33 | no compite |
+| 07-19 | ensemble 4B + TRM | 27,22 | negativo |
+| 07-20 | campeón cheap-first cap1200 | 29,72 | muestra de la banda |
+| 07-22 | ensemble de selección (kgmon + probmul) | 29,31 | neutro |
+| 08-12 | escala 2B + ARC-Heavy n4000 | 0,00 | bug (rope_theta) |
+| 08-13 | escala 2B v2 | 19,86 | — |
+| 08-14 | varianza de la anterior | 21,25 | σ del 2B |
+| 08-15 | **4B + ARC-Heavy N=8000** | 27,08 | negativo → familia escala cerrada |
+| 08-16 | fusionado + ttt8 + scoring4 | 28,33 | no concluyente |
+| 08-17 | **tope de longitud por tarea** | 27,64 | **negativo (confirmado 09-04 con mecanismo)** |
+| 08-22 | **sin TTT** | **9,58** | **el TTT vale ~+20 pt** |
+| 08-23 | TTT a media época | 26,39 | negativo → 1 época es el óptimo |
+| 08-24 / 08-25 / 08-26 | varianza del campeón viejo | 29,31 / 27,64 / 30,14 | **σ = 1,27** |
+| **09-02 / 09-03 / 09-05** | **`lb33-det`** (md5 + sin tope de reloj) | **31,11 / 30,69 / 30,28** | **CAMPEÓN · +4 tareas · p=0,05** |
+| 09-04 | `stack` (det + cheap-first + tope longitud) | 29,44 | revertido |
+
+Bancos que nunca llegaron al LB (offline, Colab o Kaggle): triaje de qué tareas necesitan TTT,
+TTT con leave-one-out, CE focal y ponderada, verificador de objetos, dosis de augmentaciones
+(dos corridas). Todos cerrados en negativo o invalidados.
+
+### Qué es exactamente el campeón (`lb33-det`, 30,69 ± 0,415)
+
+| componente | configuración |
+|---|---|
+| modelo base | Qwen3-**4B**, checkpoint `qwen3_4b_grids15_sft139` (**el SFT viene hecho**, derivado de NVARC) |
+| paralelismo | 4×L4, un worker por GPU, cola de tareas compartida |
+| **TTT** (por tarea) | LoRA **r=256, α=32 con rsLoRA**, sobre 7 proyecciones **+ `embed_tokens` + `lm_head`** (~530 M params); AdamW **lr 5e-5 coseno**, batch 1, **1 época sobre 128 secuencias** (`augment(n=16)` = 8 D4 × 16 permutaciones de color) |
+| decode | 16 vistas (`augment(n=2)`) en 4 lotes de 4; DFS con poda `max_score = −log(0,2)`; **`max_new_tokens = 931` fijo** |
+| re-scoring | cada candidato re-puntuado con 8 vistas augmentadas por NLL (semilla md5 estable) |
+| selección | 2 intentos: `score_full_probmul_3` y `score_kgmon` |
+| presupuesto | deadline global 11 h 50 m · tope de 1200 s por tarea **eliminado** · tope de 540 s del DFS conservado |
+| **thinking** | **no se usa** — el pipeline no pasa por el chat template; alimenta tokens de dígito crudos con marcadores de rol (ids 11/12) |
+
+### Pendientes abiertos (prerregistrados)
+
+1. **SFT con *thinking* — palanca virgen, nunca probada.** Hoy el pipeline **no usa thinking en
+   absoluto**: no hay chat template, el modelo consume dígitos crudos y el SFT del checkpoint
+   está hecho sobre ese formato, así que no produce cadenas de razonamiento. Activarlo **no es
+   un flag: exige otro SFT**. Plan: **primero banco en Colab (T4, gratis)** — ¿un 2B con SFT
+   corto sobre trazas de razonamiento mejora la NLL de la respuesta frente al mismo 2B sin
+   ellas? ⚠️ El vehículo debe evitar el error de §26: el 2B memoriza el eval, así que la
+   comparación tiene que ser **pareada y sobre tareas que el 2B NO resuelva ya**, o no medirá
+   nada. Solo con verde se plantea gastar L4.
+2. **TTT eficiente por ablación de hiperparámetros** (propuesta del usuario). Idea: el TTT es el
+   motor **y** el 34,8% del reloj; si solo una parte de lo que entrena mueve la loss, entrenar
+   *solo esa parte* libera presupuesto para decode **sin recortar adaptación** — que es el modo
+   de fallo ya conocido (`ttt05`, `ttt8`). Primer paso, ya hecho: **inventariar qué toca el TTT
+   hoy** (tabla de arriba). Los ejes ablacionables son: (a) los **9 módulos objetivo**, con la
+   sospecha fuerte de que `embed_tokens`/`lm_head` son especiales — son matrices [16, 2560], de
+   **rango máximo 16**, así que r=256 sobre ellas es *rango completo* y el TTT **reescribe entera
+   la tabla de símbolos** en cada tarea; (b) el **rango r** (256 es enorme para las proyecciones);
+   (c) **lr y scheduler**; (d) el **número de secuencias** (cerrado por arriba y por abajo, no
+   tocar). Diseño del banco: medir **la curva de loss del TTT por configuración**, que no
+   necesita decode y por tanto es barato (~150-200 s por tarea en 4B). ⚠️ Debe correr en **4B
+   sobre eval** — el 2B no sirve porque memoriza y su loss arranca en cero. Y la loss es un
+   *proxy*: `ttt05` ya enseñó que un calendario que parece sano puede regresar en producción, así
+   que un verde en loss exige confirmación con el pool antes de injertar.
+
+- *(estado: la familia de cobertura dio su mayor pieza (+4 tareas) por auditoría offline gratuita,
+  no por el LB. Ese es ahora el motor: el análisis offline encontró tanto el +2 pt como el
+  diagnóstico del tope de longitud sin gastar un slot. El leaderboard queda para confirmar
+  efectos ≥2-3 tareas. Sigue pendiente repartir la cuota semanal con agi-3, que comparte cuenta,
+  sesiones GPU y cuota)*
