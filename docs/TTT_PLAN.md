@@ -1379,3 +1379,37 @@ un slot ni ~1 h-cuota en el A/B de aislamiento; la evidencia mecánica es más f
 daría esa medida. Si algún día se quiere recuperar velocidad por esta vía, la forma correcta es
 un tope **con techo estructural** (p. ej. `min(931, k·celdas_entrada + margen)` con k que cubra el
 teselado 3×3), nunca uno derivado solo de lo visto en train.
+
+## 33. `det` n=3 (5-sep): 30,28 — el prerreg falla, pero el resultado de fondo se consolida
+
+Tercera muestra de `lb33-det`: **30,28**. El prerreg era 30,5-31,3 ⇒ **cae fuera**. Mi estimación
+de rango con n=2 (0,42) era **optimista**, que es el error clásico de muestra pequeña: dos puntos
+no acotan una dispersión.
+
+| | muestras | media | rango | σ |
+|---|---|---|---|---|
+| campeón viejo | 30,14 · 29,31 · 27,64 | 29,03 | 2,50 (6 tareas) | 1,273 |
+| **`lb33-det`** | 31,11 · 30,69 · 30,28 | **30,69** | 0,83 (2 tareas) | **0,415** |
+
+Aun así el canal es **3,1× más estrecho**, que era el objetivo. Y con n=3 en ambos brazos aparece
+lo importante: **separación completa**, la peor corrida de `det` (30,28) está por encima de la
+mejor del campeón viejo (30,14). Test sin supuestos (Mann-Whitney, n=m=3): **p = 1/20 = 0,05**.
+Sumado a que la predicción era prerregistrada y con mecanismo, **`lb33-det` es campeón de verdad:
++1,66 pt = +4 tareas.**
+
+**El veredicto de `stack` sobrevive**, y conviene decir con qué fuerza exactamente. `stack` (29,44)
+queda por debajo de las tres muestras de `det`, y por **0,84 pt (2 tareas) bajo la peor**, que es
+más que todo el rango de `det`. En z son −3,0, pero con σ estimada de n=3 ese número es frágil;
+lo que sostiene el veredicto no es el z sino **el mecanismo probado en §32** (el teselado 3×3 es
+literalmente ingenerable bajo ese tope). Estadística moderada + mecanismo demostrado.
+
+**Regla de decisión actualizada** (sustituye a la de §21, que pedía >2,5 pt): con σ ≈ 0,42, una
+sola muestra distingue efectos de **~1 pt (2,5 tareas)**. Sigue sin servir para injertos de una
+tarea; para esos hacen falta 2-3 muestras por brazo.
+
+⚠️ **Patrón a vigilar, no conclusión**: las tres muestras bajan de forma monótona y **equiespaciada
+— exactamente una tarea entre consecutivas** (31,11 → 30,69 → 30,28). Con n=3 una secuencia
+monótona sale por azar 1 de 6 veces, así que no prueba nada. Pero si continuara, apuntaría a una
+**deriva** (la máquina del rerun volviéndose más lenta, o carga creciente en Kaggle) y eso
+reabriría la hipótesis del deadline global, que §30 bis daba por poco probable. La cuarta muestra
+lo dirá; es gratis.
