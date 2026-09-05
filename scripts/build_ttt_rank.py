@@ -51,8 +51,25 @@ from peft import LoraConfig, get_peft_model, get_peft_model_state_dict, set_peft
 from torch.nn.attention import SDPBackend, sdpa_kernel
 from transformers import AutoModelForCausalLM
 
-DATA = "/kaggle/input/arc-prize-2026-arc-agi-2"
-CHAL = json.load(open(DATA + "/arc-agi_evaluation_challenges.json"))
+# El punto de montaje de la competicion NO es estable: el campeon usa
+# /kaggle/input/competitions/<comp>/ y otros kernels han visto /kaggle/input/<comp>/.
+# Hardcodearlo mato los 4 workers en el primer intento (5-sep), asi que se BUSCA,
+# igual que el modelo, y si no aparece se imprime el arbol para no volver a adivinar.
+FICH = "arc-agi_evaluation_challenges.json"
+DATA = None
+for cand in ("/kaggle/input/competitions/arc-prize-2026-arc-agi-2",
+             "/kaggle/input/arc-prize-2026-arc-agi-2"):
+    if os.path.exists(os.path.join(cand, FICH)):
+        DATA = cand
+        break
+if DATA is None:
+    for root, dirs, files in os.walk("/kaggle/input"):
+        if FICH in files:
+            DATA = root
+            break
+assert DATA, "no se encontro %s; /kaggle/input contiene: %s" % (FICH, os.listdir("/kaggle/input"))
+print("[s%d] datos en %s" % (SHARD, DATA), flush=True)
+CHAL = json.load(open(os.path.join(DATA, FICH)))
 
 MDIR = None
 for root, dirs, files in os.walk("/kaggle/input"):
@@ -323,6 +340,8 @@ def main():
     assert 'rank_pattern={"embed_tokens": 256, "lm_head": 256}' in WORKER, "embed/head deben quedar fijas"
     assert "alpha_pattern" in WORKER, "falta el control de escala rsLoRA"
     assert "assert len(vistas) == 128" in WORKER, "falta el guardarrail del calendario"
+    assert "/kaggle/input/competitions/" in WORKER, "el montaje de la competicion debe BUSCARSE"
+    assert "os.listdir(\"/kaggle/input\")" in WORKER, "el gate debe imprimir el arbol si falla"
 
     # el control de escala: alpha/sqrt(r) debe dar 2,0 para todo r del barrido
     import math as _m
