@@ -1453,3 +1453,46 @@ materializa si (a) el deadline global muerde, en cuyo caso caben más tareas, o 
 **gasta** explícitamente en más vistas de decode. Por eso el veredicto de la cuarta muestra de
 `det` (¿hay deriva? ¿muerde el deadline?) es el que gobierna qué hacer con estos 8,9%: si el
 deadline no muerde, r=64 debe injertarse **junto a un gasto**, no solo.
+
+## 35. `lb33-r64` commiteado y submitido (6-sep): el speedup transfiere a la MITAD
+
+Injerto: rango del TTT 256 → 64, `alpha` 32 → 16 para dejar la escala rsLoRA en 2,0 exacta.
+No hizo falta `rank_pattern` (que unsloth podría no propagar): `embed_tokens` y `lm_head` son
+[16, 2560], su rango efectivo es `min(r,16)=16` tanto con 256 como con 64, así que **siguen en
+rango completo**. Commit sano: 1426 s de pared (**0,79 h-cuota**), cero timeouts, 4 GPUs.
+
+**El speedup transfiere a menos de la mitad de lo prometido.** Comparación por tarea contra el
+log de `det` (mismas 4 tareas del smoke público):
+
+| tarea | loss det | loss r64 | TTT det | TTT r64 | Δ reloj |
+|---|---|---|---|---|---|
+| 0934a4d8 | 3,04e−03 | 2,86e−03 | 416 s | 351 s | −15,7% |
+| 36a08778 | 5,05e−03 | 7,15e−03 | 199 s | 182 s | −8,6% |
+| 981571dc | 2,60e−04 | 3,12e−05 | 868 s | 790 s | −9,0% |
+| aa4ec2a5 | 5,78e−03 | 6,63e−03 | 302 s | 267 s | −11,6% |
+| **media** | | | **446 s** | **397 s** | **−11,0%** |
+
+**El banco predijo −25,5% y producción da −11,0%: el 43% de lo prometido.** Causa probable: mi
+banco usa un bucle de PyTorch con *gradient checkpointing activado*, mientras producción usa el
+trainer de unsloth con `use_gradient_checkpointing=False`. Perfiles de cómputo distintos ⇒
+sensibilidad distinta al número de parámetros del adaptador. **Regla que se añade: un banco de
+VELOCIDAD solo es válido si replica el arnés de entrenamiento de producción, no solo su
+calendario.** (El de fidelidad de adaptación ya lo sabíamos, §26; este es el gemelo para el
+reloj.)
+
+La adaptación, en cambio, no se rompe: la loss final queda en el mismo orden de magnitud, mejor
+en 2 de 4 tareas y sin ningún caso degenerado. Y el smoke **sube de 2,5 a 3,0** (gana
+`36a08778_1`), el primer movimiento del smoke en toda la campaña — con la salvedad obvia de que
+son 4 tareas y no decide nada.
+
+⚠️ **Aviso de método, que casi me cuesta un informe falso**: al extraer las loss con una regex
+`([\d.]+)` capturé `3.12` de `3.122444e-05` y descarté el exponente, concluyendo que `981571dc`
+había **divergido** (loss 3,12 ≈ peor que uniforme). Era al revés: **3,12e−05, ocho veces mejor
+que `det`**. Parsear números en notación científica con una regex de dígitos y puntos es un
+generador de falsos positivos alarmantes; el valor siempre se lee completo antes de interpretarlo.
+
+**Prerreg vigente** contra `det` (30,69 ± 0,415): ≥31,3 adoptar (el deadline muerde) · 30,3-31,3
+neutro (el ahorro hay que **gastarlo** en más vistas de decode; r=64 queda validado como
+financiación) · ≤30,0 revertir. Con el speedup real en −11% y no −25%, la rama "el deadline
+muerde y esto se convierte en tareas" pide un margen que ahora es la mitad, así que el resultado
+más probable es la banda neutra.
