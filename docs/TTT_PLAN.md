@@ -1496,3 +1496,47 @@ neutro (el ahorro hay que **gastarlo** en más vistas de decode; r=64 queda vali
 financiación) · ≤30,0 revertir. Con el speedup real en −11% y no −25%, la rama "el deadline
 muerde y esto se convierte en tareas" pide un margen que ahora es la mitad, así que el resultado
 más probable es la banda neutra.
+
+## 36. VEREDICTO `lb33-r64` (6-sep): 29,72 — REVERTIR, y la loss del TTT queda invalidada como proxy
+
+**29,72.** El prerreg era ≤30,0 ⇒ revertir. Se revierte. **`lb33-det` (30,69) sigue siendo el
+campeón.** El injerto queda **−2,34 tareas** bajo la media de `det` y **−1,34 bajo su peor
+corrida**; z = −2,35, por debajo de las tres muestras.
+
+**El banco dijo "sin degradación detectable" y producción dice −2,3 tareas. Hay que entender por
+qué, porque el fallo es del método, no de la suerte.**
+
+Mirando las loss del propio banco, el diagnóstico estaba a la vista y no lo leí:
+
+| r | loss mín | mediana | máx |
+|---|---|---|---|
+| 256 | 0,0021 | 0,0213 | 0,3169 |
+| 64 | 0,0015 | 0,0355 | 0,1480 |
+| 16 | 0,0030 | 0,0417 | 0,1132 |
+| 4 | 0,0192 | 0,1012 | 0,2133 |
+
+**Todas las loss están esencialmente en cero.** Con 128 vistas augmentadas de tres o cuatro
+demostraciones, **cualquier** adaptador con capacidad suficiente las memoriza; la métrica está
+**saturada** y por eso no podía ordenar 256 frente a 64. Solo despertó en r=4, cuando la
+capacidad cae tanto que ni memorizar se puede.
+
+Y el fondo del asunto: **la loss del TTT mide el ajuste a las DEMOSTRACIONES, no la solución de
+la entrada de test.** Son cosas distintas — es exactamente la distinción entre memorizar y
+generalizar. Lo que r=256 aporta sobre r=64 no es capacidad para ajustar las demos (ambos
+llegan a ~1e−3) sino, aparentemente, capacidad para codificar una transformación que **transfiere
+a la rejilla de test**. El proxy medía el lado equivocado de esa frontera.
+
+**Regla que queda (y que invalida la familia entera de ablaciones "baratas")**: para cualquier
+pregunta sobre la CALIDAD del TTT, la loss de entrenamiento **no sirve**; hay que medir aguas
+abajo — como mínimo GT-en-pool sobre la entrada de test retenida. Eso es caro (exige decode) y
+por tanto la promesa de "ablacionar hiperparámetros barato midiendo la loss" **está muerta**.
+
+**Lectura positiva, que reorienta la dirección**: este resultado dice que **r=256 está haciendo
+trabajo real**. La familia "abaratar el TTT" pierde su premisa — el TTT no tenía grasa que
+recortar en el eje del rango. Encaja con lo ya sabido (`nottt` 9,58, `ttt05` 26,39, `ttt8` en
+cuarentena): **cada intento de darle menos al TTT ha salido negativo, sin excepción.** La
+pregunta interesante se invierte: si menos capacidad resta, ¿r=512 suma? Es la primera vez que la
+evidencia apunta a *amplificar* y no a recortar.
+
+Coste del experimento: 0,79 h-cuota y un slot, y compró el cierre de un eje entero más la
+invalidación de un proxy que iba a gobernar todo el plan de ablaciones.
