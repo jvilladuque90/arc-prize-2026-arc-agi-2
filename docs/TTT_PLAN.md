@@ -1820,3 +1820,48 @@ y hasta el líder de nuestra propia pista offline va por ~57% contra nuestro 30,
 techo del razonamiento es real y la transducción pura se agota hacia el 40%. **Lo que no cabe es
 el vehículo**: 4B, una L4 y 12 h. Por eso NVARC destiló en vez de razonar, y por eso su producto
 —nuestro checkpoint— es donde acaba ese camino, no donde empieza.
+
+## 42. La esencia del thinking sin emitir tokens (7-sep): ya la tenemos, y se llama TTT
+
+Propuesta del usuario: implementar *la esencia* del thinking —"reinferencia del problema
+planteado para obtener mejores resultados"— tocando la estructura del transformer, en vez de
+generar la cadena completa de tokens.
+
+**La idea tiene nombre y es área activa.** Es el *latent chain-of-thought* / *looped
+transformers* / *recurrent depth*: reutilizar los pesos para aumentar la profundidad de cómputo
+pasando estados ocultos continuos entre capas reusadas, **sin emitir lenguaje**. Es exactamente
+lo que describe el usuario.
+
+**Pero lo importante: nuestro TTT YA ES eso.** Toma el problema (las demostraciones), lo
+reprocesa **128 veces** y deja el resultado en el **espacio de pesos** en vez del espacio de
+tokens. No emite ni un token de razonamiento y **vale +20 pt de nuestros 30,7** (`nottt` = 9,58).
+No nos falta la esencia del thinking: **es nuestro motor**. Y por eso todo lo que le hemos
+quitado ha salido negativo.
+
+**La variante arquitectónica concreta que imagina el usuario ya la probamos.** El modelo de 7 M
+parámetros "bucleado sobre estados latentes" que la literatura cita por su **44,6% en ARC-AGI-1**
+es el **TRM**, y está en nuestra tabla: **`TRM solo` = 8,33 en ARC-AGI-2**, y el ensemble
+`4B + TRM` = **27,22**, negativo contra el campeón. El salto de AGI-1 a AGI-2 lo desarma.
+
+**Y el veredicto de la propia literatura es sobrio**: *"increasing recurrence depth yields only
+marginal gains and falls short of explicit reasoning"*. El latente **no iguala** al razonamiento
+explícito; lo abarata.
+
+**Cuánto lo abarata, contra cuánto necesitamos.** El mejor resultado publicado (LOTUS, bucles con
+supervisión paralela sobre latentes, escala 3B) reduce la latencia de la fase de pensamiento
+**×2,5-6,9**. Nuestra medición dice que necesitaríamos un factor de **8 (caso más optimista) a
+116 (realista)** para que el thinking entre en el reloj.
+
+> **El mejor método latente publicado (×6,9) se queda justo por debajo del mínimo que
+> necesitaríamos (×8), y a dos órdenes de magnitud del caso realista.**
+
+**Conclusión.** La dirección es correcta, el campo la está persiguiendo, y nosotros ya corremos
+sobre su versión que sí cabe (TTT en espacio de pesos). Lo que no cabe es *añadir* una segunda
+capa de reinferencia encima: el presupuesto es +4,8% y hasta el mejor método publicado pide más.
+Reabrir esta rama exige que ocurra una de dos cosas: **(a)** que aparezca un método latente ~8×
+más barato que LOTUS, o **(b)** que cambie el vehículo (más GPUs, más horas, o un modelo que
+razone en cientos de tokens y no en diez mil).
+
+Fuentes: [Bridging Latent and Explicit Reasoning with Looped Transformers](https://arxiv.org/abs/2606.31779) ·
+[Latent Chain-of-Thought? Decoding the Depth-Recurrent Transformer](https://arxiv.org/abs/2507.02199) ·
+[ARC-AGI-2 leaderboard 2026](https://benchlm.ai/benchmarks/arc-agi-2)
