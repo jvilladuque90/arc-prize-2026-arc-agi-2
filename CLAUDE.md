@@ -34,6 +34,21 @@
   binaria — comparación pareada cuando se pueda, y **mediana y test de signo junto a la media**
   (en el barrido de rango la media decía "sin cambio" mientras 10/12 tareas empeoraban).
 
+## PRESUPUESTO DE RELOJ — el campeón corre al 95% de su deadline (medido 7-sep)
+
+- **Ningún injerto puede añadir más de ~4,8% de coste por tarea.** Inferido del LB: `r512` añadió
+  +11,9% y perdió 15,3 tareas (6,4% de 240) ⇒ `deadline/coste_base = 1,048`.
+- **Ahorrar tiempo NO da puntos** (ya completamos el 100%): `r64` fue 11% más rápido y perdió 2,3
+  tareas por capacidad. **Gastarlo es catastrófico**: `r512` cayó del acantilado, −15,3 tareas.
+- Presupuestar el coste **ANTES** de diseñar, no después. Quedan descartados por reloj:
+  **thinking** (×2-5 en decode), **decode 16→24 vistas** (+28,6%), más pasos de TTT.
+  Único ahorro identificado sin pérdida de capacidad conocida: **scoring 8→4 augs (−4%)**.
+- **El cuello NO es la memoria, es el tiempo**: cero OOM en toda la campaña. `default_weights`
+  (`arc_solver.py:317`) son 1,04 GB de adaptador duplicado en GPU y pasarlos a RAM es gratis,
+  pero compra robustez, no puntos.
+- ⚠️ **El smoke público de 4 tareas NO acota los extremos del oculto (240).** Tres veces ha
+  costado caro presupuestar recursos sobre él. Usar la distribución completa de tamaños, offline.
+
 ## Bancos de medida — lecciones pagadas con puntos de LB
 
 - **El vehículo de medida debe coincidir con producción en modelo, formato y población.**
