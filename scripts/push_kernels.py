@@ -146,6 +146,23 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # INJERTO r512 (6-sep): el rango del TTT SUBE de 256 a 512 (alpha 32 -> 45 deja la escala
+    # rsLoRA en 1,989 contra 2,000, un 0,56%). Motivo: r64 = 29,72 vs 30,69 => menos capacidad
+    # RESTA, luego 256 puede no ser el techo. Primera vez que la evidencia apunta a AMPLIFICAR
+    # el TTT en vez de recortarlo (nottt 9,58 / ttt05 26,39 / ttt8 / r64: todo lo quitado fallo).
+    # MEMORIA (medida, no supuesta): picos de inferencia 15597 MB a r=64 y 17109 a r=256 ->
+    # ~19125 MB a r=512, o sea 18,7 GB de 24 con 22% de margen. Cabe, pero justo, y el decode
+    # NO tenia proteccion contra OOM: se anaden dos guardas (TTT y decode) para que un pico
+    # cueste un lote y no el SHARD ENTERO. Sin OOM el comportamiento es identico.
+    # PRERREG: >=31,3 el rango sigue sumando => subir es la direccion y probar r=768;
+    # 30,3-31,3 neutro => 256 es el techo, EJE CERRADO; <=30,0 pasarse resta (regularizacion
+    # o inestabilidad) => 256 es un optimo interior y el eje queda cerrado por ambos lados.
+    "lb33-r512": {"notebook": "notebooks/lb33_r512.ipynb", "slug": "arc-agi2-lb33-r512",
+                  "title": "arc agi2 lb33 r512", "gpu": True,
+                  "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                             "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+                  "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                               "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # INJERTO r64 (5-sep): UN solo cambio conceptual sobre lb33-det = el rango del TTT
     # 256 -> 64 (alpha 32 -> 16 para dejar la escala rsLoRA en 2,0, la de produccion).
     # Evidencia: banco ttt-rank pareado en 12 tareas -> 1,34x mas rapido (25,5% del TTT =
