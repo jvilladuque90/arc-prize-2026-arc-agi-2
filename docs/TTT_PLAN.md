@@ -1615,3 +1615,63 @@ Es la misma equivocación de población que ya me costó el banco de dosis (§26
 longitud (§32): **el smoke de 4 tareas no puede acotar los extremos del oculto**, ni de tiempo ni
 de memoria. Para presupuestar recursos hay que razonar sobre la distribución completa de tamaños
 —que sí tenemos offline— y no sobre la muestra pública.
+
+## 39. EL PRESUPUESTO (7-sep): el campeón corre al 95% de su reloj, y eso rige todo lo demás
+
+En vez de seguir adivinando el mecanismo de §38, se **infiere desde el propio leaderboard**, que
+es más fiable que cualquier modelo de coste:
+
+> `r512` añadió **+11,9%** de coste por tarea y perdió **15,3 tareas = 6,4%** de las 240. Luego
+> completó el **93,6%**. Si el campeón completa el 100%, entonces
+> `deadline / coste_base = 1,119 × 0,936 = 1,048`.
+>
+> **El campeón corre al 95% de su presupuesto de tiempo. Holgura real: 4,8%.**
+
+**Y con eso los tres resultados encajan en un solo modelo, sin piezas sueltas:**
+
+| brazo | efecto | por qué el score |
+|---|---|---|
+| `det` | completa el 100%, sobra 4,8% | **30,69** |
+| `r64` | −11% de reloj, −capacidad | ahorrar **no da nada** (ya terminábamos); solo se ve la pérdida de capacidad → **29,72** |
+| `r512` | +11,9% de reloj | **se pasa del deadline** y pierde el 6,4% de la cola → **24,31** |
+
+Esto **resuelve** la ambigüedad de §38 (deadline vs OOM) a favor del **deadline**, y de paso
+explica por qué `r64` no ganó pese a ser más rápido: **no hay premio por terminar antes.**
+
+### El número que gobierna el resto de la campaña
+
+> **PRESUPUESTO OPERATIVO: ningún injerto puede añadir más de ~4,8% de coste por tarea.**
+
+| injerto candidato | coste estimado | veredicto |
+|---|---|---|
+| **thinking** (cadenas de razonamiento) | ×2-5 en decode | **IMPOSIBLE** |
+| decode 16 → 24 vistas | +28,6% del total | **IMPOSIBLE** |
+| más pasos de TTT | proporcional | **IMPOSIBLE** |
+| scoring 8 → 4 augmentaciones | **−4% (ahorra)** | viable, calidad por medir |
+| `default_weights` a RAM | 0% tiempo, −1 GB GPU | neutro en score |
+
+Esto **mata el pendiente del SFT con thinking tal y como estaba planteado**: no es que sea mala
+idea, es que no cabe en el reloj. Para que entrara habría que financiarlo con un ahorro
+equivalente, y el único ahorro identificado sin pérdida de capacidad conocida es el scoring.
+
+### Auditoría de memoria (lo que pidió el usuario)
+
+`arc_solver.py:317` guarda `default_weights` — **una copia completa del adaptador (530 M params
+en bf16 ≈ 1,04 GB) residente en GPU toda la corrida**, usada solo para resetear entre tareas.
+Pasarla a RAM es gratis en tiempo (una copia CPU→GPU de 1 GB por tarea ≈ 0,1 s contra 400-900 s
+de tarea) y libera ~1 GB. Confirmado además que la pendiente de memoria medida (3,81 bytes/param
+en inferencia) corresponde exactamente a **dos** copias del adaptador en bf16 (2+2), que es la
+firma de este duplicado.
+
+⚠️ Pero con el diagnóstico de arriba, **la memoria NO es el cuello de botella: lo es el tiempo.**
+El campeón nunca ha registrado un OOM. Liberar 1 GB compra robustez frente a la cola de tareas
+grandes, no puntos. **No justifica un slot por sí solo**, y meterlo junto a otra cosa violaría la
+regla de un injerto por brazo.
+
+### Lectura estratégica honesta
+
+Tres injertos consecutivos revertidos (`stack`, `r64`, `r512`) y un presupuesto de reloj del
+4,8%. El campeón es un **óptimo local sólido y estrecho**: casi cualquier cosa que se mueva o
+cuesta capacidad o cuesta tiempo, y ambas restan. Las ganancias que queden **no están en los
+hiperparámetros de este pipeline**; están en hacer el mismo trabajo más barato (para luego
+gastarlo) o en un cambio de método.
