@@ -1724,3 +1724,53 @@ tamaño que haría falta.
 **Lo que sí pasaría el criterio**: algo que añada capacidad **sin consumir reloj**, o un ahorro
 que no cueste capacidad. Sigue habiendo exactamente un candidato de ese tipo identificado:
 **scoring 8 → 4 augmentaciones (−4% de reloj)**, pre-testeable offline por rank-correlation.
+
+## 41. Research: el SFT con thinking EXISTE — y ya estamos aguas abajo de él (7-sep)
+
+A petición del usuario, búsqueda de si existe una baseline pública de SFT con razonamiento.
+**Sí existe**, y el hallazgo cierra la rama por una vía distinta a la aritmética de §40.
+
+**Lo que hay publicado:**
+- **`nvidia/Nemotron-SFT-ARC-AGI-v1`** (HuggingFace): 67.529 muestras (cobertura ancha) /
+  207.569 (profunda), de 304.491 corridas sobre 72.980 problemas únicos. Formato chat de OpenAI
+  con **`reasoning_content`** — cadenas de razonamiento reales — y llamadas a herramientas.
+  Generado por nueve modelos abiertos (Kimi-K2.5 44,8%, Qwen3-235B 34,5%, DeepSeek-V3 9,9%).
+  **CC BY 4.0**, 6,1 / 13 GB. Semillas de ARC-AGI-2 + NVARC Augmented Puzzles, con **los IDs de
+  evaluación oficiales en lista negra** (limpio de contaminación).
+- **`nvidia/Nemotron-RL-ARC-AGI-v1`**: el equivalente para RL.
+
+**Y aquí el giro: ese trabajo es el de nuestro propio modelo.** El checkpoint del campeón es
+`sorokin/qwen3_4b_grids15_sft139`, y **`sorokin` es Ivan Sorokin, del equipo NVARC que ganó
+ARC Prize 2025** (27,64%). El razonamiento de esos corpus **ya está destilado en nuestros pesos
+base**; no es una palanca por explorar, es el suelo sobre el que estamos.
+
+**Confirmación independiente del presupuesto de §39-§40.** El blog técnico de NVIDIA describe la
+decisión de diseño del equipo ganador en estos términos:
+
+> *"Move all complex reasoning offline into a synthetic data pipeline, and train smaller models
+> capable of running fast during evaluation."*
+
+motivada explícitamente porque *"Heavyweight LLM reasoning methods… couldn't fit within Kaggle's
+tight runtime."* Es **exactamente** la conclusión que sacamos del presupuesto de reloj (+4,8%),
+derivada por nosotros de los resultados de `r64` y `r512` y publicada por ellos como el motivo
+de su arquitectura. Dos caminos independientes, la misma restricción.
+
+**El bucle se cierra del todo con un detalle técnico**: el valor de ese dataset son las trazas de
+razonamiento, pero **nuestro modelo no puede consumirlas sin emitir razonamiento en inferencia**,
+que es justo lo que el reloj prohíbe. Usarlas "sin emitirlas" —destilar el razonamiento en un
+modelo que solo escribe la rejilla— **es precisamente lo que NVARC hizo para producir sft139**.
+Estamos al final de ese camino, no al principio.
+
+**Rama del thinking: CERRADA por tres vías convergentes** — la aritmética del tipo de cambio
+(§40), el diseño publicado del equipo ganador, y el hecho de que su producto ya es nuestro punto
+de partida.
+
+**Lo único que queda abierto ahí** (y con prior malo, 0 de 2 en nuestros SFT): que las versiones
+públicas de Nemotron sean **más nuevas o más grandes** que lo que entró en `sft139`, en cuyo caso
+un SFT adicional sería "más razonamiento destilado" a coste **cero en inferencia** — el único
+tipo de gasto que pasa el presupuesto. No es verificable desde fuera: haría falta que el writeup
+de NVARC detalle qué datos entraron en sft139.
+
+Fuentes: [Nemotron-SFT-ARC-AGI-v1](https://huggingface.co/datasets/nvidia/Nemotron-SFT-ARC-AGI-v1) ·
+[Nemotron-RL-ARC-AGI-v1](https://huggingface.co/datasets/nvidia/Nemotron-RL-ARC-AGI-v1) ·
+[NVIDIA: Kaggle Grandmasters Win AGI Competition](https://developer.nvidia.com/blog/nvidia-kaggle-grandmasters-win-artificial-general-intelligence-competition/)
