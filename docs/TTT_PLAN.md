@@ -1903,3 +1903,39 @@ invita al optimismo.
 
 **Estado: viva pero cara.** Es la única rama de razonamiento que sobrevive al presupuesto, y
 exige un SFT nuevo sobre un formato que el modelo no conoce. No es un injerto: es un proyecto.
+
+## 44. VEREDICTO `ttt-regla` (7-sep): el modelo SABE aplicar la regla — y aun así falla el test
+
+El banco que pidió el usuario, ejecutado por **0,62 h-cuota**. Dos decodes sobre el **mismo**
+modelo adaptado, 12 tareas del eval, 4 vistas cada uno:
+
+| | qué mide | resultado |
+|---|---|---|
+| **A** | aplicar la regla a la **entrada del par retirado** (nueva, misma distribución) | **5/12** |
+| **B** | la tarea real, **entrada de test** | **0/12** |
+
+**A − B = 5.** El prerreg decía ≥3 ⇒ **cerrar la rama**. Se cierra. McNemar: 5 pares discordantes,
+todos en la misma dirección, **p = 0,031** a una cola.
+
+**El mecanismo, que es lo que hace útil el resultado.** El mismo modelo, en el mismo instante,
+con los mismos pesos adaptados: **acierta 5 de 12 entradas sacadas de la distribución de las
+demostraciones y 0 de 12 entradas de test.** No es que no aprenda la transformación — la aprende
+y la aplica. Es que **la entrada de test de ARC-AGI-2 no es una muestra más de esa distribución**:
+es el caso elegido para exigir el concepto y no el patrón superficial.
+
+Y de ahí sale la respuesta a la propuesta: **un paso intermedio en rejilla es, literalmente,
+"aplicar la regla a algo"** — ejercita exactamente la capacidad que el modelo YA tiene (5/12) y
+no toca la que le falta (0/12). No desbloquearía nada. **Rama del razonamiento condensado:
+CERRADA con evidencia, no con argumento.**
+
+⚠️ **Caveat honesto**: 10 de las 12 tareas se quedaron con solo **2 demostraciones** tras retirar
+el par, y ya sabíamos que el leave-one-out debilita el TTT. Por eso B = 0/12 **no** es el ~42% de
+GT-en-pool de producción: está deprimido por el diseño. Lo que **sí** es válido es la comparación,
+porque A y B se midieron sobre el mismo modelo debilitado, en la misma corrida.
+
+**Lectura estratégica.** Esto explica de dónde viene el techo de ~40% de la transducción pura que
+señala el mapa SOTA: el pipeline aprende reglas y las aplica bien dentro de la distribución de
+las demos, y ARC-AGI-2 está diseñada precisamente para que eso no baste. Subir de ahí no es un
+problema de más cómputo ni de mejores hiperparámetros —los tres injertos revertidos ya lo
+decían— sino de **generalizar fuera de la distribución de las demostraciones**, que es un cambio
+de método, no un ajuste.
