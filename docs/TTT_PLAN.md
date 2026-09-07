@@ -1865,3 +1865,41 @@ razone en cientos de tokens y no en diez mil).
 Fuentes: [Bridging Latent and Explicit Reasoning with Looped Transformers](https://arxiv.org/abs/2606.31779) ·
 [Latent Chain-of-Thought? Decoding the Depth-Recurrent Transformer](https://arxiv.org/abs/2507.02199) ·
 [ARC-AGI-2 leaderboard 2026](https://benchlm.ai/benchmarks/arc-agi-2)
+
+## 43. Razonamiento "por sectores" condensado (7-sep): el bloqueo no es el coste, es el vocabulario
+
+Propuesta del usuario: en vez de la cadena completa, **una sola pasada de "entender → condensar →
+especificar"** con muchos menos tokens, y decodificar después condicionado a eso. Es una idea
+buena y barata sobre el papel. Pero choca con un hecho de nuestro modelo que estaba delante todo
+el tiempo:
+
+> **`ARCHITECTURE.md` §1: "Sorokin recortó el vocabulario de Qwen3 de 151.936 a 16 tokens."**
+> Los 16 son: dígitos `0-9`, salto de línea, EOS, marcas de rol y control.
+
+**El modelo no tiene ni una sola palabra en su vocabulario.** Cualquier "entender, condensar,
+especificar" en lenguaje —aunque fueran 20 tokens en vez de 10.000— **no es caro: es imposible**.
+No hay tokens con los que escribirlo. Esto es más fundamental que el presupuesto de reloj y
+explica por qué toda esta familia se cierra: **no es que el razonamiento no quepa, es que este
+modelo no tiene con qué razonar.**
+
+**La única variante expresable es en espacio de REJILLA**: emitir una rejilla intermedia (un
+boceto, o la transformación aplicada a un par de train como auto-verificación) y condicionar la
+salida final a ella. Eso sí cabe en los 16 símbolos. Coste:
+
+| dónde | coste | ¿cabe en +4,8%? |
+|---|---|---|
+| una rejilla extra **por vista** (×16) | ≈ ×2 decode = **+57%** | **no** |
+| una sola pasada **por tarea** (~400 tokens contra los miles de forwards del DFS) | **+3-5%** | **sí, justo** |
+
+Así que la versión "una vez por tarea" **es la primera propuesta de toda esta familia que entra
+en el presupuesto**. Lo que la bloquea ya no es el reloj sino el entrenamiento: el modelo nunca
+ha emitido otra cosa que la respuesta, así que habría que enseñárselo con un SFT — y nuestro
+historial ahí es **0 de 2** (composición mecánica y familia de escala, ambas negativas).
+
+Conceptualmente es **inducción** (inferir la regla → aplicarla), que es justo lo que el mapa SOTA
+señala como la dirección ganadora. Nuestros dos negativos fueron sobre *composición mecánica de
+datos sintéticos*, no sobre esto, así que el precedente no la condena del todo — pero tampoco
+invita al optimismo.
+
+**Estado: viva pero cara.** Es la única rama de razonamiento que sobrevive al presupuesto, y
+exige un SFT nuevo sobre un formato que el modelo no conoce. No es un injerto: es un proyecto.
