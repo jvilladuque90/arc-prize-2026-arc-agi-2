@@ -146,6 +146,20 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # BANCO ttt-regla (7-sep), L4x4 shardeado. Propuesta del usuario: paso intermedio en
+    # espacio de REJILLA (unica variante expresable con 16 tokens de vocabulario) y unica de la
+    # familia del razonamiento que entra en presupuesto (+3-5% contra +4,8%). Antes de invertir
+    # en un SFT de formato nuevo: ¿el modelo YA sabe aplicar la regla a una entrada nueva?
+    # A = se retira el ultimo par de train, el TTT entrena con N-1, y se decodifica la entrada
+    # retirada contra su salida conocida. B = la entrada de test contra la solucion del eval.
+    # PRERREG: A-B >= 3 de 12 => la regla se aplica y falla la novedad del test => CERRAR la
+    # rama; A ~ B => el cuello es aprender la regla => el paso intermedio puede ayudar.
+    "ttt-regla": {"notebook": "notebooks/ttt_regla.ipynb", "slug": "arc-agi2-ttt-regla",
+                  "title": "arc agi2 ttt regla", "gpu": True,
+                  "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                             "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+                  "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                               "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # INJERTO r512 (6-sep): el rango del TTT SUBE de 256 a 512 (alpha 32 -> 45 deja la escala
     # rsLoRA en 1,989 contra 2,000, un 0,56%). Motivo: r64 = 29,72 vs 30,69 => menos capacidad
     # RESTA, luego 256 puede no ser el techo. Primera vez que la evidencia apunta a AMPLIFICAR
