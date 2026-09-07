@@ -1578,3 +1578,40 @@ entrenamiento, no la del decode. Candidatos, en orden de menor a mayor intrusió
 `use_gradient_checkpointing=True` (hoy está en `False`; cambia activaciones por cómputo),
 optimizador de 8 bits si unsloth no lo usa ya, y solo en último caso fusionar el adaptador antes
 del decode. Todos son cambios de comportamiento que exigirían su propio A/B.
+
+## 38. VEREDICTO `lb33-r512` (7-sep): 24,31 — el eje del rango queda CERRADO POR ARRIBA Y POR ABAJO
+
+**24,31.** Contra los 30,69 del campeón son **−6,38 pt = −15,3 tareas**. Revertido. Y la magnitud
+es la que enseña algo, porque **no puede ser un efecto de capacidad**:
+
+| brazo | capacidad | Δ reloj por tarea | resultado |
+|---|---|---|---|
+| `r64` | menos | **−11,0%** | −0,97 pt = **−2,3 tareas** |
+| `r512` | más | **+11,9%** | −6,38 pt = **−15,3 tareas** |
+
+**`r512` hace 6,6× más daño que `r64`, y en la dirección donde había MÁS capacidad.** Si esto
+fuese el eje de la capacidad, más rango no podría costar seis veces más que quitarlo. Lo que
+cambia monótonamente entre los dos brazos no es la capacidad sino **el coste por tarea**: r=512
+tarda un **+11,9%** en cada tarea (TTT +11,7%, medido en las 4 del smoke).
+
+**Dos mecanismos lo explicarían y no puedo distinguirlos con lo que Kaggle expone**:
+(a) el **deadline global** trunca la cola — un +11,9% sobre 240 tareas se come la holgura y deja
+fuera las últimas; (b) **OOM en el TTT** de las tareas grandes — el pico medido fue 19,1 GB en la
+mayor de 4 tareas, y las guardas nuevas convierten cada OOM en una tarea perdida. El log de la
+corrida oculta no es accesible, así que ambas quedan como hipótesis. **La conclusión práctica no
+depende de cuál sea**: r=512 es inutilizable en este pipeline.
+
+**El eje del rango queda cerrado por ambos lados**: 64 resta por capacidad, 512 resta por
+recursos, **256 es el punto de operación** y no hay nada que rascar ahí.
+
+**Y el aviso estratégico, que vale más que el experimento**: el pipeline está **cerca de un
+acantilado de recursos**. Un +11,9% de coste por tarea costó 15 tareas. Cualquier injerto que
+añada trabajo por tarea — más vistas de decode, más pasos de TTT, thinking — carga con un riesgo
+muy superior a su coste nominal, y hay que presupuestarlo **antes** de diseñarlo, no después.
+
+⚠️ **Error mío, y van tres con el mismo patrón**: validé la holgura de memoria sobre el smoke
+público de **4 tareas** (19,1 GB de pico, "22% de margen") y lo di por representativo de **240**.
+Es la misma equivocación de población que ya me costó el banco de dosis (§26) y el tope de
+longitud (§32): **el smoke de 4 tareas no puede acotar los extremos del oculto**, ni de tiempo ni
+de memoria. Para presupuestar recursos hay que razonar sobre la distribución completa de tamaños
+—que sí tenemos offline— y no sobre la muestra pública.
