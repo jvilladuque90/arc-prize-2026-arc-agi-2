@@ -1774,3 +1774,49 @@ de NVARC detalle qué datos entraron en sft139.
 Fuentes: [Nemotron-SFT-ARC-AGI-v1](https://huggingface.co/datasets/nvidia/Nemotron-SFT-ARC-AGI-v1) ·
 [Nemotron-RL-ARC-AGI-v1](https://huggingface.co/datasets/nvidia/Nemotron-RL-ARC-AGI-v1) ·
 [NVIDIA: Kaggle Grandmasters Win AGI Competition](https://developer.nvidia.com/blog/nvidia-kaggle-grandmasters-win-artificial-general-intelligence-competition/)
+
+### 41 bis. Y ahora MEDIDO: el coste del thinking y la fracción utilizable
+
+El usuario insistió, con razón, en que había cerrado la rama con un argumento y no con datos.
+Se midió sobre las trazas reales del dataset.
+
+**Coste del razonamiento en inferencia** (3 filas de `small_reasoning_no_tools`):
+
+| traza | caracteres | ≈ tokens |
+|---|---|---|
+| fila 0 | 27.509 | ~6.900 |
+| fila 1 | 46.459 | ~11.600 |
+| fila 2 | 44.006 | ~11.000 |
+| **nuestra salida actual** | | **100-931** |
+
+Multiplicador de decode: **×8 a ×116**. Como el decode es el 57,2% del reloj, el pipeline
+completo se iría a **×4,8 en el caso más favorable y ×67 en el peor**, contra un presupuesto
+de **+4,8%**. Mi estimación previa de "×2-5 en decode" era **optimista**; la realidad es peor.
+
+**Thinking selectivo** (razonar solo en las tareas que fallamos) tampoco sobrevive: con el
+multiplicador más benigno (×8) el presupuesto solo da para razonar en el **0,7% de las tareas —
+1,7 de 240**. Aunque acertáramos las dos, son +0,8 pt a cambio de construir una pila de
+inferencia entera.
+
+**Y la parte del dataset que sí podríamos consumir sin razonar es marginal:**
+
+| config | filas |
+|---|---|
+| large_reasoning_and_tools | 57.502 |
+| small_reasoning_no_tools | 43.980 |
+| small_reasoning_and_tools | 15.729 |
+| large_tools_no_reasoning | 2.714 |
+| **large_no_reasoning_no_tools** | **1.343** |
+| small_tools_no_reasoning | 273 |
+| **small_no_reasoning_no_tools** | **73** |
+
+**Solo 1.416 de ~121.000 filas (1,2%) están libres de razonamiento y herramientas.** El 98,8%
+del valor del dataset son trazas que este pipeline no puede ejecutar en 12 h. Y 1.400 muestras
+no mueven un 4B que ya se entrenó con cientos de miles.
+
+**Conclusión, ahora sí con números**: la dirección del usuario es **estratégicamente correcta** —
+los modelos frontera con razonamiento puntúan **69-95% en ARC-AGI-2** ([leaderboard 2026](https://benchlm.ai/benchmarks/arc-agi-2))
+y hasta el líder de nuestra propia pista offline va por ~57% contra nuestro 30,7, así que el
+techo del razonamiento es real y la transducción pura se agota hacia el 40%. **Lo que no cabe es
+el vehículo**: 4B, una L4 y 12 h. Por eso NVARC destiló en vez de razonar, y por eso su producto
+—nuestro checkpoint— es donde acaba ese camino, no donde empieza.
