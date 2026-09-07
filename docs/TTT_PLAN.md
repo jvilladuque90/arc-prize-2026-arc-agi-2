@@ -1540,3 +1540,41 @@ evidencia apunta a *amplificar* y no a recortar.
 
 Coste del experimento: 0,79 h-cuota y un slot, y compró el cierre de un eje entero más la
 invalidación de un proxy que iba a gobernar todo el plan de ablaciones.
+
+## 37. `lb33-r512` commiteado (7-sep) y la respuesta MEDIDA a r=768: no cabe
+
+Commit sano: 1763 s (**0,98 h-cuota**), cero timeouts, **cero OOM** (las guardas nuevas no
+dispararon), smoke reload 2,5. Submitido, ref 56068258.
+
+**La memoria, con el tercer punto medido:**
+
+| r | params | entrenamiento | inferencia |
+|---|---|---|---|
+| 64 | 132,5 M | 10.110 MB | 15.597 MB |
+| 256 | 529,8 M | 13.150 MB | 17.109 MB |
+| **512** | 1.059,6 M | **19.059 MB** | **19.125 MB** |
+
+**La predicción de INFERENCIA acertó exacta: 19.125 MB previstos, 19.125 medidos.** La de
+entrenamiento falló: predije 17.204 y salieron 19.059 (**+10,8%**), porque el crecimiento **no es
+lineal**: 8,02 bytes/param entre r=64 y 256, pero **11,70 entre 256 y 512**.
+
+**Y eso cierra r=768 con datos, no con opinión.** Extrapolando con la pendiente reciente:
+
+> r=768 → entrenamiento ≈ **24.968 MB = 24,4 GB**, contra los **24,0 GB** que declara la L4
+> (y ~22,5 útiles tras el contexto CUDA). **OOM seguro, y en el TTT, no en el decode.**
+
+La diferencia importa: un OOM en decode cuesta un lote de 4 vistas; **un OOM en TTT cuesta la
+tarea entera**, porque sin adaptación esa tarea no se resuelve. Con 240 tareas en el oculto, eso
+no es un riesgo marginal sino una pérdida sistemática. **r=768 queda descartado por memoria,
+independientemente de lo que diga el score de r=512.**
+
+Nota metodológica que vale para el futuro: **el binding constraint se movió**. A r=256 mandaba
+la inferencia (17.109 vs 13.150); a r=512 mandan las dos por igual (19.125 vs 19.059) y hacia
+arriba manda el **entrenamiento**, que además crece más deprisa. Extrapolar el eje equivocado
+habría dado luz verde a r=768.
+
+**Si el score de r=512 sube y quisiéramos más rango**, primero hay que pagar la memoria del
+entrenamiento, no la del decode. Candidatos, en orden de menor a mayor intrusión:
+`use_gradient_checkpointing=True` (hoy está en `False`; cambia activaciones por cómputo),
+optimizador de 8 bits si unsloth no lo usa ya, y solo en último caso fusionar el adaptador antes
+del decode. Todos son cambios de comportamiento que exigirían su propio A/B.
