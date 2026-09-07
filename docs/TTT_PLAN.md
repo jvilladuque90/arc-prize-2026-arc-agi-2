@@ -1675,3 +1675,52 @@ Tres injertos consecutivos revertidos (`stack`, `r64`, `r512`) y un presupuesto 
 cuesta capacidad o cuesta tiempo, y ambas restan. Las ganancias que queden **no están en los
 hiperparámetros de este pipeline**; están en hacer el mismo trabajo más barato (para luego
 gastarlo) o en un cambio de método.
+
+## 40. El tipo de cambio computo↔capacidad (7-sep): ~0,6 tareas por cada 1% de reloj
+
+Pregunta del usuario: si el thinking no cabe en el 4B, ¿cabría en un modelo pequeño con r=64,
+usando el ahorro para financiarlo? La aritmética del presupuesto dice que **sí libera el reloj**
+(un 2B es ~50% más barato, y r=64 otro 3,8%), así que la idea es coherente. Lo que la mata es
+el **precio** de ese reloj.
+
+**Dos canjes independientes, ya medidos en el leaderboard, dan casi el mismo precio:**
+
+| canje | coste | reloj liberado | **precio** |
+|---|---|---|---|
+| 4B → 2B | −29,7 tareas | 50,0% | **0,59 tareas / 1%** |
+| rango 256 → 64 | −2,3 tareas | 3,8% | **0,61 tareas / 1%** |
+
+Que dos palancas tan distintas —cambiar el modelo entero y cambiar el rango del adaptador—
+coincidan en **~0,6 tareas por cada 1% de reloj** sugiere que ese es el rendimiento marginal del
+cómputo en este pipeline, no una casualidad de un experimento.
+
+### El criterio que sale de ahí
+
+> **Un uso NUEVO del cómputo solo compensa si rinde más de 0,6 tareas por cada 1% de reloj que
+> consume.** Es la barra que ya está pagando el cómputo que gastamos hoy.
+
+| propuesta | coste de reloj | tendría que aportar | score implícito |
+|---|---|---|---|
+| thinking ×2 en decode | 57,2% | **34,4 tareas** | **45,0** |
+| thinking ×3 en decode | 114,4% | 68,7 tareas | 59,3 |
+| decode 16 → 24 vistas | 28,6% | 17,2 tareas | 37,8 |
+
+Es decir: para que el thinking valga la pena **tendría que llevarnos de 30,7 a 45**, y eso solo
+para empatar con lo que ya rinde el cómputo que le quitaríamos. Y en la variante del 2B hay que
+sumar el hoyo de partida: **−29,7 tareas que el thinking tendría que recuperar antes de empezar
+a sumar**.
+
+**Veredicto: la rama del thinking queda cerrada por aritmética, no por falta de ganas.** No es
+que sea mala idea en abstracto —el mapa SOTA dice que los híbridos con razonamiento son los que
+ganan— es que en *este* pipeline el cómputo ya está rindiendo a 0,6 tareas/% y el thinking
+tendría que rendir más que eso desde un modelo que además parte 30 tareas por debajo.
+
+Se añaden dos obstáculos independientes que ya conocíamos: el pipeline **no usa chat template**
+(alimenta dígitos crudos con marcadores de rol), así que el thinking exigiría **otro SFT**; y
+nuestros dos intentos de SFT sintético terminaron en negativo (§ familia de composición y
+familia de escala). No hay corpus de trazas de razonamiento para ARC disponible offline al
+tamaño que haría falta.
+
+**Lo que sí pasaría el criterio**: algo que añada capacidad **sin consumir reloj**, o un ahorro
+que no cueste capacidad. Sigue habiendo exactamente un candidato de ese tipo identificado:
+**scoring 8 → 4 augmentaciones (−4% de reloj)**, pre-testeable offline por rank-correlation.
