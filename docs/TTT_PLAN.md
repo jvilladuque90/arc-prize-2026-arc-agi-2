@@ -2115,3 +2115,62 @@ cuesta cobertura (la curva de dosis decía que la mayoría satura hacia n=8, per
 **Orden propuesto**: primero validar el ahorro del scoring (es la financiación y es
 pre-testeable), después comprobar en banco si dos TTT dan hipótesis **distintas** — si convergen,
 la idea muere antes de gastar un slot.
+
+## 48. VEREDICTO `ttt-2hip` (8-sep): las dos hipótesis DIVERGEN — y aun así no suman nada
+
+Banco de 1,03 h-cuota, 12 tareas del eval, 4B con TTT fiel, shard ×4. Dos preguntas.
+
+### Pregunta B — dos adaptaciones independientes
+
+| | resultado |
+|---|---|
+| GT en el pool **A** | 3/12 |
+| GT en el pool **B** | 2/12 |
+| GT en la **unión** | **3/12** |
+| **ganancia de la unión** | **+0 tareas** |
+| Jaccard medio de los pools | **0,26** |
+
+**Y esto es un negativo mucho más fuerte que "convergen".** El prerreg contemplaba que los dos
+TTT dieran la misma hipótesis; **no es lo que pasa**. Con Jaccard 0,26 los pools son **muy
+distintos** — en 6 de las 12 tareas son casi disjuntos (≤0,35) — pero **ambos están equivocados**.
+`B` no aportó **ni una sola** respuesta correcta que `A` no tuviera.
+
+> **La diversidad existe y es inútil: el modelo muestrea respuestas distintas dentro del espacio
+> de las equivocadas.**
+
+Si los dos TTT hubieran convergido, la solución sería forzar diversidad. Ya divergen. Lo que
+falta no es dispersión en la distribución de hipótesis: es que **la distribución no contiene la
+respuesta correcta**. Encaja exactamente con §44 (5/12 dentro de la distribución de las demos,
+0/12 en test) y con §47 (71% de formas correctas, 7% exactas).
+
+### Pregunta A — el ahorro del scoring
+
+**top-2 idéntico con 4 augmentaciones que con 8: 5/10 = 50%.** El prerreg pedía ≥90%.
+**El ahorro NO es seguro** y queda descartado. Lectura secundaria útil: las 8 augmentaciones del
+re-scoring **hacen trabajo real** — no son redundancia. Y sin ese ahorro **no hay financiación**
+para nada, así que el presupuesto sigue en +4,8% sin fuentes.
+
+### Lo que SÍ salió (petición del usuario sobre memoria)
+
+Mover el snapshot del adaptador a **RAM de CPU** funciona y está medido:
+
+| | GPU tras cargar el modelo |
+|---|---|
+| bancos anteriores (snapshot en GPU) | 11,5 GB |
+| **este banco (snapshot en RAM)** | **9,4 GB** |
+
+**−2,1 GB**, que es exactamente el adaptador en fp32 (530 M × 4 B). En producción el adaptador va
+en bf16, así que allí el ahorro sería **~1,04 GB**. Coste en tiempo: nulo. **Es un cambio de una
+línea en `arc_solver.py:317`** y compra holgura, no puntos — el cuello sigue siendo el reloj.
+
+### Conclusión estratégica
+
+Con esto se cierra el programa de "sacarle más al pipeline actual". El score se pierde entero en
+que **el pool no contiene la respuesta en ~69% de las tareas**, y hemos descartado con medición
+que la causa sea la selección, la cobertura, el reloj, la forma, el rango, la dosis de vistas o
+**la diversidad de hipótesis**. Lo que queda es lo incómodo: **la distribución de hipótesis del
+modelo adaptado no contiene la respuesta correcta para esas tareas.** Es un límite de capacidad
+del par modelo+TTT, no un problema de búsqueda ni de presupuesto.
+
+Subir de aquí exige **otro generador de hipótesis** —un modelo mejor, o inducción con
+verificación— y ambas cosas son cambio de método, no ajuste.
