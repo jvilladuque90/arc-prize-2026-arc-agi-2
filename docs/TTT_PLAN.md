@@ -1939,3 +1939,62 @@ las demos, y ARC-AGI-2 está diseñada precisamente para que eso no baste. Subir
 problema de más cómputo ni de mejores hiperparámetros —los tres injertos revertidos ya lo
 decían— sino de **generalizar fuera de la distribución de las demostraciones**, que es un cambio
 de método, no un ajuste.
+
+## 45. ¿Cuánto costaría entrenar el formato intermedio? (7-sep) — presupuesto y el conflicto oculto
+
+Pregunta del usuario tras §44. Estimado con nuestros propios números medidos.
+
+**Los datos son gratis.** El set de training trae **1.000 tareas / 3.232 pares de demostración**,
+y tenemos todas las respuestas, así que las secuencias `demos → intermedio → final` se construyen
+**offline y sin ningún LLM** — a diferencia de nuestros dos SFT anteriores, que dependían de
+generación sintética. Con augmentaciones D4 y de color salen decenas de miles.
+
+**El entrenamiento es asequible.** Throughput medido en nuestros propios bancos: **0,99 s por
+secuencia en 1 GPU**.
+
+| secuencias | 4 GPUs | h-cuota / época |
+|---|---|---|
+| 2.000 | 496 s | 0,28 |
+| 10.000 | 2.480 s | 1,38 |
+| 30.000 | 7.441 s | 4,13 |
+
+**Pero al bajar al detalle aparece un conflicto que invalida el diseño tal como estaba pensado:
+el formato se propaga por TODO el pipeline.**
+
+1. El **SFT** enseña a emitir intermedio + final.
+2. El **TTT** entrena con pares `input → output` **sin** intermedio ⇒ **lo desaprendería**. Habría
+   que cambiar también el formato del TTT.
+3. El **decode**: si el modelo siempre emite el intermedio, lo emite **en cada una de las 16
+   vistas**.
+
+Y ahí choca con §39:
+
+| dónde | coste | ¿cabe en +4,8%? |
+|---|---|---|
+| intermedio **1 vez por tarea** | +3-5% | sí, justo |
+| intermedio **en cada vista** (lo que produce un modelo entrenado así) | ≈ ×2 decode = **+57%** | **no** |
+
+Para que quepa, el modelo tendría que emitir el intermedio **opcionalmente** (dos modos), lo que
+**complica** el entrenamiento en vez de simplificarlo. Es decir: la versión que cabe en el reloj
+no es la versión que sale naturalmente de entrenar el formato.
+
+**Coste total realista:**
+
+| fase | h-cuota |
+|---|---|
+| 0. generar datos (offline) | **0** |
+| 1. SFT piloto (10k secs × 2 épocas) | ~2,8 |
+| 2. adaptar TTT + decode | 0 de cuota, pero **es otro pipeline** |
+| 3. evaluación end-to-end (2-3 muestras) | ~2-3 + 2-3 slots |
+| 4. iteraciones (la familia de composición necesitó v1 y v2) | ×2 de todo lo anterior |
+| **TOTAL** | **8-15 h-cuota = 1-2 semanas enteras, más 3-6 slots** |
+
+**Recomendación honesta: no ahora.** No por el precio del entrenamiento, que es barato, sino
+porque (a) al final del camino espera un conflicto de presupuesto conocido —el formato natural
+cuesta +57% y el techo es +4,8%—, (b) el veredicto de §44 dice que la información no es la
+carencia, y (c) nuestro historial en SFT del 4B es **0 de 2**. Sería gastar una o dos semanas
+para llegar a una pared que ya sabemos que está ahí.
+
+**Lo que sí valdría 0,28 h-cuota**: un piloto mínimo que responda *solo* "¿puede el modelo
+aprender a emitir el formato?" sobre 2.000 secuencias. No mide score —eso exige el pipeline
+entero— pero si la respuesta es no, cierra la rama por 17 minutos de GPU.
