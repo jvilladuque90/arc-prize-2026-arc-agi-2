@@ -1998,3 +1998,44 @@ para llegar a una pared que ya sabemos que está ahí.
 **Lo que sí valdría 0,28 h-cuota**: un piloto mínimo que responda *solo* "¿puede el modelo
 aprender a emitir el formato?" sobre 2.000 secuencias. No mide score —eso exige el pipeline
 entero— pero si la respuesta es no, cierra la rama por 17 minutos de GPU.
+
+## 46. Antes del piloto, un análisis gratis que refuta el formato (7-sep)
+
+Antes de gastar los 0,28 h-cuota del piloto había que decidir **qué** formato intermedio
+entrenar. La opción más barata y más fiel a "condensar y especificar" era **predecir primero la
+FORMA de la salida** y luego la rejilla: son ~5 tokens, así que cabría en presupuesto **incluso
+por vista**, a diferencia de una rejilla intermedia entera.
+
+Se comprobó sobre datos que **ya teníamos** (los 179 candidatos que el banco de dosis guardó por
+vista, del 4B con TTT sobre 16 tareas del eval):
+
+| | candidatos | % |
+|---|---|---|
+| con la **forma** correcta | 127 / 179 | **71%** |
+| **exactamente** correctos | 13 / 179 | **7%** |
+
+**El modelo ya acierta la forma el 71% de las veces y aun así solo acierta entero el 7%.** Y en
+varias tareas es perfecto en forma y cero en contenido: `78332cb0` 16/16 formas y 0 exactos,
+`d35bdbdc` 12/12 y 0, `dbff022c` 11/11 y 0, `3dc255db` 16/16 y 0.
+
+**Predecir la forma primero no aporta nada**: no es donde falla. Solo 2 de 12 tareas fallan la
+forma (`b0039139`, que acierta el ancho y falla el alto; `7b5033c1`), y ni siquiera muy lejos.
+
+**Lo que esto añade al diagnóstico de §44, desde un banco distinto:** el modelo produce rejillas
+**bien formadas, del tamaño correcto y con el contenido equivocado**. Es decir, aplica *una*
+transformación plausible con seguridad; lo que no acierta es **cuál**. Y ningún paso intermedio
+derivado de las mismas demostraciones cambia esa decisión — que es exactamente lo que dijo §44
+por la vía de A=5/12 vs B=0/12.
+
+**Estado de los formatos candidatos:**
+
+| formato intermedio | ¿cabe en +4,8%? | ¿ayudaría? |
+|---|---|---|
+| **forma primero** (~5 tokens) | **sí** | **no** — 71% ya la acierta |
+| rejilla intermedia por tarea | sí, justo | no — §44: es la capacidad que ya tiene |
+| rejilla intermedia por vista | no (+57%) | — |
+| re-copiar la entrada ("scratchpad") | **no** (+50-100%) | no refutado, pero no cabe |
+
+**Los formatos que caben están refutados y el que no está refutado no cabe.** Por eso **no se
+gasta el piloto**: probaría si el modelo puede aprender un formato que ya sabemos que no
+ayudaría. El hallazgo costó **0 h-cuota** y se apoya en datos que ya estaban en disco.
