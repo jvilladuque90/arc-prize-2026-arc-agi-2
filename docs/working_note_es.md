@@ -543,3 +543,50 @@ TTT con leave-one-out, CE focal y ponderada, verificador de objetos, dosis de au
   diagnóstico del tope de longitud sin gastar un slot. El leaderboard queda para confirmar
   efectos ≥2-3 tareas. Sigue pendiente repartir la cuota semanal con agi-3, que comparte cuenta,
   sesiones GPU y cuota)*
+
+
+### Cierre de la semana (2026-09-06/08): el presupuesto de reloj, y por qué el razonamiento no cabe
+
+**El campeón corre al 95% de su deadline.** Inferido del propio LB, que es más fiable que
+cualquier modelo de coste: `r512` añadió **+11,9%** de coste por tarea y perdió **15,3 tareas**
+(6,4% de 240) ⇒ `deadline / coste_base = 1,048`. **Holgura real: 4,8%.** Con eso los tres
+injertos de la semana encajan en un solo modelo: `det` completa el 100% y le sobra un 4,8%
+(**30,69**); `r64` es 11% más rápido pero **ahorrar no da puntos** porque ya terminábamos, así
+que solo se ve su pérdida de capacidad (**29,72**); `r512` es 11,9% más lento, **se pasa del
+deadline** y pierde la cola (**24,31**). El eje del rango queda cerrado **por ambos lados**:
+256 es el punto de operación.
+
+**El tipo de cambio cómputo↔capacidad: ~0,6 tareas por cada 1% de reloj.** Dos canjes
+independientes coinciden — 4B→2B cuesta 29,7 tareas por un 50% de reloj (0,59) y r256→r64 cuesta
+2,3 tareas por un 3,8% (0,61). De ahí el criterio: **un uso nuevo del cómputo solo compensa si
+rinde más de 0,6 tareas por 1%.**
+
+**Y por eso el razonamiento no cabe, medido y no argumentado.** Las trazas del dataset público
+`nvidia/Nemotron-SFT-ARC-AGI-v1` son de **6.900-11.600 tokens** contra los 100-931 de una rejilla
+nuestra: **×8 a ×116 en decode**, o sea ×4,8 a ×67 en el pipeline completo. Ni el thinking
+selectivo sobrevive (el presupuesto da para razonar en **1,7 de 240 tareas**). Confirmación
+independiente: el equipo que ganó ARC Prize 2025 —cuyo checkpoint **es el nuestro**— publicó que
+su diseño fue *"move all complex reasoning offline into a synthetic data pipeline"* porque *"los
+métodos pesados de razonamiento no caben en el runtime de Kaggle"*. Derivamos la misma
+restricción por caminos distintos.
+
+**El bloqueo más profundo no es el reloj, es el vocabulario.** Sorokin recortó el vocabulario de
+Qwen3 de 151.936 a **16 tokens**. El modelo **no tiene ni una palabra**: razonar en lenguaje no
+es caro, es imposible. Y la variante latente que sí cabría —bucles sobre estados ocultos— **ya la
+tenemos**: el TTT reprocesa el problema 128 veces en espacio de pesos sin emitir un token, y vale
++20 pt. Su versión arquitectónica (el TRM de 7M, citado por su 44,6% en ARC-AGI-1) está en
+nuestra tabla con **8,33** en ARC-AGI-2.
+
+**El diagnóstico de fondo, desde dos bancos independientes.** (1) `ttt-regla`: el mismo modelo
+adaptado acierta **5/12** entradas sacadas de la distribución de las demostraciones y **0/12**
+entradas de test (McNemar p=0,031) — aprende la regla y la aplica, pero la entrada de test de
+ARC-AGI-2 no es una muestra más de esa distribución. (2) De los 179 candidatos guardados por el
+banco de dosis, el **71% tiene la forma correcta** y solo el **7% es exacto**: el modelo produce
+rejillas bien formadas, del tamaño correcto y con el **contenido equivocado**. Aplica *una*
+transformación plausible con seguridad; lo que no acierta es **cuál**.
+
+**Consecuencia estratégica.** Esto explica el techo de ~40% de la transducción pura y por qué
+tres injertos consecutivos se revirtieron: no falta cómputo ni mejores hiperparámetros. Falta
+**generalizar fuera de la distribución de las demostraciones**, y eso es un cambio de método.
+Todo paso intermedio que pudimos diseñar o (a) es "aplicar la regla a algo" —lo que el modelo ya
+hace— o (b) no cabe en el 4,8%.

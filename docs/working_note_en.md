@@ -526,3 +526,49 @@ closed negative or invalidated.
   +2 pts and the length-cap diagnosis without spending a slot. The leaderboard is reserved for
   confirming effects ≥2-3 tasks. Still pending: splitting the weekly quota with agi-3, which
   shares the account, GPU sessions and quota)*
+
+
+### Week close (2026-09-06/08): the clock budget, and why reasoning does not fit
+
+**The champion runs at 95% of its deadline.** Inferred from the LB itself, which beats any cost
+model: `r512` added **+11.9%** per-task cost and lost **15.3 tasks** (6.4% of 240) ⇒
+`deadline / base_cost = 1.048`. **Real slack: 4.8%.** All three grafts of the week then fit one
+model: `det` completes 100% with 4.8% to spare (**30.69**); `r64` is 11% faster but **saving time
+earns nothing** since we already finished, so only its capacity loss shows (**29.72**); `r512` is
+11.9% slower, **overruns the deadline** and loses the tail (**24.31**). The rank axis closes on
+**both sides**: 256 is the operating point.
+
+**The compute↔capability exchange rate: ~0.6 tasks per 1% of clock.** Two independent trades
+agree — 4B→2B costs 29.7 tasks for 50% of clock (0.59), and r256→r64 costs 2.3 tasks for 3.8%
+(0.61). Hence the criterion: **a new use of compute only pays if it returns more than 0.6 tasks
+per 1%.**
+
+**And that is why reasoning does not fit — measured, not argued.** Traces in the public
+`nvidia/Nemotron-SFT-ARC-AGI-v1` dataset run **6,900-11,600 tokens** against our 100-931 for a
+grid: **×8 to ×116 on decode**, i.e. ×4.8 to ×67 on the whole pipeline. Even selective thinking
+dies (the budget affords reasoning on **1.7 of 240 tasks**). Independent confirmation: the team
+that won ARC Prize 2025 — whose checkpoint **is ours** — published that their design was to
+*"move all complex reasoning offline into a synthetic data pipeline"* because heavyweight
+reasoning *"couldn't fit within Kaggle's tight runtime."* We derived the same constraint by a
+different route.
+
+**The deeper blocker is not the clock, it is the vocabulary.** Sorokin trimmed Qwen3's vocabulary
+from 151,936 to **16 tokens**. The model **has no words at all**: reasoning in language is not
+expensive, it is impossible. And the latent variant that would fit —loops over hidden states— **we
+already run**: TTT reprocesses the problem 128 times in weight space without emitting a token, and
+is worth +20 pts. Its architectural version (the 7M TRM, cited for 44.6% on ARC-AGI-1) sits in our
+table at **8.33** on ARC-AGI-2.
+
+**The underlying diagnosis, from two independent benches.** (1) `ttt-regla`: the same adapted
+model solves **5/12** inputs drawn from the demonstrations' distribution and **0/12** test inputs
+(McNemar p=0.031) — it learns the rule and applies it, but ARC-AGI-2's test input is not another
+sample from that distribution. (2) Of the 179 candidates stored by the dosage bench, **71% have
+the correct shape** and only **7%** are exact: the model emits well-formed grids of the right size
+with the **wrong content**. It confidently applies *a* plausible transformation; what it misses is
+**which one**.
+
+**Strategic consequence.** This explains pure transduction's ~40% ceiling and why three
+consecutive grafts were reverted: what is missing is neither compute nor better hyper-parameters.
+It is **generalising outside the demonstrations' distribution**, and that is a change of method.
+Every intermediate step we could design is either (a) "apply the rule to something" — which the
+model already does — or (b) does not fit in the 4.8%.
