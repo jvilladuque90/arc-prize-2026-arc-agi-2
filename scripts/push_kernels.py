@@ -146,6 +146,21 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # BANCO ttt-2hip (8-sep), L4x4 shardeado. Diagnostico de TTT_PLAN 47: generamos UNA
+    # hipotesis y la repetimos 16 veces (las 16 vistas son simetrias; en 6 de 12 tareas con
+    # pool proponen una sola forma). Dos preguntas en un kernel:
+    #  B) dos TTT con semillas de augmentacion distintas dan pools DIFERENTES? la UNION
+    #     contiene la GT mas veces? PRERREG: union - max(A,B) >= 2 de 12 => injerto vivo;
+    #     jaccard alto y union ~ A => convergen => idea muerta sin gastar slot.
+    #  A) el re-scoring con 4 augs conserva el top-2 que con 8? PRERREG: >=90% => el ahorro
+    #     de -4% de reloj es seguro y financia el +6,2% de la doble hipotesis (deja +2,2%).
+    # MEMORIA: el snapshot del adaptador (~1 GB) va en RAM de CPU, no en GPU.
+    "ttt-2hip": {"notebook": "notebooks/ttt_2hip.ipynb", "slug": "arc-agi2-ttt-2hip",
+                 "title": "arc agi2 ttt 2hip", "gpu": True,
+                 "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                            "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+                 "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                              "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # BANCO ttt-regla (7-sep), L4x4 shardeado. Propuesta del usuario: paso intermedio en
     # espacio de REJILLA (unica variante expresable con 16 tokens de vocabulario) y unica de la
     # familia del razonamiento que entra en presupuesto (+3-5% contra +4,8%). Antes de invertir
