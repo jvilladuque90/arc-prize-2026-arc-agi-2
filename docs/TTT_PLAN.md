@@ -2039,3 +2039,79 @@ por la vía de A=5/12 vs B=0/12.
 **Los formatos que caben están refutados y el que no está refutado no cabe.** Por eso **no se
 gasta el piloto**: probaría si el modelo puede aprender un formato que ya sabemos que no
 ayudaría. El hallazgo costó **0 h-cuota** y se apoya en datos que ya estaban en disco.
+
+## 47. Diagnóstico del desafío (8-sep): generamos UNA hipótesis y la repetimos 16 veces
+
+Análisis pedido por el usuario antes de tocar nada. Todo offline, **coste 0**.
+
+### Dónde se pierde el score
+
+La familia de selección quedó cerrada con **0 pérdidas cuando la GT está en el pool**, así que
+**score ≈ P(GT en el pool)**. Con 30,69 sobre 240 tareas, eso significa que **en ~69% de las
+tareas nunca generamos la respuesta correcta**. Ni la cobertura, ni la selección, ni el reloj son
+el cuello: lo es el pool.
+
+Desglose sobre 16 tareas del eval (4B, TTT fiel):
+
+| modo de fallo | tareas | |
+|---|---|---|
+| pool **vacío** (el DFS no produjo nada) | 4/16 | 25% |
+| pool con contenido **equivocado** | 9/16 | 56% |
+| GT en el pool | 3/16 | 19% |
+
+### Lo que está sano y no hay que tocar
+
+- **Selección**: sin pérdidas. Comprobado además que el 2º intento se usa: en `4c3d4a41` la GT
+  estaba en el rank 2 y lo salvó.
+- **Cobertura**: ~100% de tareas completadas (holgura de reloj 4,8%).
+- **Forma**: el 71% de los candidatos tiene las dimensiones correctas.
+- **TTT**: el motor, +20 pt.
+
+### El diagnóstico estructural
+
+Las 16 vistas de decode son **8 transformaciones D4 × 2 permutaciones de color**: todas son
+**simetrías**, es decir, **re-presentaciones del mismo problema**. En **6 de las 12** tareas con
+pool, las 16 vistas proponen **una sola forma de salida**; la redundancia medida es 1,8×.
+
+> **No generamos 16 hipótesis: generamos UNA hipótesis y la repetimos 16 veces.**
+
+Eso explica todo lo demás de golpe: la forma es correcta el 71% (la hipótesis está bien formada),
+solo el 7% es exacto (la hipótesis suele ser la equivocada), la selección no pierde nada (no hay
+entre qué elegir), y §44 midió 5/12 dentro de la distribución de las demos contra 0/12 en test
+(la hipótesis ajusta las demos, no el test).
+
+Y es exactamente el contraste con los ganadores que señala el mapa SOTA: **≥10 hipótesis
+distintas + verificación**. Nosotros: **1 hipótesis, 16 copias**.
+
+### Descartado gratis en este mismo análisis
+
+**Diversificar el 2º intento sería NETO NEGATIVO.** Parecía la única palanca a coste 0 de reloj,
+pero los datos la tumban: en `4c3d4a41` la GT **es** el casi-duplicado del top-1 (2 celdas de 160
+de diferencia), así que forzar diversidad la habría perdido; y en las tareas donde top-1 ≈ top-2
+(`d35bdbdc`, 1 celda de 100) la GT está **ausente del pool entero**, así que no habría ganado
+nada. Coste de descartarla: 0 h-cuota.
+
+### La única idea que ataca la causa Y cabe en el presupuesto
+
+Si el problema es "una sola hipótesis", la respuesta es **más de una adaptación por tarea**. Una
+hipótesis cuesta un TTT (34,8% del reloj), así que la aritmética manda:
+
+| configuración | TTT | decode | scoring | total | Δ | |
+|---|---|---|---|---|---|---|
+| **actual** 1 TTT × 16 vistas | 34,8 | 57,2 | 7,9 | 99,9% | — | |
+| 2 TTT × 8 vistas, scoring 8 | 69,6 | 28,6 | 7,9 | 106,1% | +6,2% | no cabe |
+| **2 TTT × 8 vistas, scoring 4** | 69,6 | 28,6 | 3,95 | 102,1% | **+2,2%** | **CABE** |
+| 2 TTT × 6 vistas, scoring 4 | 69,6 | 21,5 | 3,95 | 95,0% | −4,9% | cabe con holgura |
+| 3 TTT × 5 vistas | 104,4 | 17,9 | 3,95 | 126,2% | +26,3% | no cabe |
+
+**Dos hipótesis independientes, financiadas por el ahorro del scoring, entran en +2,2%.** Es la
+primera propuesta en semanas que (a) ataca la causa medida y (b) cabe en el reloj.
+
+**Riesgos, por delante:** (1) dos TTT con semillas distintas podrían converger a **la misma**
+hipótesis — hay que comprobarlo antes, y se puede hacer en banco; (2) bajar de 16 a 8 vistas
+cuesta cobertura (la curva de dosis decía que la mayoría satura hacia n=8, pero no todas);
+(3) el ahorro del scoring 8→4 aún no está validado en calidad.
+
+**Orden propuesto**: primero validar el ahorro del scoring (es la financiación y es
+pre-testeable), después comprobar en banco si dos TTT dan hipótesis **distintas** — si convergen,
+la idea muere antes de gastar un slot.
