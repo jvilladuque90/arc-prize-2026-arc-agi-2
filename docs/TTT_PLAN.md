@@ -2227,3 +2227,51 @@ prompt, sobre las mismas tareas del eval. Sin SFT, sin TTT, solo forwards.
 ⚠️ Salvedad metodológica: los dos modelos de stock tokenizan las rejillas con su vocabulario
 completo, no con los 16 símbolos, así que la comparación mide **prior relativo**, no rendimiento
 absoluto. Para eso vale: la pregunta es cuál de los dos parte mejor.
+
+### 49 bis. El 27B: prueba de imposibilidad — y el MoE que se me había pasado
+
+El usuario presionó, con razón, sobre si la cobertura mata de verdad al 27B o era una
+afirmación mía. Hecha la aritmética.
+
+**El 27B denso no puede ganar, y no hace falta suponer nada sobre su calidad.**
+
+*Memoria* (no es el problema): en bf16 son 54 GB y **ni repartido en 2 GPUs entra** (27 GB/GPU
+contra 24). Pero **en 4-bit son 13,5 GB y cabe en UNA sola GPU**, así que los 4 workers se
+mantienen. La memoria no lo mata.
+
+*Velocidad* (esto sí): el TTT es compute-bound, así que va con los parámetros → **×6,75**. El
+decode es bandwidth-bound (lote pequeño, autoregresivo), así que va con los bytes leídos por
+token: 27B en 4-bit son 13,5 GB/token contra los 8,0 de nuestro 4B en bf16 → **×1,69**. Mezcla
+ponderada por el reparto real del reloj (TTT 34,8 / decode 57,2 / scoring 7,9):
+
+> **×3,45 más lento ⇒ la cobertura cae al 29% de las tareas.**
+>
+> **Score máximo teórico si resolviera el 100% de lo que procesa: 29,0%**, contra nuestros
+> **30,69%**. **Ni resolviéndolo todo llega.** No es una opinión sobre su calidad: es un techo.
+
+**Pero la pregunta destapó un candidato que sí sobrevive: `qwen3.5-35b-a3b`, un MoE que ya está
+en Kaggle.** 35B totales, **3B activos** por token — y el cómputo va con los activos:
+
+| | |
+|---|---|
+| memoria en 4-bit | **17,5 GB → cabe en una L4** |
+| TTT (compute ∝ activos) | 3/4 = **×0,75, más rápido** |
+| decode (bandwidth ∝ bytes activos) | 1,5 GB/token contra 8,0 → **×0,19** |
+| reloj total, escenario conservador | **×0,59 (−41%)** |
+| reloj total, escenario pesimista | ×0,91 (−9%) |
+
+**Es el único candidato donde la aritmética de reloj no lo mata — y encima sobraría presupuesto**,
+que es justo lo que no teníamos. Memoria de entrenamiento: 17,5 + ~5 GB de overhead medido = 22,5
+de 24, justo, y el snapshot del adaptador en RAM de CPU (§48) libera 1-2 GB más.
+
+**Los dos obstáculos que quedan, sin maquillar:**
+
+1. **Sigue necesitando el SFT de ARC.** El bloqueo de fondo no cambia por cambiar de base.
+2. **Habría que rediseñar el TTT.** Hoy adapta `gate/up/down`, que en un MoE **son los expertos**
+   (decenas de copias): el adaptador se dispararía. En MoE se suele adaptar solo atención — que
+   es precisamente la parte que **no** reescribe la tabla de símbolos, y esa reescritura es lo
+   que ARCHITECTURE.md señala como clave del TTT.
+
+**Corrección de método**: mi descarte anterior del 27B era correcto en la conclusión pero flojo en
+el argumento — dije "la cobertura lo mata" sin la cuenta, y por el camino no miré los MoE. La
+pregunta del usuario obligó a hacerla y apareció el único candidato con holgura de reloj.
