@@ -146,6 +146,19 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # GATE de modelo base a 4 bandas + ablacion de features (9-sep), L4x4 shardeado x4.
+    # Prior (NLL/celda de la GT, pareado, 24 tareas eval) del titular Qwen3-4B contra
+    # Qwen3.5-4B (mismo tamano), Qwen3.5-2B (con descuento) y Qwen3-1.7B (ancla). Ademas
+    # censo de parametros por bloque y forward con lm_head recortado a 16 filas: cuanto del
+    # modelo es peso muerto si solo hacemos texto/rejillas. PRERREG: q35_4b vive solo con
+    # ratio <= 0,85 Y gana >= 2/3 Y fwd <= 1,05x; q35_2b le basta ratio <= 1,05.
+    "gate-base": {"notebook": "notebooks/gate_base.ipynb", "slug": "arc-agi2-gate-base",
+                  "title": "arc agi2 gate base", "gpu": True, "docker": "",
+                  "defaults": {"dataset": ["juliancamilovilla/tf52-wheels"],
+                               "model": ["qwen-lm/qwen-3/transformers/4b/1",
+                                         "qwen-lm/qwen-3/transformers/1.7b/1",
+                                         "barnobarno/qwen3.5-4b/transformers/unsloth/1",
+                                         "akzsh5100/qwen-3-5-2b/transformers/transformers/1"]}},
     # GATE MoE (8-sep): prior de ARC de Qwen3.5-35B-A3B (stock, 4-bit) vs Qwen3-4B (stock, bf16),
     # NLL/celda de la GT con las demos en texto, 24 tareas eval, pareado, shard x4. Mide tambien el
     # tiempo de forward de cada uno (valida la aritmetica de bandwidth de 49 bis). PRERREG: ratio
