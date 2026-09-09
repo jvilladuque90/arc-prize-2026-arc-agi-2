@@ -150,12 +150,12 @@ KERNELS = {
     # NLL/celda de la GT con las demos en texto, 24 tareas eval, pareado, shard x4. Mide tambien el
     # tiempo de forward de cada uno (valida la aritmetica de bandwidth de 49 bis). PRERREG: ratio
     # mediano <= 0,80 y gana >= 2/3 => proyecto MoE vivo; si no, muerto por ~1 h-cuota.
+    # v1 fallo: la imagen unsloth pinneada no reconoce qwen3_5_moe. v2: docker "" => imagen
+    # ACTUAL de Kaggle (trae transformers con Qwen3.5); sin wheels de unsloth (aqui no se usan).
     "gate-moe": {"notebook": "notebooks/gate_moe.ipynb", "slug": "arc-agi2-gate-moe",
                  "title": "arc agi2 gate moe", "gpu": True,
-                 "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
-                            "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
-                 "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
-                              "model": ["qwen-lm/qwen-3/transformers/4b/1",
+                 "docker": "",
+                 "defaults": {"model": ["qwen-lm/qwen-3/transformers/4b/1",
                                         "qwen-lm/qwen-3-5/transformers/qwen3.5-35b-a3b/1"]}},
     # BANCO ttt-2hip (8-sep), L4x4 shardeado. Diagnostico de TTT_PLAN 47: generamos UNA
     # hipotesis y la repetimos 16 veces (las 16 vistas son simetrias; en 6 de 12 tareas con
