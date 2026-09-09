@@ -146,6 +146,17 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # GATE MoE (8-sep): prior de ARC de Qwen3.5-35B-A3B (stock, 4-bit) vs Qwen3-4B (stock, bf16),
+    # NLL/celda de la GT con las demos en texto, 24 tareas eval, pareado, shard x4. Mide tambien el
+    # tiempo de forward de cada uno (valida la aritmetica de bandwidth de 49 bis). PRERREG: ratio
+    # mediano <= 0,80 y gana >= 2/3 => proyecto MoE vivo; si no, muerto por ~1 h-cuota.
+    "gate-moe": {"notebook": "notebooks/gate_moe.ipynb", "slug": "arc-agi2-gate-moe",
+                 "title": "arc agi2 gate moe", "gpu": True,
+                 "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                            "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+                 "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                              "model": ["qwen-lm/qwen-3/transformers/4b/1",
+                                        "qwen-lm/qwen-3-5/transformers/qwen3.5-35b-a3b/1"]}},
     # BANCO ttt-2hip (8-sep), L4x4 shardeado. Diagnostico de TTT_PLAN 47: generamos UNA
     # hipotesis y la repetimos 16 veces (las 16 vistas son simetrias; en 6 de 12 tareas con
     # pool proponen una sola forma). Dos preguntas en un kernel:
