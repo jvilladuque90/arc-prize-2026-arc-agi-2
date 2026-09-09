@@ -2396,3 +2396,76 @@ Coste total del cierre: **~1,1 h-cuota**. Barato para enterrar una rama de 10-48
 
 Lo que queda vivo: `default_weights` → RAM de CPU en producción (1,04 GB de GPU liberados;
 compra robustez, no puntos) y el ahorro de scoring 8→4 augs (−4% de reloj, sin comprador aún).
+
+## 51. VEREDICTO `gate-base` (9-sep): Qwen3.5-**2B** empata al titular — y el 4B nuevo cae
+
+Gate a 4 bandas + ablación de features, L4×4 shardeado ×4, **~0,30 h-cuota**, 9 min de pared,
+96 filas, **cero errores y cero OOM** (los densos caben de sobra; el mono-worker era cosa del MoE).
+
+### Censo de parámetros: qué parte del modelo no nos sirve
+
+| modelo | total (M) | tronco | visión | embed | ahorro vocab16 |
+|---|---|---|---|---|---|
+| `q3_4b` **titular** | 4.022 | **3.634** | 0 | 389 (9,7%) | 6,5% |
+| `q35_4b` | 4.206 | 3.570 | 0 | 636 (15,1%) | 4,4% |
+| `q35_2b` | 1.882 | **1.373** | 0 | 509 (**27,0%**) | 4,3% |
+| `q3_1.7b` ancla | 1.721 | 1.409 | 0 | 311 (18,1%) | 13,2% |
+
+`AutoModelForCausalLM` **descarta la torre de visión al cargar** (el espejo del 3.5-4B pesa
+4.660M en disco y se cargan 4.206M: los ~450M que faltan son la torre). O sea: lo multimodal ya
+sale gratis, no hay cirugía que hacer ahí.
+
+Lo que sí queda por cortar en un modelo nuevo es el **vocabulario**: en el 3.5-2B son **509M de
+1.882M, el 27% del modelo**. Tras la misma cirugía que hizo Sorokin, el 3.5-2B queda en **1.373M
+de tronco frente a los 3.634M del titular: 0,378×**.
+
+⚠️ El ahorro de reloj medido al recortar el `lm_head` a 16 filas es **6,5%** en el titular, no el
+10-14% que yo había estimado. Es un *forward de prefill* sobre un prompt largo, donde el coste de
+las capas domina; en decode autorregresivo el `lm_head` pesa más, así que **6,5% es cota inferior**.
+Nuestro campeón ya lo tiene recortado: ese ahorro está cobrado, no es dinero nuevo.
+
+### Prior, pareado sobre 24 tareas de eval
+
+| candidato | n | ratio mediano | gana | signo p | fwd × | veredicto prerreg |
+|---|---|---|---|---|---|---|
+| `q35_4b` | 24 | **1,299** | 8/24 | 0,968 | 1,43 | ❌ falla las **tres** (≤0,85, ≥2/3, ≤1,05) |
+| `q35_2b` | 24 | **0,989** | 13/24 | 0,419 | 0,79 | ✅ pasa (bastaba ≤1,05) |
+| `q3_1.7b` | 24 | 1,196 | 3/24 | 1,000 | 0,34 | ancla, no criterio |
+
+**El ancla calibra**: Qwen3-1.7B está un **+20% de NLL** por encima del titular, y el "2B" de
+Sorokin (misma clase de brecha) costó **2-3 puntos de LB**. Regla de traducción aproximada:
+**+20% de NLL ≈ −2,5 puntos**. Con eso, `q35_2b` a 0,989 ≈ **paridad ≈ 0 puntos perdidos**.
+
+### La anomalía del 4B, y por qué no la relitigo a favor
+
+`q35_4b` es **1,300× peor que el `q35_2b` de su propia familia** (gana solo 7/24), con reventones
+puntuales de ×5,7, ×5,3 y ×4,0 en tareas sueltas. Un 4B peor que el 2B de su misma generación no
+es plausible; el patrón —fallos catastróficos aislados, no degradación uniforme— apunta al
+**espejo de comunidad**, no al modelo. Pero da igual para la decisión: el 4B **no trae descuento de
+reloj** (fwd ×1,43 medido), así que tendría que ser claramente mejor, y nada aquí lo sugiere.
+Verificarlo costaría otro espejo y otra corrida para revivir la rama más débil de las dos.
+**Rama del 4B: cerrada.**
+
+### Lo que esto cambia
+
+Mi lógica previa era "el 4B gatea al 2B": si la generación 3.5 no gana a igual tamaño, el 2B no
+puede valer 2×. **Esa inferencia queda anulada por el espejo sospechoso**, pero el 2B no la
+necesitaba: su medición es *directa* y mide exactamente la tesis. Y es coherente internamente —
+gana al 1.7B, empata al 4B, sin reventones.
+
+**`Qwen3.5-2B` tiene el mismo prior de ARC que la base de nuestro campeón con 0,378× de tronco.**
+
+Aritmética del caso alcista, con el descuento histórico de producción (4B→2B = ×0,50 de reloj; el
+×0,79 de aquí es prefill y subestima, porque el TTT y el decode están ligados a los pesos):
+liberar ~50% de reloj a 0,6 tareas por 1% ⇒ **~30 tareas ⇒ +12,4 puntos**.
+
+**Con dos condiciones que siguen sin cumplirse**, y ninguna es menor:
+
+1. **No hay comprador conocido para el reloj liberado.** Las dos formas medidas de gastarlo dan
+   +0 (más vistas, más hipótesis). El único candidato es el **rango**, y el acantilado de `r512`
+   sigue confundido entre reloj y capacidad. **Es el bloqueo único.**
+2. **El prior de un modelo de stock es un proxy débil de la capacidad tras el SFT de ARC**, y
+   adoptarlo exige rehacerlo desde cero: 10-20 h-cuota, prior histórico 0-de-2.
+
+**Estado**: rama 4B cerrada; rama 2B **viva y más fuerte que antes**, bloqueada por el experimento
+`r512` sin tope de reloj. Campeón intacto: `lb33-det`, 30,69 ± 0,415.
