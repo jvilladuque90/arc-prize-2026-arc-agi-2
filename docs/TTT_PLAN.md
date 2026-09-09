@@ -2275,3 +2275,45 @@ de 24, justo, y el snapshot del adaptador en RAM de CPU (§48) libera 1-2 GB má
 **Corrección de método**: mi descarte anterior del 27B era correcto en la conclusión pero flojo en
 el argumento — dije "la cobertura lo mata" sin la cuenta, y por el camino no miré los MoE. La
 pregunta del usuario obligó a hacerla y apareció el único candidato con holgura de reloj.
+
+### 49 ter. Propuesta del usuario: MoE + LoRA/rsLoRA + SFT destilado desde sft139
+
+Tres piezas. Dos son sólidas; la tercera tiene un fallo preciso y **arreglable**.
+
+**Sólido — el MoE como base y LoRA+rsLoRA para SFT y TTT.** Es la forma correcta de adaptar
+una base grande barato, y es exactamente lo que ya hacemos con el 4B.
+
+**El eslabón débil — destilar desde sft139.** Tres razones, las tres cuantificables:
+
+1. **Techo del maestro.** La destilación transfiere lo que el maestro sabe. sft139 resuelve ~31%
+   y su pool **no contiene** la respuesta en ~69% de las tareas (§48). Destilar sus salidas
+   enseña al MoE **las mismas hipótesis equivocadas**, con la misma confianza.
+2. **Con 16 tokens no hay "dark knowledge".** La ventaja clásica de destilar son los targets
+   blandos — la distribución completa del maestro, no solo el argmax. Con 151.936 tokens esa cola
+   es rica; con **16**, el target blando ≈ el target duro. No hay nada extra que transferir.
+3. **No hace falta para las etiquetas.** Ya tenemos ground truth: **1.000 tareas** de training con
+   solución y **72.980 problemas resueltos** en Nemotron-SFT-ARC-AGI-v1, más augmentaciones. El
+   maestro solo aportaría etiquetas donde no las tenemos — y ahí estaría equivocado el 69%.
+
+**El arreglo**: SFT del MoE **sobre ground truth**, no sobre las salidas del maestro. sft139 queda
+como mucho de oráculo de augmentación, y ni eso es necesario.
+
+**Coste, con el throughput medido (0,99 s/secuencia en el 4B):**
+
+| escenario | 100K secs | 200K secs |
+|---|---|---|
+| optimista (3B activos, sin overhead) | 10,3 h-cuota | 20,6 |
+| **realista (QLoRA con dequant)** | **17,2** | **34,4** |
+| pesimista | 24,1 | 48,1 |
+
+**2-4 semanas enteras de presupuesto. Es una apuesta, no un injerto.** Y con un prior de 0 de 2
+en SFT sobre una receta más compleja que las dos que fallaron (MoE + QLoRA + cirugía de
+vocabulario + rediseño del TTT).
+
+**La incertidumbre que decide todo, y que se puede comprar barato**: ¿el conocimiento de 35B del
+MoE ayuda de verdad en rejillas, o para un dominio tan estrecho solo disparan unos pocos expertos
+y la capacidad efectiva se queda en ~3B? Si es lo segundo, el MoE no compra nada sobre el 4B y
+las 2-4 semanas se pierden. **Gate**: medir el prior de ARC de `qwen3.5-35b-a3b` de stock contra
+Qwen3-4B de stock — NLL de la rejilla correcta con las demos en el prompt, sin SFT ni TTT. No
+cabe en Colab T4 (17,5 GB en 4-bit contra 16), así que va en L4: **~1 h-cuota**. Si el MoE no es
+marcadamente mejor, el proyecto muere por una hora en vez de por cuatro semanas.
