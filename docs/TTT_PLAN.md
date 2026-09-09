@@ -2174,3 +2174,56 @@ del par modelo+TTT, no un problema de búsqueda ni de presupuesto.
 
 Subir de aquí exige **otro generador de hipótesis** —un modelo mejor, o inducción con
 verificación— y ambas cosas son cambio de método, no ajuste.
+
+## 49. ¿Cambiar el modelo base? (8-sep) — sí existe candidato, y el bloqueo no es el modelo
+
+Pregunta del usuario tras el veredicto de §48 (el límite es la capacidad del modelo). Investigado.
+
+### Lo que existe
+
+- **Qwen 3.5 tiene serie pequeña**: 0,8B / 2B / **4B** / 9B (2-mar-2026). El 4B es **del mismo
+  tamaño que el nuestro** y por tanto **del mismo coste de reloj**, con arquitectura de espacio
+  latente unificado texto+visual que la nota de release asocia a **mejor razonamiento espacial** —
+  directamente relevante para rejillas.
+- **Qwen 3.8 es 27B** (5-ago-2026, Apache 2.0). **Inservible para nosotros**: nuestra arquitectura
+  corre **un worker por GPU** con 24 GB cada una; 27B en bf16 son 54 GB, así que habría que
+  repartir el modelo entre las 4 GPUs y quedarnos con **un solo worker** — perderíamos el ×4 de
+  paralelismo, que es catastrófico para cobertura.
+- En **Kaggle Models**, `qwen-lm/qwen-3-5` solo publica 27B y los MoE (35b-a3b, 122b-a10b,
+  397b-a17b). Pero eso **no es un bloqueo**: como apunta el usuario, se descarga de HF/Ollama y se
+  sube a Kaggle como dataset con sus wheels, cosa que ya hemos hecho con otros artefactos.
+- **NO existe ningún modelo pequeño con el SFT de ARC ya hecho** publicado. Buscado: no hay
+  drop-in. NVIDIA liberó los **datasets** Nemotron-ARC, no el modelo.
+
+### El bloqueo real: nuestro campeón NO es un Qwen3-4B
+
+Es un Qwen3-4B con **el vocabulario recortado de 151.936 a 16 tokens** (1 token = 1 celda) **más
+el SFT de ARC de NVARC** (266K puzzles sintéticos). Un modelo de stock, por bueno que sea, saca
+**≈0 exactas** en ARC — medido en este repo con nuestros propios intentos.
+
+Es decir: **cambiar de base no es cambiar un fichero, es rehacer el SFT**, que es justo el moat de
+NVARC y nuestra capacidad más débil (**0 de 2**: composición mecánica v1/v2, y ARC-Heavy sobre el
+4B que **regresó** a 27,08 contra 30,14).
+
+### Qué ha cambiado a favor desde aquellos fracasos
+
+Los dos negativos fueron con **síntesis mecánica propia**. Ahora existe
+**`nvidia/Nemotron-SFT-ARC-AGI-v1`**: 67K/207K muestras generadas por modelos frontera
+(Kimi-K2.5, Qwen3-235B, DeepSeek-V3), **CC BY 4.0**, semillas de ARC-AGI-2 + NVARC y **los IDs de
+evaluación en lista negra**. Es la misma familia de datos con la que se entrenó nuestro checkpoint,
+y es pública. Eso mejora el prior, aunque no lo vuelve bueno.
+
+### La gate barata antes de comprometer semanas
+
+Antes de rehacer vocabulario + SFT + revalidación (8-15 h-cuota, 1-2 semanas), hay una pregunta
+que se contesta **gratis en Colab**: ¿tiene Qwen3.5-4B mejor **prior de ARC** que Qwen3-4B? Se
+mide la NLL de la rejilla correcta bajo **ambos modelos de stock**, con las demostraciones en el
+prompt, sobre las mismas tareas del eval. Sin SFT, sin TTT, solo forwards.
+
+- Si Qwen3.5-4B es **marcadamente mejor** ⇒ el cambio de base tiene recorrido y se justifica el
+  proyecto.
+- Si empatan ⇒ el modelo nuevo **no compra nada** y el proyecto entero muere por 0 h-cuota.
+
+⚠️ Salvedad metodológica: los dos modelos de stock tokenizan las rejillas con su vocabulario
+completo, no con los 16 símbolos, así que la comparación mide **prior relativo**, no rendimiento
+absoluto. Para eso vale: la pregunta es cuál de los dos parte mejor.
