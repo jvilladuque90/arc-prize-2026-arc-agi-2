@@ -2317,3 +2317,82 @@ las 2-4 semanas se pierden. **Gate**: medir el prior de ARC de `qwen3.5-35b-a3b`
 Qwen3-4B de stock — NLL de la rejilla correcta con las demos en el prompt, sin SFT ni TTT. No
 cabe en Colab T4 (17,5 GB en 4-bit contra 16), así que va en L4: **~1 h-cuota**. Si el MoE no es
 marcadamente mejor, el proyecto muere por una hora en vez de por cuatro semanas.
+
+## 50. VEREDICTO `gate-moe` (9-sep): el MoE tiene un prior algo mejor — y el reloj lo mata igual
+
+**Pregunta de la puerta.** Antes de comprometer 10-48 h-cuota en un SFT sobre
+`Qwen3.5-35B-A3B` (MoE, 3B activos), medir lo barato: *¿el MoE de stock tiene mejor prior
+sobre ARC que el `Qwen3-4B` de stock?* Comparación **pareada**, mismas 24 tareas de eval,
+mismo prompt (demos como texto), misma métrica: NLL del *ground truth* por celda.
+
+**Prerregistro (escrito antes de correr):** `ratio mediano nll/celda MoE/4B <= 0,80` **Y**
+`gana >= 2/3` ⇒ el MoE tiene MEJOR prior ⇒ proyecto vivo. Ratio ~1 o gana < 2/3 ⇒ no compra
+nada ⇒ proyecto MUERTO por ~1 h-cuota.
+
+### Lo que costó llegar a medir (4 versiones, ~1,1 h-cuota)
+
+| v | fallo | lección |
+|---|---|---|
+| v1 | imagen unsloth fijada: arquitectura `qwen3_5_moe` inexistente | el pin de imagen es un techo de arquitecturas |
+| v2 | imagen actual: falta `bitsandbytes` | el error de bnb **precede** al chequeo de arquitectura y lo oculta |
+| v3 | imagen actual: **tampoco** trae la arquitectura | mi inferencia de v2 era falsa; verificar, no deducir |
+| v4 | ✅ | dataset de wheels `tf52-wheels` + `pip --no-index --no-deps` en el lanzador |
+
+`transformers 5.16.1` instalado offline, MoE cargado con `AutoModelForCausalLM` (no hizo falta
+la clase VLM), **69,3 GB en bf16 repartidos por `device_map="auto"` en las 4 L4** (sin
+bitsandbytes no hubo 4-bit; se anota que **esta corrida NO mide la velocidad del 4-bit**).
+
+### Resultado: 16 pares válidos, 8 OOM
+
+| n | ratio mediano MoE/4B | gana | test de signo | nll/celda mediano |
+|---|---|---|---|---|
+| 16 | **0,807** | **11/16** (68,8%) | p = 0,105 | 4B 0,3545 → MoE 0,2939 |
+
+Dispersión enorme: de 0,450 (`f931b4a8`) a 3,423 (`eee78d87`). La media (1,008) dice "sin
+cambio" mientras la mediana dice "−19%" — otra vez el patrón que obliga a reportar mediana y
+signo, nunca la media sola.
+
+**Veredicto del prerreg: FALLA.** Era un `Y`: `0,807 > 0,80`. Falla por 0,007 y el test de
+signo no es significativo (p = 0,105). No se relitiga un prerreg por siete milésimas: ese es
+justamente el trabajo que hace un prerreg.
+
+### Las 8 OOM: la muestra que sobrevive es la mitad corta
+
+Las 8 tareas sin medida MoE son **exactamente las 8 de contexto más largo** (2.978 a 4.742
+tokens); las 16 medidas van de 1.274 a 2.706. El corte es limpio y perfectamente ordenado por
+longitud, así que el 0,807 está medido sobre la mitad corta del banco y su extrapolación a la
+población real es desconocida.
+
+Causa probable del OOM: el MoE de stock trae **vocabulario completo (~151K)**, así que los
+logits de un contexto de 3.000 tokens pesan ~0,9 GB en bf16 (y el doble al subir a fp32 para la
+loss), sobre ~7 GB libres por GPU tras repartir los 69,3 GB. Es un artefacto del *stock*, no un
+límite del modelo: nuestro modelo de producción tiene **vocabulario de 16 tokens**. Pero deja el
+número principal medido sobre media población.
+
+### El argumento que decide, y que no depende del prior
+
+`fwd` mediano: **4B 0,39 s → MoE 1,57 s = ×4,07**. Es bf16 en pipeline sobre 4 GPUs, no el 4-bit
+de una sola, así que sobreestima; quitando transferencias entre GPUs y añadiendo el coste de
+descuantizar, una estimación honesta queda en **×1,5-3**.
+
+Contra eso, el **presupuesto de reloj** (§ CLAUDE.md): el campeón corre al 95% de su deadline y
+**ningún injerto puede pasar de ×1,048**. `r512` se pasó a ×1,119 y perdió 15,3 tareas. Incluso
+el extremo optimista del rango (×1,5) es **diez veces** el margen disponible. El MoE no cabe en
+el reloj ni con el mejor prior imaginable.
+
+Y aunque cupiera: lo que mide esta puerta es **NLL**, y el cuello medido en §47/§48 es que la
+*distribución de hipótesis no contiene la respuesta* en ~69% de las tareas. Bajar 19% la NLL del
+GT no es la misma moneda que meter el GT en el pool.
+
+### Estado
+
+**Proyecto de cambio de modelo base: MUERTO.** Cerrado con las tres vías agotadas:
+
+- **Qwen3.5 denso 4B/9B**: mismo tamaño o mayor, exige rehacer el SFT (0-de-2 de prior histórico).
+- **Qwen3.8-27B denso**: imposible por aritmética (×3,45 de reloj ⇒ techo teórico 29,0% < 30,69).
+- **Qwen3.5-35B-A3B MoE**: prior marginal (falla el prerreg) **y** ×1,5-4 de reloj.
+
+Coste total del cierre: **~1,1 h-cuota**. Barato para enterrar una rama de 10-48 h-cuota.
+
+Lo que queda vivo: `default_weights` → RAM de CPU en producción (1,04 GB de GPU liberados;
+compra robustez, no puntos) y el ahorro de scoring 8→4 augs (−4% de reloj, sin comprador aún).

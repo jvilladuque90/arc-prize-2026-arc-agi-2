@@ -590,3 +590,40 @@ tres injertos consecutivos se revirtieron: no falta cómputo ni mejores hiperpar
 **generalizar fuera de la distribución de las demostraciones**, y eso es un cambio de método.
 Todo paso intermedio que pudimos diseñar o (a) es "aplicar la regla a algo" —lo que el modelo ya
 hace— o (b) no cabe en el 4,8%.
+
+### Cierre del cambio de modelo base (2026-09-09): las tres vías, muertas por reloj
+
+Tras agotar los injertos sobre el pipeline, la pregunta natural fue **cambiar la base**. Se
+cerraron las tres vías, todas con aritmética antes de gastar:
+
+1. **Qwen3.5 denso (0,8B/2B/4B/9B)** — el 4B es del mismo tamaño que el nuestro, y adoptarlo
+   obliga a rehacer el SFT que hoy heredamos gratis de NVARC. Prior histórico de rehacer SFT:
+   0-de-2. Descartada sin gasto.
+2. **Qwen3.8-27B denso** — coste de reloj ×3,45 sobre el campeón. Con el 100% de cobertura
+   actual, ese factor deja un techo *teórico* de 29,0% < 30,69 medido. Imposible por aritmética,
+   descartada sin gasto.
+3. **Qwen3.5-35B-A3B (MoE, 3B activos)** — la única que sobrevivía a la aritmética a priori
+   (×0,59 conservador en 4-bit), así que se midió.
+
+**La puerta `gate-moe`.** Prerregistro: *el MoE de stock debe tener mejor prior sobre ARC que el
+Qwen3-4B de stock* — `ratio mediano nll/celda MoE/4B <= 0,80` **Y** `gana >= 2/3` sobre 24
+tareas de eval, comparación pareada. Correr esto exigió resolver primero que la arquitectura
+`qwen3_5_moe` no existe en ninguna imagen de Kaggle: se resolvió con un **dataset privado de
+wheels** (`transformers 5.16.1` + dependencias) instalado con `pip --no-index --no-deps` desde el
+lanzador del kernel. Cuatro versiones, ~1,1 h-cuota.
+
+**Resultado**: ratio mediano **0,807**, gana **11/16**, test de signo **p = 0,105**. El
+prerreg era un `Y` y falla por 0,007. Además `fwd` ×4,07 (bf16 en pipeline sobre las 4 L4;
+estimación honesta en 4-bit: ×1,5-3) contra un techo de **×1,048** del presupuesto de reloj — el
+mismo techo que `r512` rebasó a ×1,119 para perder 15,3 tareas. **El reloj lo mata aunque el
+prior fuera excelente.**
+
+Dos avisos metodológicos que deja la corrida. Las 8 tareas que el MoE no logró medir fueron
+**exactamente las 8 de contexto más largo** (2.978-4.742 tokens; OOM por el vocabulario de 151K
+del stock, que nuestro modelo de producción no tiene: usa 16 tokens), así que el 0,807 está
+medido sobre la mitad corta del banco. Y la **media** del ratio decía "sin cambio" (1,008)
+mientras la **mediana** decía −19%: por tercera vez en la campaña, media sola = veredicto
+equivocado.
+
+**Estado**: el campeón sigue siendo `lb33-det` (30,69 ± 0,415). El cambio de base queda cerrado
+por ~1,1 h-cuota, que es barato para enterrar una rama presupuestada en 10-48 h-cuota.

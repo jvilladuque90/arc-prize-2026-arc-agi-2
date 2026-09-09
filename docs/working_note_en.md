@@ -572,3 +572,38 @@ consecutive grafts were reverted: what is missing is neither compute nor better 
 It is **generalising outside the demonstrations' distribution**, and that is a change of method.
 Every intermediate step we could design is either (a) "apply the rule to something" — which the
 model already does — or (b) does not fit in the 4.8%.
+
+### Closing the base-model swap (2026-09-09): all three routes killed by the clock
+
+Having exhausted grafts on the pipeline, the natural question was to **change the base model**.
+All three routes are now closed, each with arithmetic done before spending:
+
+1. **Qwen3.5 dense (0.8B/2B/4B/9B)** — the 4B is the same size as ours, and adopting it forces us
+   to redo the SFT we currently inherit for free from NVARC. Historical prior on redoing SFT:
+   0-for-2. Discarded at zero cost.
+2. **Qwen3.8-27B dense** — clock cost ×3.45 over the champion. At our current 100% coverage that
+   factor caps the *theoretical* ceiling at 29.0% < the 30.69 we measure. Impossible by
+   arithmetic; discarded at zero cost.
+3. **Qwen3.5-35B-A3B (MoE, 3B active)** — the only route that survived the a-priori arithmetic
+   (×0.59 conservative in 4-bit), so we measured it.
+
+**The `gate-moe` gate.** Pre-registration: *stock MoE must have a better ARC prior than stock
+Qwen3-4B* — `median nll/cell ratio MoE/4B <= 0.80` **AND** `wins >= 2/3` over 24 eval tasks,
+paired. Running it first required solving that the `qwen3_5_moe` architecture exists in no Kaggle
+image: solved with a **private wheels dataset** (`transformers 5.16.1` + deps) installed via
+`pip --no-index --no-deps` from the kernel launcher. Four versions, ~1.1 quota-hours.
+
+**Result**: median ratio **0.807**, wins **11/16**, sign test **p = 0.105**. The pre-registration
+was an `AND` and it fails by 0.007. On top of that, `fwd` is ×4.07 (bf16 pipelined across the four
+L4s; an honest 4-bit estimate is ×1.5-3) against a ceiling of **×1.048** from the clock budget —
+the same ceiling `r512` breached at ×1.119 to lose 15.3 tasks. **The clock kills it even with an
+excellent prior.**
+
+Two methodological warnings from the run. The 8 tasks the MoE could not measure were **exactly
+the 8 longest contexts** (2,978-4,742 tokens; OOM caused by stock's 151K vocabulary, which our
+production model does not have — it uses 16 tokens), so the 0.807 is measured on the short half of
+the bench. And the ratio's **mean** said "no change" (1.008) while the **median** said −19%: for
+the third time this campaign, the mean alone gives the wrong verdict.
+
+**Status**: the champion remains `lb33-det` (30.69 ± 0.415). The base-model swap is closed for
+~1.1 quota-hours, which is cheap for burying a branch budgeted at 10-48 quota-hours.
