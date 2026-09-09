@@ -69,3 +69,8 @@
   parciales a Kaggle tras cada etapa.
 - Los detalles y la historia viven en `docs/TTT_PLAN.md`, `docs/SCALE_PLAN.md`,
   `docs/SPEED_PLAN.md` y la memoria persistente.
+- **Modelos fuera de la imagen de Kaggle** (p.ej. Qwen3.5): exigen `transformers>=5.2` vía dataset
+  de wheels (`juliancamilovilla/tf52-wheels`, pip `--no-index --no-deps --find-links` en el
+  lanzador). La imagen actual NO trae bitsandbytes. **CLI en Windows**: `kaggle datasets create`
+  falla con rutas largas → ejecutar **desde dentro del dir con `-p .`**; no encadenar con `| tail`
+  (oculta el exit code).
