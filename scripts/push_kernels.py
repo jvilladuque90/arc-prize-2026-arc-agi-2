@@ -146,6 +146,17 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # r-buyer (9-sep), L4x4: r512 vs r256 SIN presion de reloj, pareado sobre 12 tareas de
+    # eval estratificadas por coste. Separa el confundido del acantilado de r512 (-15,3 tareas
+    # en LB con +11,9% de coste): reloj o capacidad? Bloquea la rama Qwen3.5-2B (+12,4 pt), que
+    # necesita que el reloj liberado tenga comprador. Primaria vistas_con_gt; el EMPATE cuenta
+    # como negativo (registrado antes de correr). 2 GPUs por brazo, sin fuga de estado.
+    "rbuyer": {"notebook": "notebooks/rbuyer.ipynb", "slug": "arc-agi2-rbuyer",
+               "title": "arc agi2 rbuyer", "gpu": True,
+               "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                          "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+               "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                            "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # GATE de modelo base a 4 bandas + ablacion de features (9-sep), L4x4 shardeado x4.
     # Prior (NLL/celda de la GT, pareado, 24 tareas eval) del titular Qwen3-4B contra
     # Qwen3.5-4B (mismo tamano), Qwen3.5-2B (con descuento) y Qwen3-1.7B (ancla). Ademas
