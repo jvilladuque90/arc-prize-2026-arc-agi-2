@@ -157,3 +157,60 @@ contrario (las salidas demo son más pequeñas en el 94,7% de las tareas).
    perfil medido (60% tamaño / 39% contenido del lado de la salida).
 2. **(GPU)** SFT continuado sobre `sft139` con esos datos. Un solo injerto, atribuible.
 3. **(1 slot)** Medir en el leaderboard, que es n=240 por ~2 h-cuota.
+
+---
+
+# RESULTADO `sft-outenv` (2026-09-09, ~2,0 h-cuota): BANCO VACUO — `sft139` memoriza el training set
+
+El detector de vacuidad prerregistrado **saltó**.
+
+| | valor |
+|---|---|
+| VAL NLL/token **antes** de entrenar | **0,0039** |
+| VAL NLL/token después | 0,0087 (**+122,7%**) |
+| pasos por rango | 2.073 (de 2.308) |
+| re-particiones / secuencias | 727 / 9.232 |
+
+**0,0039 por token = 99,61% de probabilidad por token.** Sobre una salida objetivo de 150 tokens
+(la mediana), eso es un **55,6% de probabilidad de emitir la salida ENTERA correcta** — sin TTT,
+sin adaptación, sobre tareas que el split apartó como "nunca vistas en este entrenamiento".
+
+Comparación que lo cierra: el **mismo** modelo, **ya adaptado por TTT**, sobre eval, tiene
+`gt_nll` de 0,010 a 0,312 por token (banco `rbuyer`). **El modelo sin adaptar es 3-80× más
+confiado sobre el training set que el modelo adaptado sobre eval.** Eso no es capacidad, es
+**memorización**: `sft139` ya vio las 1.000 tareas de entrenamiento de ARC.
+
+Que el entrenamiento **empeorase** la métrica (+122,7%) es coherente: meter un adaptador nuevo
+sobre un ajuste ya perfecto solo puede perturbarlo.
+
+## Lo que esto mata, que es más que esta corrida
+
+**El training set de ARC no sirve como fuente de señal para `sft139`, se re-particione como se
+re-particione.** No es un fallo del diseño de la re-partición —que funcionó: 727 re-particiones
+reales, cero fuga entre train y val, supervisión correcta verificada en 300/300 secuencias— sino
+de la **fuente de datos**. Y explica por qué "más SFT sobre datos de ARC" no podía funcionar.
+
+## Fuentes de datos que sí podrían servir (verificar la vacuidad ANTES de entrenar)
+
+1. **re-ARC** — generadores procedurales de las reglas de ARC-1 que producen **instancias nuevas a
+   tamaño arbitrario**. Encaja perfecto con lo que necesitábamos: demos a escala pequeña y objetivo
+   a escala grande, con reglas reales y **sin memorización**. Limitación honesta: son reglas de
+   ARC-1, y la puerta del DSL sugiere que AGI-2 juega a otra cosa ⇒ transferencia parcial.
+2. **`nvidia/Nemotron-SFT-ARC-AGI-v1`** — 67K/207K muestras, CC BY 4.0, **con los IDs de eval en
+   lista negra** (limpio respecto a nuestro instrumento de medida).
+3. BARC (ya hay entradas `barc-*` en el registro de kernels).
+
+**En los tres casos, correr primero el detector de vacuidad**: si la NLL del objetivo sale ~0 antes
+de entrenar, esa fuente tampoco sirve. Cuesta minutos y acaba de ahorrarnos interpretar mal 2 h-cuota.
+
+## La alternativa que NO necesita datos nuevos, y que ahora es la favorita
+
+El mecanismo medido es que **todos los gradientes del TTT apuntan a salidas más pequeñas** que la
+exigida (las salidas demo lo son en el 94,7% de las tareas). Eso se puede atacar **sin entrenar
+nada y sin datos**: reponderar la pérdida del TTT hacia la demostración de salida más grande, o
+dejarla fuera y adaptarse sobre las pequeñas para que el TTT ensaye la extrapolación con los pares
+que la tarea ya trae.
+
+- Coste: **~0 de reloj** (mismo presupuesto de 128 secuencias, distinta composición).
+- Es **un solo injerto**, medible en el leaderboard, que es n=240 por ~2 h-cuota.
+- No depende de resolver el problema de la fuente de datos.
