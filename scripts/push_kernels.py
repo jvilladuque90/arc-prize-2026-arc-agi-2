@@ -137,6 +137,18 @@ KERNELS = {
                             "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                  "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                               "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # lb33-ttford (10-sep) = campeon lb33-det + UN injerto: en el dataset de TTT la demostracion
+    # de SALIDA MAYOR queda siempre la ultima (contexto aleatorio). Cada una de las 128 secuencias
+    # pasa a predecir la salida mas grande con solo las pequenas de contexto. Coste de reloj CERO.
+    # Mecanismo: 75% de GT-en-pool cuando la salida cae DENTRO de la envolvente de las salidas demo
+    # frente a 11% cuando cae fuera, y el 82% del eval esta fuera. El decode (eval_ds) no se toca.
+    # PRERREG: >31,52 adoptar | 29,86-31,52 ruido | <29,86 revertir.
+    "lb33-ttford": {"notebook": "notebooks/lb33_ttford.ipynb", "slug": "arc-agi2-lb33-ttford",
+                    "title": "arc agi2 lb33 ttford", "gpu": True,
+                    "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # lb33-stack = TRATAMIENTO: determinista + los dos injertos de cobertura rehabilitados
     # (cheap-first y tope de longitud por tarea; el "GRAFT 3" de 600s nunca se aplico -- el
     # codigo sigue en 1200). Ambos monotonos y ya validados como no-daninos (§22).
