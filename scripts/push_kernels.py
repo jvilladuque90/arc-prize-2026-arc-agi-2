@@ -146,6 +146,18 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # SFT fuera-de-envolvente (9-sep), L4x4 con DDP en las 4 GPUs. Entrena sft139 a producir
+    # salidas cuyas dimensiones/estadistica caen FUERA del rango que mostraron las demos, que es
+    # el regimen donde el campeon pasa de 75% a 11% de GT-en-pool y que cubre el 82% del eval.
+    # Datos: re-particiones REALES del training set por tamano de salida (803 de 625 tareas), NO
+    # sinteticos -- la puerta del DSL probo que los sinteticos que yo generaria no existen en AGI-2.
+    # Perdida solo en el cuerpo de la salida objetivo. Val por TAREA. PRERREG: >=10% de mejora.
+    "sft-outenv": {"notebook": "notebooks/sft_outenv.ipynb", "slug": "arc-agi2-sft-outenv",
+                   "title": "arc agi2 sft outenv", "gpu": True,
+                   "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                              "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+                   "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                                "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # r-buyer (9-sep), L4x4: r512 vs r256 SIN presion de reloj, pareado sobre 12 tareas de
     # eval estratificadas por coste. Separa el confundido del acantilado de r512 (-15,3 tareas
     # en LB con +11,9% de coste): reloj o capacidad? Bloquea la rama Qwen3.5-2B (+12,4 pt), que
