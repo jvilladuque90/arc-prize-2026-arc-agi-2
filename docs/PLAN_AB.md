@@ -214,3 +214,60 @@ que la tarea ya trae.
 - Coste: **~0 de reloj** (mismo presupuesto de 128 secuencias, distinta composición).
 - Es **un solo injerto**, medible en el leaderboard, que es n=240 por ~2 h-cuota.
 - No depende de resolver el problema de la fuente de datos.
+
+---
+
+# `gate35` (2026-09-10, ~0,5 h-cuota): mi hipótesis del artefacto era FALSA
+
+Re-medición del Qwen3.5-4B con **diagnóstico de carga** y **control entre espejos**.
+
+## El diagnóstico de carga
+
+| modelo | clase elegida | claves ausentes | inesperadas | params |
+|---|---|---|---|---|
+| `q3_4b` titular | `AutoModelForCausalLM` | **0** | 0 | 4.022M |
+| `m_lima` (Qwen3.5-4B) | `AutoModelForImageTextToText` | **0** | 0 | **4.539M** |
+| `m_thanh` (Qwen3.5-4B) | `AutoModelForImageTextToText` | **0** | 0 | **4.539M** |
+
+`gate-base` había cargado 4.206M con `AutoModelForCausalLM`; con la clase correcta son 4.539M.
+Faltaban **333M**… **y no cambian nada**.
+
+## El resultado, idéntico al anterior hasta la cuarta cifra
+
+| candidato | n | ratio mediano | gana | signo p | fwd × |
+|---|---|---|---|---|---|
+| `m_lima` | 24 | **1,299** | 8/24 | 0,968 | 1,43 |
+| `m_thanh` | 24 | **1,299** | 8/24 | 0,968 | 1,44 |
+
+**Control entre espejos: ratio mediano 1,0000, desviación máxima 0,0000** — son bit a bit el mismo
+checkpoint. Y `nll/celda` mediano = **0,4361**, exactamente el mismo número que dio `gate-base` con
+la carga "incompleta".
+
+⇒ Los 333M que faltaban eran **solo la torre de visión**. `AutoModelForCausalLM` cargaba el tronco
+de texto **perfectamente**. La medición original era correcta y **mi sospecha era infundada**.
+
+## VEREDICTO (caso 2 del prerreg): la rama muere de verdad
+
+**Qwen3.5-4B tiene peor prior de ARC que Qwen3-4B a igual tamaño** (ratio 1,299, gana 8/24,
+p=0,968) **y encima no cabe en el reloj** (fwd ×1,43 contra un techo de ×1,048). Ahora está medido
+con carga limpia y doble espejo: no hay a qué agarrarse.
+
+## Estado de "modernizar a 3.5", completo
+
+| vía | veredicto |
+|---|---|
+| **3.5-4B** (misma talla, más capacidad) | ❌ **peor prior**, medido limpio ⇒ muerta |
+| **3.5-2B** (misma capacidad, menos reloj) | empata (0,989) pero el reloj liberado **no tiene comprador** ⇒ vale ~0 |
+| 3.5-9B | ~2,2× de parámetros ⇒ fuera del techo de reloj por aritmética |
+| 3.5-27B / 35B-A3B MoE | ya cerradas |
+
+**El eje del modelo base queda agotado con mediciones sólidas.** La ganancia que buscamos no está ahí.
+
+## Lo que sí deja, reutilizable
+
+- `AutoModelForCausalLM` sobre un VLM de Qwen3.5 **carga el tronco de texto correctamente** y
+  descarta la torre de visión sin corromper nada. No hay que temer esa ruta.
+- **Cargar siempre con `output_loading_info=True`** y elegir la clase por *claves ausentes*, no por
+  "la primera que no lanza excepción". Cuesta nada y convierte una sospecha en un hecho.
+- Cuando un resultado parece implausible, el orden correcto es **instrumentar la sospecha**, no
+  archivarla ni asumirla. Aquí la instrumentación costó 0,5 h-cuota y la sospecha era mía y falsa.
