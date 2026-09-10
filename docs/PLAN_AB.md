@@ -92,3 +92,68 @@ orden de **100× más informativo por hora-cuota** para efectos de capacidad.
 ⇒ **Dejar de gastar cuota en comprar mediciones y gastarla en comprar capacidad.** Lo caro es
 entrenar; medirlo no lo es. Límites: un injerto por brazo, 1 slot/día, y su banda de ruido (±0,4)
 resuelve ~1 punto ≈ 2,4 tareas — un arreglo que ataque el 69% de las tareas debe ser mucho mayor.
+
+---
+
+# ACTUALIZACIÓN 2026-09-09 (tras las puertas gratis): B muerto, y A REDIRIGIDO
+
+## Plan B: muerto en la puerta (0 h-cuota)
+
+`score_dsl` = **0,0%** en eval AGI-2 y **0 de 353** tareas AGI-2 en total, con el mismo DSL sacando
+**5,1%** en AGI-1 y **87,2% de precisión de verificación**. Detalle en `docs/PREREG_dsl.md`.
+La premisa de B (la verificación exacta filtra) era **correcta**; lo que no hay es qué verificar.
+
+## Plan A: el objetivo era el equivocado, y ahora está medido
+
+Yo había planteado A como *"la entrada de test es más grande, entrena la extrapolación de escala"*.
+**Los datos dicen que la entrada no tiene nada que ver.** Sobre las 23 tareas de eval con resultado
+del campeón (`augdose` + `rbuyer`):
+
+| | Spearman con `vistas_con_gt` |
+|---|---|
+| `d` de la **ENTRADA** de test | **+0,004** — no predice **nada** |
+| `d` de la **SALIDA** de test | **−0,234** |
+
+Y la tasa de acierto condicionada es lo que manda:
+
+| régimen | GT en algún pool | población en eval |
+|---|---|---|
+| salida **DENTRO** de la envolvente de las salidas demo | **3/4 = 75%** | **18%** |
+| salida **FUERA** | **2/19 = 11%** | **82%** |
+
+**El campeón es casi competente (75%) cuando la respuesta se parece en forma y estadística a las
+salidas que las demos ya mostraron, y casi inútil (11%) cuando no.** Y el 82% de las tareas están
+en el régimen difícil. Reconstruye el score global: 0,18×75% + 0,82×11% ≈ 22%, del orden del ~19-31%
+que medimos.
+
+⚠️ n=23 (4 frente a 19 en el corte). Mann-Whitney p=0,078 a una cola. **Es una hipótesis con
+soporte cuantificado, no un hecho establecido.** Confirmarla es barato y no necesita GPU: ampliar
+`d_salida` × resultado sobre más tareas ya pagadas.
+
+## Qué hay que entrenar, entonces
+
+De las 98 tareas de eval con la salida fuera de la envolvente, el rasgo que la saca es:
+
+| rasgo | domina | se sale (alguno) |
+|---|---|---|
+| **H** | 35% | 64% |
+| **W** | 17% | 60% |
+| log área | 8% | 72% |
+| nº colores | 14% | 38% |
+| nº componentes | 10% | 18% |
+| densidad | 9% | 37% |
+
+⇒ **60% del hueco es tamaño de la salida, 39% es contenido.**
+
+**El objetivo del entrenamiento cambia**: no es *"aplica la regla a una entrada más grande"* sino
+**"produce una salida cuyas dimensiones y estadística caen FUERA del rango que las demostraciones
+mostraron, deduciéndolas de la entrada"**. Es extrapolación **del lado de la salida**, que es
+justo donde un autorregresivo se rompe y donde todos los gradientes del TTT apuntan al lado
+contrario (las salidas demo son más pequeñas en el 94,7% de las tareas).
+
+## Orden de trabajo
+
+1. **(0 h-cuota)** Confirmar el mecanismo con más n, y generar los datos sintéticos calibrados al
+   perfil medido (60% tamaño / 39% contenido del lado de la salida).
+2. **(GPU)** SFT continuado sobre `sft139` con esos datos. Un solo injerto, atribuible.
+3. **(1 slot)** Medir en el leaderboard, que es n=240 por ~2 h-cuota.
