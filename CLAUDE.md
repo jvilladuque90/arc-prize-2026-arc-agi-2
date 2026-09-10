@@ -49,6 +49,26 @@
 - ⚠️ **El smoke público de 4 tareas NO acota los extremos del oculto (240).** Tres veces ha
   costado caro presupuestar recursos sobre él. Usar la distribución completa de tamaños, offline.
 
+## Campaña de saltos grandes (decisión del usuario, 9-sep) — NO negociable
+
+- **Estamos a 30,69 contra un líder en 57%: un +1 o +2 no sirve, solo consume calendario.**
+  Regla: *"no pienses en tiempo, si abre la posibilidad de saltos de score grandes vale la pena"*.
+  **Descartado todo lo que viva en la banda de ruido**: modelo pequeño por velocidad (vale 0, no
+  hay comprador para el reloj liberado), ajuste de rango, ajuste de vistas.
+- **Plan A** = SFT contra el déficit de escala medido. **Plan B** = inducción aprendida a un DSL
+  compacto + verificación exacta contra las demos. **NO son excluyentes**: B se traga el mecanismo
+  de A (un programa es indiferente a la escala) y son complementarias en cobertura. Detalle
+  completo en `docs/PLAN_AB.md`.
+- **El leaderboard es el instrumento más barato y potente que tenemos**: n=240 por ~2 h-cuota del
+  commit, frente a bancos que cuestan 1,6 h-cuota para 2 observaciones informativas (`rbuyer`).
+  **Gastar cuota en comprar CAPACIDAD, no en comprar mediciones.** Sigue vigente: un injerto por
+  brazo (el LB no atribuye cambios agrupados) y 1 slot/día.
+- **Antes de cualquier gasto de GPU, la puerta gratis.** La Fase 0 enterró un diseño entero por
+  0 h-cuota. Si la pregunta se contesta con aritmética sobre los JSON, se contesta ahí.
+- ⚠️ **Calcular cuántos pares INFORMATIVOS dará un banco, no cuántas tareas.** `GT-en-pool` solo
+  dispara en ~30%, así que la mayoría sale 0-0: hacen falta n≈40-60 pares ≈ 8-10 h-cuota, más que
+  el tope semanal. Hay preguntas **inasequibles**, y eso NO es lo mismo que un resultado negativo.
+
 ## Bancos de medida — lecciones pagadas con puntos de LB
 
 - **El vehículo de medida debe coincidir con producción en modelo, formato y población.**
