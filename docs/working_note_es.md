@@ -627,3 +627,57 @@ equivocado.
 
 **Estado**: el campeón sigue siendo `lb33-det` (30,69 ± 0,415). El cambio de base queda cerrado
 por ~1,1 h-cuota, que es barato para enterrar una rama presupuestada en 10-48 h-cuota.
+
+### Jornada 2026-09-09: cuatro puertas, dos ramas enterradas y un diagnóstico nuevo
+
+Cinco resultados en un día, tres de ellos por **0 h-cuota**.
+
+**1. `gate-moe` (1,1 h-cuota) — el MoE cae.** Ratio mediano nll/celda 0,807 y gana 11/16: falla su
+prerreg (`≤0,80` Y `≥2/3`) por siete milésimas, y `fwd` ×4,07 contra un techo de ×1,048. Las 8
+tareas sin medir fueron las 8 de contexto más largo (OOM por vocabulario de 151K), así que el
+0,807 sale de la mitad corta del banco.
+
+**2. `gate-base` (0,30 h-cuota) — Qwen3.5-2B empata al titular.** Ratio mediano **0,989**, gana
+13/24, `fwd` ×0,79. El Qwen3.5-**4B** falla las tres condiciones y además es 1,300× peor que el 2B
+de su propia familia con reventones de ×5,7 ⇒ el espejo de comunidad es sospechoso. Ancla
+Qwen3-1.7B (ratio 1,196) calibra: **+20% de NLL ≈ −2,5 puntos de LB**. Censo: la torre de visión
+ya la descarta `AutoModelForCausalLM` al cargar; lo que queda por cortar es el **vocabulario**
+(27% del 3.5-2B). El recorte a 16 filas ahorra **6,5%** en prefill, no el 10-14% que estimé.
+
+**3. `r-buyer` (1,6 h-cuota) — sin comprador para el reloj, pero la medida no da.** Δ mediano
++0,0, signo p=1,000. **5 de los 7 pares salieron 0-0 en ambos brazos**: la medición real fueron
+2 observaciones opuestas (+3 y −5). Conclusión estructural: `GT-en-pool` dispara en ~30%, así que
+harían falta **n≈40-60 pares ≈ 8-10 h-cuota**. La rama del 2B no queda bloqueada por un negativo
+sólido sino por **medición inasequible**, que no es lo mismo.
+
+**4. Fase 0 (0 h-cuota) — la escalera OOD.** La distancia del test a la envolvente de las demos
+crece monótonamente: **AGI-1 0,500 → AGI-2 train 0,750 → AGI-2 eval 1,161** (p=2e-08). El exceso
+es **contenido, no vacío** (área ×1,43, tinta ×1,45, **componentes ×1,00**: los mismos objetos, más
+grandes). Un catálogo de re-representaciones cierra solo **3 de 94** tareas ⇒ ese diseño muere.
+
+**5. Puerta del DSL (0 h-cuota) — el Plan B muere.** Con control positivo 8/8 primero. Cobertura
+**5,1% en AGI-1** con **87,2% de precisión de verificación**, y **CERO en 353 tareas de AGI-2**
+(cota al 95%: <0,85%). La premisa de B era correcta —la verificación exacta contra las demos **sí**
+filtra— pero no hay nada que verificar.
+
+**Y el hallazgo que reorienta todo.** Sobre las 23 tareas de eval con resultado del campeón:
+
+| | Spearman con `vistas_con_gt` |
+|---|---|
+| `d` de la **ENTRADA** de test | **+0,004** — no predice nada |
+| `d` de la **SALIDA** de test | **−0,234** |
+
+| régimen | GT en algún pool | población eval |
+|---|---|---|
+| salida **DENTRO** de la envolvente de las salidas demo | **3/4 = 75%** | 18% |
+| salida **FUERA** | **2/19 = 11%** | 82% |
+
+El campeón es **casi competente cuando la respuesta se parece a lo que las demos mostraron y casi
+inútil cuando no**, y el 82% de las tareas están en el régimen difícil. Reconstruye el score global
+(≈22% frente al 19-31% medido). Con n=23 y p=0,078 es hipótesis con soporte, no hecho establecido.
+El hueco de salida es **60% tamaño / 39% contenido**.
+
+**Consecuencia**: el Plan A deja de ser *"aplica la regla a una entrada más grande"* —que no
+correlaciona— y pasa a ser **"produce una salida fuera del rango que las demostraciones
+mostraron"**. Es extrapolación del lado de la salida, donde todos los gradientes del TTT apuntan al
+revés (las salidas demo son más pequeñas en el 94,7% de las tareas).
