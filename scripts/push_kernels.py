@@ -181,6 +181,17 @@ KERNELS = {
                           "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                             "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # gate35 (10-sep), L4x4 shard x4: re-mide Qwen3.5-4B contra el titular con DIAGNOSTICO DE
+    # CARGA (output_loading_info: cuantas claves quedan ausentes => tensores aleatorios) y CONTROL
+    # ENTRE ESPEJOS (limamateus vs thanhduc1102). En gate-base se cargaron 4.206M de 4.660M params
+    # y el 3.5-4B salio peor que el 3.5-2B de su propia familia: hay que descartar artefacto de
+    # carga antes de enterrar la rama. PRERREG: carga limpia + ratio <=0,85 + fwd <=1,05x => arranca.
+    "gate35": {"notebook": "notebooks/gate35.ipynb", "slug": "arc-agi2-gate35",
+               "title": "arc agi2 gate35", "gpu": True, "docker": "",
+               "defaults": {"dataset": ["juliancamilovilla/tf52-wheels"],
+                            "model": ["qwen-lm/qwen-3/transformers/4b/1",
+                                      "limamateus/qwen3-5-4b/pyTorch/default/1",
+                                      "thanhduc1102/qwen_35_4b/transformers/default/1"]}},
     # GATE de modelo base a 4 bandas + ablacion de features (9-sep), L4x4 shardeado x4.
     # Prior (NLL/celda de la GT, pareado, 24 tareas eval) del titular Qwen3-4B contra
     # Qwen3.5-4B (mismo tamano), Qwen3.5-2B (con descuento) y Qwen3-1.7B (ancla). Ademas
