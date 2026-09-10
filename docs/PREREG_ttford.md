@@ -51,3 +51,22 @@ Fijar la última posición reduce la variedad de órdenes que ve el TTT (antes 1
 aleatorios, ahora 128 con la última posición fija). Si la variedad de orden aportaba más de lo
 que aporta el ensayo de extrapolación, esto sale negativo. Es el precio de un injerto de coste
 cero, y por eso la regla de decisión contempla revertir.
+
+---
+
+## Enviado (2026-09-10 04:35 UTC, ref `56137279`)
+
+Verificación del kernel antes de enviar (todo gratis):
+
+- El injerto **corrió de verdad**: `ultima_mayor` aparece 4 veces en el `arc_loader.py` de salida
+  y la llamada `augment(n=16, shfl_keys=True, seed=1, ultima_mayor=True)` está en la línea 366 del
+  `arc_solver.py` que ejecutó el kernel.
+- `submission.json` bien formado: 120 tareas, 344 intentos.
+- ⚠️ **335 de 344 intentos son placeholders `[[0]]` (97%)** — y eso **NO es un defecto**: el
+  campeón `lb33-det` produce **exactamente los mismos 335/344** en modo *Save & Run*. El trabajo
+  real ocurre en el rerun de la competición sobre el oculto. Comparar contra el campeón antes de
+  alarmarse costó cero y evitó descartar un kernel sano.
+
+Detalle operativo: `kaggle competitions submit` en competición de código exige **`-v <version>` y
+`-f submission.json`**; sin ellos falla con *"Code competition submissions require both the output
+file name and the version number"*.
