@@ -44,3 +44,82 @@ salida (3 de 4 tareas). El oculto son 240 tareas de toda la distribución.
 No es un test de ningún injerto. Es infraestructura de medida: el resultado son **hechos sobre el
 terreno** de los que dependen las siguientes decisiones (dosis vs. no, comprador para el reloj,
 Qwen3.5-2B). Nada se adopta ni se revierte con esta corrida.
+
+---
+
+# RESULTADOS (2026-09-11) — 75 min de pared ≈ 2,5 h-cuota, 20/20 tareas, 2 truncadas en vistas
+
+| tarea | coste | gt/16 | nll pre | nll post | d_out |
+|---|---|---|---|---|---|
+| 28a6681f | 600 | 0 | 0,0728 | 0,0367 | 1,00 |
+| dd6b8c4b | 726 | 0 | 0,1052 | 0,1015 | 0,00 |
+| faa9f03d | 864 | 0 | 0,0383 | 0,0227 | 10,22 |
+| f931b4a8 | 960 | 0 | 0,1249 | 0,3849 | 1,00 |
+| 21897d95 | 1036 | 0 | 0,0239 | 0,0233 | 6,00 |
+| 3a25b0d8 | 1180 | **1** | 0,0544 | 0,0063 | 5,04 |
+| 53fb4810 | 1270 | 0 | 0,0183 | 0,0147 | 4,00 |
+| 7b3084d4 | 1352 | 0 | 0,0730 | 0,0880 | 0,67 |
+| b6f77b65 | 1440 | **2** | 0,0535 | 0,1104 | 0,00 |
+| d59b0160 | 1536 | 0 | 0,0190 | 0,0160 | 0,00 |
+| 58f5dbd5 | 1594 | **14** | 0,1166 | 0,0000 | 2,00 |
+| 89565ca0 | 1720 | 0 | 0,5267 | 0,6180 | 2,00 |
+| 36a08778 | 1892 | **7** | **0,0000** | 0,0000 | 0,05 |
+| 4a21e3da | 1944 | 0 | 0,0447 | 0,0288 | 3,08 |
+| 67e490f4 | 2090 | 0 | 0,0524 | 0,0659 | 8,50 |
+| cb2d8a2c | 2318 | 0 | 0,0487 | 0,0510 | 1,17 |
+| 221dfab4 | 2552 | 0 (15 vistas) | 0,0118 | 0,1125 | 4,00 |
+| a47bf94d | 2772 | 0 (**0 vistas**, truncada) | 0,0074 | 0,0122 | 7,00 |
+| b10624e5 | 2916 | 0 | 0,0385 | 0,0373 | 0,00 |
+| 195c6913 | 3300 | 0 | 0,0376 | 0,0321 | 2,00 |
+
+GT en algún pool: **4/20 = 20%** (`a47bf94d` no informa: el deadline cayó tras el TTT, 0 vistas).
+
+## P1 — REFUTADA: la envolvente de salida era un artefacto del decil barato
+
+| régimen | GT en pool |
+|---|---|
+| salida DENTRO de la envolvente | **1/4 = 25%** |
+| salida FUERA | **3/16 = 19%** |
+
+Fisher (una cola) **p = 0,624**; Spearman `d_out` vs gt/16 = −0,176. La predicción registrada era
+p<0,10. **El 75%/11% no se replica en dificultad real.** Eran 3 de 4 tareas del percentil 11.
+
+Consecuencias en cascada: (1) el mecanismo que motivó `ttford` era falso; la única lección que
+sobrevive de `ttford` es *"fijar el orden de las demos cuesta 5 puntos"*, sin la lectura de "dañó
+el régimen del 18%"; (2) **"dosis, no sustitución" queda muerta** antes de gastar su slot; (3) la
+palanca de la envolvente de salida desaparece del plan.
+
+## P2 — VALIDADA: el proxy NLL/celda post-TTT predice GT-en-pool
+
+| proxy | n | Spearman | nll mediana con GT | sin GT | separación |
+|---|---|---|---|---|---|
+| **post-TTT** | 20 | **−0,430** | **0,0032** | 0,0370 | **×11,6** |
+| pre-TTT | 20 | +0,086 | 0,0539 | 0,0416 | — |
+
+Predicción registrada: < −0,4. **Se cumple en post-TTT y falla en pre-TTT**: el proxy necesita la
+adaptación. Es la ganancia de infraestructura de la campaña: **la NLL post-TTT informa en el 100%
+de las tareas** mientras GT-en-pool solo dispara en el 20% ⇒ ~10× de potencia por hora-cuota en
+todo banco futuro de rango, dosis o modelo. La pregunta del comprador para el reloj (rama
+Qwen3.5-2B) pasa de *inasequible* a *asequible*.
+
+## P3 — (aproximado) la selección sigue pareciendo sin pérdidas
+
+Re-jugado con el `beam_score` guardado (sin la mitad `score_aug` de producción, que el banco no
+almacenó): el GT queda en top-2 en **3 de las 4** tareas donde está en el pool. n=4; compatible
+con lo anterior, no lo refuerza.
+
+## P4 — el mapa por coste: plano
+
+| tercio | coste | GT en pool |
+|---|---|---|
+| barato | 600-1180 | 1/6 = 17% |
+| medio | 1270-1720 | 2/6 = 33% |
+| caro | 1892-3300 | 1/8 = 12% |
+
+Sin tendencia monótona: **el coste tampoco es la historia**. n por tercio de 6-8, orientativo.
+
+## Hallazgo colateral: contaminación medida
+
+`36a08778` tiene **NLL/celda pre-TTT = 0,0000**: el modelo base ya sabe la respuesta antes de
+adaptarse. Evidencia directa de contaminación eval→`sft139` en al menos 1/20 (5%). Encaja con la
+advertencia de la memoria y obliga a **excluir del eval de medida las tareas con `pre` ≈ 0**.

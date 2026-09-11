@@ -315,3 +315,35 @@ esa distinción.
 
 La condición *"si no hay error, adelante con dosis"* **no se cumple**. El siguiente gasto útil no es
 otra submission a ciegas sino **cerrar el punto ciego del error 2**, del que dependen los otros dos.
+
+---
+
+# `strat` (2026-09-11, 2,5 h-cuota): el mapa real, y una palanca que cae y otra que nace
+
+**Cae**: la envolvente de salida. En 20 tareas estratificadas p5-p95, dentro 1/4 = 25% frente a
+fuera 3/16 = 19% (Fisher p=0,62). El 75%/11% era un artefacto del decil barato. Con ello mueren
+el mecanismo de `ttford` y **"dosis, no sustitución"** — sin gastar su slot. Detalle en
+`docs/PREREG_strat.md`.
+
+**Nace**: el **proxy validado**. `NLL/celda de la GT post-TTT` predice GT-en-pool con Spearman
+−0,430 y separación ×11,6 (0,0032 vs 0,0370); el pre-TTT no sirve (+0,086). Informa en el 100% de
+las tareas frente al 20% de GT-en-pool ⇒ **~10× de potencia por hora-cuota**.
+
+**El mapa**: GT-en-pool 20% global, plano por coste (17/33/12% por tercios). El coste no explica
+el fallo. Contaminación medida: 1/20 tareas con `pre` = 0 (`36a08778`) ⇒ excluir `pre` ≈ 0.
+
+## Estado del plan tras strat
+
+| palanca | estado |
+|---|---|
+| envolvente de salida / dosis | ❌ refutada en dificultad real |
+| modelo base (3.5-4B, 27B, MoE) | ❌ cerradas con mediciones limpias |
+| Qwen3.5-2B (empata a 0,378× tronco) | ⏸ bloqueada por la **pregunta del comprador**, que ahora **sí es asequible** |
+| proxy NLL post-TTT | ✅ **validado** — infraestructura para lo siguiente |
+
+## Siguiente paso que se deriva, no que se inventa
+
+Reabrir la pregunta del comprador **con el proxy**: `r512` vs `r256` sin presión de reloj, pareado,
+medido por NLL post-TTT en las ~20 tareas estratificadas (excluyendo contaminadas). Con todas las
+tareas informativas, n=20 pareado sí tiene potencia para un efecto moderado. Es la pregunta que
+decide si el 2B vale +12 o vale 0, y por primera vez se puede contestar a ~2 h-cuota.
