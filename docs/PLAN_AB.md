@@ -271,3 +271,47 @@ con carga limpia y doble espejo: no hay a qué agarrarse.
   "la primera que no lanza excepción". Cuesta nada y convierte una sospecha en un hecho.
 - Cuando un resultado parece implausible, el orden correcto es **instrumentar la sospecha**, no
   archivarla ni asumirla. Aquí la instrumentación costó 0,5 h-cuota y la sospecha era mía y falsa.
+
+---
+
+# AUDITORÍA (2026-09-10, a petición del usuario): ¿hay algún error?
+
+## Lo que se verificó y está BIEN
+
+- **`ttford` no tiene bug.** `cut_to_len` recorta por delante (`v[1:]`), así que la demostración
+  mayor puesta al final **se conserva**; `max_seq_length=8192` hace el recorte raro; las claves
+  `.ex` siguen siendo únicas porque el prefijo ya lleva los descriptores de D4/color. El −5,00 es
+  efecto real del injerto, no de la fontanería.
+- **El 75%/11% no es solo "barato = resuelto"**: el coste por sí solo no predice el resultado
+  (Mann-Whitney p=0,301) mientras `d_salida` sí (Fisher exacto p=0,018 con n=24). La entrada sigue
+  sin predecir nada (Spearman −0,035).
+- `gate35`, la puerta del DSL, `sft-outenv` y la Fase 0 se sostienen.
+
+## Los TRES errores encontrados — todos de razonamiento, ninguno de código
+
+**1. "No hay comprador para el reloj" nunca se estableció.** `rbuyer` dio 7 pares de los que solo
+**2 informaron**; yo mismo lo califiqué de *"medición inasequible, que no es lo mismo que un
+negativo"*. Y sin embargo en los mensajes siguientes lo usé **tres veces como negativo** para cerrar
+el camino del Qwen3.5-2B. **La pregunta del comprador está ABIERTA.** El 2B (empata el prior a
+0,378× de tronco) está bloqueado por una pregunta sin respuesta, no por una respuesta negativa.
+
+**2. Toda la evidencia por tarea viene del decil más barato del eval.** Las 24 tareas con resultado
+del campeón tienen coste mediano **781** frente a **1.586** del eval completo — **percentil 11** —
+y máximo 2.132 frente a 7.200. El 75%/11% son **3 de 4 tareas** en ese decil. Y no solo esto:
+"la selección es sin pérdidas" y "16 vistas = 1 hipótesis" salen de las mismas 16 tareas baratas.
+CLAUDE.md ya advertía que *"el smoke público de 4 tareas NO acota los extremos del oculto"*: lo
+repetí con 24 en vez de 4. **El oculto son 240 tareas de toda la distribución; nuestro mapa cubre
+el 10% más fácil.**
+
+**3. El fallo de `ttford` tiene dos mecanismos y "dosis" solo es segura bajo uno.** (a) *La
+diversidad de orden es estructural* — mi lectura. (b) *Atajo posicional*: "lo último es lo grande"
+se aprende en el TTT y se filtra al decode, donde la consulta de test también va última. En el
+eval, el GT del test es **más pequeño** que la mayor salida demo en el **15%** de las tareas —
+ahí el atajo engaña. Bajo (b), dosificar a 16/128 instala la misma sesgo, más débil. **No puedo
+distinguir (a) de (b) con el score del LB**, y "dosis, no sustitución" lo di por bueno sin
+esa distinción.
+
+## Consecuencia
+
+La condición *"si no hay error, adelante con dosis"* **no se cumple**. El siguiente gasto útil no es
+otra submission a ciegas sino **cerrar el punto ciego del error 2**, del que dependen los otros dos.
