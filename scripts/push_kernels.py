@@ -170,6 +170,16 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # strat (10-sep): produccion exacta, UN brazo, 20 tareas de eval estratificadas p5-p95 por
+    # coste, LPT en 4 workers, deadline sobre la cola y dentro de la tarea. Cierra el punto ciego de
+    # la auditoria: toda la evidencia por tarea venia del decil mas barato. Registra GT-en-pool,
+    # pools con scores y NLL/celda pre/post TTT. No prueba injertos: produce hechos (P1-P4).
+    "strat": {"notebook": "notebooks/strat.ipynb", "slug": "arc-agi2-strat",
+              "title": "arc agi2 strat", "gpu": True,
+              "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                         "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+              "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                           "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # r-buyer (9-sep), L4x4: r512 vs r256 SIN presion de reloj, pareado sobre 12 tareas de
     # eval estratificadas por coste. Separa el confundido del acantilado de r512 (-15,3 tareas
     # en LB con +11,9% de coste): reloj o capacidad? Bloquea la rama Qwen3.5-2B (+12,4 pt), que
