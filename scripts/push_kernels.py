@@ -170,6 +170,17 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # rb2 (12-sep): la pregunta del comprador con el proxy validado en strat. r512 vs r256 sin
+    # presion de reloj sobre las mismas 19 tareas estratificadas (sin la contaminada), 2 GPUs por
+    # brazo, SIN decode: primaria = NLL/celda de la GT post-TTT (informa en el 100% de tareas).
+    # PRERREG: ratio mediano <=0,85 y signo p<0,10 => hay comprador (rama Qwen3.5-2B viva);
+    # >=1,15 => aleja; lo demas empate = negativo.
+    "rb2": {"notebook": "notebooks/rb2.ipynb", "slug": "arc-agi2-rb2",
+            "title": "arc agi2 rb2", "gpu": True,
+            "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                       "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+            "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                         "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # strat (10-sep): produccion exacta, UN brazo, 20 tareas de eval estratificadas p5-p95 por
     # coste, LPT en 4 workers, deadline sobre la cola y dentro de la tarea. Cierra el punto ciego de
     # la auditoria: toda la evidencia por tarea venia del decil mas barato. Registra GT-en-pool,
