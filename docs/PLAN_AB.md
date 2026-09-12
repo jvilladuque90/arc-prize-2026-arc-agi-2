@@ -347,3 +347,26 @@ Reabrir la pregunta del comprador **con el proxy**: `r512` vs `r256` sin presió
 medido por NLL post-TTT en las ~20 tareas estratificadas (excluyendo contaminadas). Con todas las
 tareas informativas, n=20 pareado sí tiene potencia para un efecto moderado. Es la pregunta que
 decide si el 2B vale +12 o vale 0, y por primera vez se puede contestar a ~2 h-cuota.
+
+---
+
+# `rb2` (2026-09-12, 2,5 h-cuota): la pregunta del comprador, contestada a medias
+
+Con el proxy validado, r512 vs r256 sin presión de reloj sobre 15 pares (los 4 más caros se
+perdieron: r512 costó ×1,32 en TTT, no ×1,15). **Ratio mediano 0,839, r512 mejor en 10/15, signo
+p=0,151.** Pasa la magnitud, falla la significancia ⇒ **empate por prerreg ⇒ rama Qwen3.5-2B
+bloqueada.** Sensibilidad (no veredicto): sin la tarea memorizada con denominador 0, p=0,090.
+
+**Estado del tablero tras cinco días:**
+
+| palanca | estado |
+|---|---|
+| modelo base (3.5-4B, 27B, MoE) | ❌ cerradas con mediciones limpias |
+| Qwen3.5-2B | ⏸ bloqueada: el rango paga poco (~−16% NLL ≈ +2 pt) y no supera el listón |
+| envolvente de salida / dosis / ttford | ❌ refutadas |
+| DSL / inducción | ❌ 0 de 353 en AGI-2 |
+| SFT sobre el training set | ❌ memorizado por sft139 |
+| proxy NLL post-TTT | ✅ validado — la única palanca de *medida* que ganamos |
+
+**Campeón intacto: `lb33-det` 30,69 ± 0,415.** Lo que la campaña ha producido es un mapa de lo
+que NO funciona, con mediciones en las que se puede confiar, y un instrumento 10× más barato.
