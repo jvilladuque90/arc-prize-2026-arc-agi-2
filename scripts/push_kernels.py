@@ -170,6 +170,17 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # haz (21-sep): re-medicion CON TTT de la familia de reglas de aceptacion, cerrada el 22-ago
+    # sin TTT y con una sola vista. La auditoria encontro que el 33% de tareas no produce NINGUN
+    # candidato aunque el modelo este al 96-98% por celda: impuesto al tamano del umbral absoluto.
+    # Instrumento: rango del token correcto con teacher forcing (1 forward) => ancho de haz
+    # necesario ~ exp(deficit vs greedy). Mas haz real de ancho 1/8/32. 18 tareas de strat.
+    "haz": {"notebook": "notebooks/haz.ipynb", "slug": "arc-agi2-haz",
+            "title": "arc agi2 haz", "gpu": True,
+            "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                       "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+            "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                         "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # rb2 (12-sep): la pregunta del comprador con el proxy validado en strat. r512 vs r256 sin
     # presion de reloj sobre las mismas 19 tareas estratificadas (sin la contaminada), 2 GPUs por
     # brazo, SIN decode: primaria = NLL/celda de la GT post-TTT (informa en el 100% de tareas).
