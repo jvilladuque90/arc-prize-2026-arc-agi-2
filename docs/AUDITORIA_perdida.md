@@ -172,3 +172,51 @@ La salida posible: en las tareas de pool vacío **saltarse el re-scoring** y env
 los 2 mejores del haz por `beam_score`. Hoy esas tareas valen cero garantizado, así que cualquier
 orden es ≥ 0. Queda por saber **en qué puesto del haz cae la GT**: si es el 2º, el top-2 la captura
 gratis. `haz2` guarda los candidatos con su score, así que eso se resuelve offline.
+
+# 7. VEREDICTO `haz2` (2026-09-21, ~1,5 h-cuota): el respaldo por haz MUERE por reloj
+
+## Mi diagnóstico del coste era equivocado
+
+| | `haz` (con 96 `.item()`/paso) | `haz2` (vectorizado) |
+|---|---|---|
+| media | 59,0 s/tarea | **51,6 s/tarea** |
+| ganancia | — | **solo 12%** |
+
+Yo predije 5-9× de mejora. **La vectorización apenas compró nada: el coste NO eran las
+sincronizaciones GPU→CPU, son los forwards del modelo.** Decodificar una rejilla de 930 celdas
+exige ~930 pasos secuenciales de un modelo de 4B, y eso no se optimiza con `topk`.
+
+| ancho | media | 240 tareas | solo largas (≥400 tok) sobre 80 tareas |
+|---|---|---|---|
+| 8 | 51,6 s | **+29,1% de reloj** | **+17,8%** |
+| 16 | 65,2 s | +36,7% | +21,7% (y **OOM** en la de 930 tokens) |
+
+Techo: **+4,8%**. `r512` murió con +11,9%. **Todas las variantes están 4-6× por encima.**
+
+## Y las dos escapatorias también se cierran
+
+1. **"Saltarse el re-scoring y enviar el top-2 del haz"**: en `53fb4810` la GT cae en el
+   **puesto 3 de 8**. El top-2 no la captura. La escapatoria no existe.
+2. **El conjunto de 2/18 no es estable**: `haz` recuperó `53fb4810` y `d59b0160`; `haz2` recuperó
+   `53fb4810` y `28a6681f`. Solo `53fb4810` se repite. El efecto (~11%) parece real, pero cae sobre
+   un conjunto **fronterizo** que cambia con el ruido del TTT — coherente con la regla del usuario
+   de que medimos un LLM no determinista.
+
+## VEREDICTO
+
+**El respaldo por haz queda cerrado por aritmética de reloj**, no por falta de efecto. Recupera
+~2 de 18 tareas y cuesta 4-6× el presupuesto disponible. Coste de cerrarlo: **~3 h-cuota** entre
+`haz` y `haz2`.
+
+## Lo que la línea deja, y no es poco
+
+1. **Instrumento validado**: `déficit frente al greedy` → `ancho ≈ exp(déficit)` predice el
+   resultado del haz sin excepción, con **un forward por tarea**. Cualquier pregunta futura sobre
+   búsqueda se contesta con eso en vez de con un barrido.
+2. **El mecanismo, confirmado con TTT**: el modelo acierta el argmax en el **99,5%** de los tokens
+   y la verdad queda a **14,75 nats** en ~4 celdas de decisión. El veredicto de agosto era correcto;
+   lo que no era representativo eran las condiciones, y eso solo movía el margen.
+3. **El coste real del decode secuencial**: ~51 s por rejilla larga con haz-8. Número duro para
+   presupuestar cualquier propuesta futura que implique generar rejillas completas.
+4. **El re-scoring cuesta ~1,6% de reloj por candidato** — el coste dominante de añadir candidatos,
+   que no estaba contabilizado en ninguna parte.
