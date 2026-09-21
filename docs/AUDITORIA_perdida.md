@@ -78,3 +78,65 @@ rejillas distintas, cada una ~98% correcta. Votar celda a celda **nunca** recupe
 en pie desde agosto: *"una celda dudosa en la vista identidad puede ser obvia en la rotada; las
 augmentaciones SON el mata-picos"*. Matan algunos picos, pero en las celdas de decisión fallan
 todas juntas y hacia el mismo sitio.
+
+---
+
+# 6. RESULTADO `haz` (2026-09-21, ~1,5 h-cuota): la re-medición CON TTT
+
+## El instrumento analítico queda VALIDADO
+
+Teacher forcing de la GT → rango del token correcto por posición → `déficit` frente al camino
+greedy → `ancho_implicado = exp(déficit)`. Predice el resultado del haz real **sin excepción**:
+
+| déficit | ancho implicado | haz 8 encuentra la GT |
+|---|---|---|
+| 0,0 (`58f5dbd5`) | 1 | ✅ (ya con ancho 1) |
+| 2,0 (`53fb4810`, `3a25b0d8`) | 7,4 | ✅ |
+| 3,5 (`d59b0160`) | 33 | ✅ |
+| ≥ 4,5 (las otras 14) | ≥ 90 | ❌ |
+
+Un forward por tarea sustituye a un barrido de anchos. Herramienta reutilizable.
+
+## El mecanismo de agosto se CONFIRMA, ahora con TTT y cuantificado
+
+| | pool vacío (n=6) | con pool (n=12) |
+|---|---|---|
+| tokens donde la GT **no** es el argmax | **4 de 703 = 0,50%** | 4 de 214 = 1,87% |
+| déficit mediano | **14,75 nats** | 8,25 nats |
+| ancho implicado mediano | **~2,5 millones** | ~3.800 |
+
+Con TTT el modelo acierta el argmax en el **99,5%** de los tokens — y aun así la verdad queda a
+14,75 nats del camino greedy, concentrados en ~4 celdas de decisión (≈3,7 nats cada una: el token
+correcto a ~2,5% de la masa del argmax). **Los picos siguen siendo profundos después del TTT.**
+El veredicto de agosto era correcto en el mecanismo; lo que no era representativo eran las
+condiciones.
+
+## Pero el cierre dejaba fuera un caso real
+
+El haz de ancho 8 sobre **una sola vista** recupera **2 tareas de 18 (11%)** que producción falla
+hoy: `53fb4810` (pool vacío) y `d59b0160` (pool con 20 candidatos, mejor a 20 celdas). Son
+exactamente los casos de **déficit bajo** (2,0 y 3,5): la verdad está a tiro, y el umbral absoluto
+la rechaza **solo por longitud**.
+
+⚠️ **n=18 con 2 éxitos**: el intervalo de confianza al 95% va de ~1,4% a ~34%. Podría valer
++1 punto o +20. No se puede estrechar sin más tareas.
+
+## El coste medido es fatal — pero es artefacto de mi implementación
+
+| | valor |
+|---|---|
+| haz-8, una vista, medido | **59 s/tarea** (13 s a 181 s según longitud) |
+| extrapolado a 240 tareas | 3,96 h = **+33,5% de reloj** |
+
+Eso mata cualquier versión general (`r512` cayó del acantilado con +11,9%). **Pero el bucle de
+candidatos hace 96 llamadas a `.item()` por paso de token** — 96 sincronizaciones GPU→CPU, hasta
+89.000 por tarea larga. El suelo real del forward con lote 8 y caché es ~20 ms/paso ⇒ **~19 s para
+930 tokens**, no 181. Vectorizando el `topk` en GPU el coste debería caer ~5-9×, a **~+5% de
+reloj** general o **~+3%** si solo se aplica donde el pool sale vacío.
+
+## Estado
+
+**El arreglo no es gratis ni está probado, pero es la primera palanca en semanas con efecto
+positivo medido.** Lo que falta antes de tocar al campeón: (1) vectorizar el haz y confirmar que
+el coste baja y que las 2 tareas se conservan; (2) comprobar que añadir 8 candidatos no rompe la
+selección, que hoy es sin pérdidas.
