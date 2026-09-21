@@ -170,6 +170,16 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # haz2 (21-sep): el haz VECTORIZADO. haz midio +2/18 tareas recuperadas pero 59 s/tarea
+    # (+33,5% de reloj), artefacto de 96 .item() por paso. Aqui una ordenacion en GPU y dos
+    # .tolist() por paso, prefill con lote 1 + expansion de cache. Anchos 8 y 16. Guarda los
+    # candidatos del haz con score para re-jugar la seleccion offline. Decide si cabe en el techo.
+    "haz2": {"notebook": "notebooks/haz2.ipynb", "slug": "arc-agi2-haz2",
+             "title": "arc agi2 haz2", "gpu": True,
+             "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                        "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+             "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                          "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # haz (21-sep): re-medicion CON TTT de la familia de reglas de aceptacion, cerrada el 22-ago
     # sin TTT y con una sola vista. La auditoria encontro que el 33% de tareas no produce NINGUN
     # candidato aunque el modelo este al 96-98% por celda: impuesto al tamano del umbral absoluto.

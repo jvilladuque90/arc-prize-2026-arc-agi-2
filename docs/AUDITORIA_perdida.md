@@ -140,3 +140,35 @@ reloj** general o **~+3%** si solo se aplica donde el pool sale vacío.
 positivo medido.** Lo que falta antes de tocar al campeón: (1) vectorizar el haz y confirmar que
 el coste baja y que las 2 tareas se conservan; (2) comprobar que añadir 8 candidatos no rompe la
 selección, que hoy es sin pérdidas.
+
+## 6-bis. Restricción encontrada gratis mientras corre `haz2`: el re-scoring
+
+Margen de la selección hoy (aproximado: solo `beam_score`, sin la mitad `score_aug`):
+
+| tarea | GT/16 | nº únicos | rank de la GT | punt. GT | punt. 2º rival |
+|---|---|---|---|---|---|
+| 3a25b0d8 | 1 | 13 | **6** | 2,28 | 3,97 |
+| b6f77b65 | 2 | 5 | 2 | 4,62 | 4,16 |
+| 58f5dbd5 | 14 | 2 | 1 | 39,80 | 12,61 |
+
+⇒ **Es el re-scoring aumentado el que hace la selección sin pérdidas**, no el `beam_score`: por
+`beam_score` solo, la GT de `3a25b0d8` sale en el puesto 6 de 13 y aun así producción la elige.
+
+Y eso tiene precio: el re-scoring evalúa cada candidato bajo **8 augmentaciones**. Hoy el scoring
+es el **7,9%** del reloj para ~5 candidatos por tarea ⇒ **~1,6% de reloj por candidato**.
+
+**Y en las 2 tareas nuevas la GT está en el haz pero NO es el candidato top** (`mejor_ok=False`).
+O sea que no basta con añadir uno. Si hubiera que añadir los 8:
+
+| dónde se aplique | decode del haz | re-scoring (8 cands) | total |
+|---|---|---|---|
+| todas las tareas | ~+5% | **+12,6%** | **+17,6%** ❌ |
+| solo donde el pool sale vacío (33%) | ~+3-5% | +4,2% | **+7-9%** ❌ |
+
+Ambos por encima del techo de +4,8% (`r512` murió con +11,9%). **El re-scoring, no el decode, es
+el coste dominante** — y no lo había contado.
+
+La salida posible: en las tareas de pool vacío **saltarse el re-scoring** y enviar directamente
+los 2 mejores del haz por `beam_score`. Hoy esas tareas valen cero garantizado, así que cualquier
+orden es ≥ 0. Queda por saber **en qué puesto del haz cae la GT**: si es el 2º, el top-2 la captura
+gratis. `haz2` guarda los candidatos con su score, así que eso se resuelve offline.
