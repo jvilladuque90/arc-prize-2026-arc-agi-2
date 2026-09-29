@@ -154,7 +154,7 @@ detector de vacuidad primero (lección `sft-outenv`).
 
 | paso | h-cuota |
 |---|---|
-| commit `nvplus` (29-sep) | ~2 |
+| commit `nvplus` (29-sep) | **1,2** (medido) |
 | puerta C (8B en eval, 4 GPUs) | ~1,5–2 |
 | commit del primer injerto (A1) | ~2 |
 | reserva para una submission | 2 |
@@ -164,4 +164,5 @@ detector de vacuidad primero (lección `sft-outenv`).
 | fecha | qué | resultado |
 |---|---|---|
 | 29-sep | indagación de baseline (LB, 490 kernels, modelos, web) | NVARC+ v2 + Qwen3-8B-Nemotron77K |
-| 29-sep | commit `nvplus` v1 (sin cambios) | en curso |
+| 29-sep | commit `nvplus` v1 (sin cambios): 36 min de pared ≈ 1,2 h-cuota; submission 120/120 válida | submit `56688393` PENDING (rerun ~12 h) |
+| 30-sep | leer `nvplus` contra la banda 29,86–31,52 | → lanzar `nvplus-a1` si se adopta |
