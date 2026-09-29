@@ -170,6 +170,25 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # nvplus-a1 (29-sep): nvplus + pasada B DIRIGIDA. Las tareas con pool vacio no escriben shard y
+    # NVARC+ las repetia en el catch-up con las MISMAS semillas; ahora hay marcador de procesada, el
+    # catch-up es solo para no alcanzadas y B va vacias -> un candidato -> resto. LANZAR CON --accelerator NvidiaL4.
+    "nvplus-a1": {"notebook": "notebooks/nvplus_a1.ipynb", "slug": "arc-agi2-nvplus-a1",
+                  "title": "arc agi2 nvplus a1", "gpu": True,
+                  "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                             "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+                  "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                               "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # nvplus (29-sep): NVARC+ v2 publico (luxluxshan/arc2-nvarc-v1) SIN CAMBIOS, baseline candidato.
+    # Mismo sft139 y misma imagen que el campeon; cambia la orquestacion: pasada A (64 seq TTT, 8 vistas,
+    # tope 800 s/tarea) + catch-up + pasada B con semillas nuevas (tope 700 s), seleccion kgmon FUSIONADA
+    # que nunca pierde el top-1 de A, y fallback identidad en vez de [[0]]. LANZAR CON --accelerator NvidiaL4.
+    "nvplus": {"notebook": "notebooks/nvplus.ipynb", "slug": "arc-agi2-nvplus",
+               "title": "arc agi2 nvplus", "gpu": True,
+               "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                          "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+               "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                            "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # haz2 (21-sep): el haz VECTORIZADO. haz midio +2/18 tareas recuperadas pero 59 s/tarea
     # (+33,5% de reloj), artefacto de 96 .item() por paso. Aqui una ordenacion en GPU y dos
     # .tolist() por paso, prefill con lote 1 + expansion de cache. Anchos 8 y 16. Guarda los
