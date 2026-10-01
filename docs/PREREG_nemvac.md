@@ -43,3 +43,29 @@ Sanidad: M debe salir ≲ 0,01 y E ≈ 0,05 (niveles ya medidos). Si no, el banc
 y no se lee nada.
 
 Coste previsto: ~15 min de pared ≈ **0,5 h-cuota**.
+
+---
+
+## RESULTADO (30-sep, ~0,3 h-cuota: 4 min de pared)
+
+Sanidad OK: M = 0,0001 (≤0,01) y E = 0,036 (≈0,05). Cero OOM. Datos crudos en `scripts/_nemvac.json`.
+
+| grupo | n | nll/celda mediana | p90 | greedy exacto sin TTT | celdas | r |
+|---|---|---|---|---|---|---|
+| M: AGI-1 train | 40 | 0,0001 | 0,013 | 90% | 100 | 0 |
+| T2: AGI-2 train | 40 | 0,0000 | 0,006 | 95% | 168 | −0,25 |
+| E: eval | 40 | **0,0363** | 0,105 | **10%** | 441 | 1 |
+| **Nemotron grandes** | 150 | **0,0002** | 0,005 | **74%** | 529 | **0,08** |
+| Nemotron resto | 150 | 0,0014 | 0,191 | 78% | 49 | 0,43 |
+
+**Veredicto por prerreg:**
+- **Grandes: r = 0,08 ≤ 0,2 ⇒ la fuente MUERE para el objetivo que importaba.** `sft139` emite la
+  salida entera correcta sin TTT en el 74% de los puzzles de ≥400 celdas, y **0 de 150** llegan al nivel
+  de NLL del eval. Memorizados o triviales para él: da igual, no hay gradiente que aprovechar.
+- Resto: r = 0,43, parcial. 33/150 (22%) están al nivel del eval, pero son puzzles **pequeños**
+  (mediana 49 celdas), lejos del déficit medido (escala/contenido), y parte de esa NLL alta puede ser
+  ruido de respuestas mal etiquetadas en el dataset.
+
+**Lectura de fondo:** el déficit no es "falta de puzzles", es que el eval cae **fuera** de lo que el
+modelo vio: los grandes de Nemotron son grandes pero **dentro** de su distribución (greedy 74%), el eval
+es grande y **fuera** (greedy 10%). Más datos de la misma fábrica no mueven eso.
