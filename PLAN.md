@@ -170,3 +170,4 @@ detector de vacuidad primero (lección `sft-outenv`).
 | 30-sep | puerta gratis Nemotron (`scripts/nemotron_puerta.py`) | 89% puzzles nuevos, 0 eval; escala AGI-1 (mediana 88 celdas), 15,8% ≥400 |
 | 30-sep | `nemvac` (detector de vacuidad, ~0,3 h-cuota) | ❌ grandes r=0,08: sft139 ya los resuelve sin TTT (74% greedy exacto); resto r=0,43 pero pequeños. Fuente Nemotron muerta para el déficit de escala |
 | 30-sep | `rearcvac` (re-ARC grande vs chico, 119 pares, ~0,2 h-cuota) | escala ×5,75 sobre regla conocida: greedy 78→67%; regla nueva: 10%. **El déficit es la NOVEDAD de la regla, no la escala** ⇒ ningún dato fabricable lo cubre; Plan A cerrado |
+| 30-sep | `nvplus` muestra 2 de varianza (rerun v1, 0 h-cuota), submit `56742827` | PENDING. ≥30,69 → muestra 1 fue ruido, tercera muestra · ≤29,86 → confirmado por debajo, cerrar · entre medias → más varianza, no mejor nivel |
