@@ -41,7 +41,7 @@ Campeón vigente: **`lb33-det` 30,69 ± 0,415** (n=3). Reglas de cuota y reloj: 
 
 ---
 
-## 2. El baseline adoptado: NVARC+ v2
+## 2. El baseline candidato: NVARC+ v2 — ❌ DESCARTADO (29,44, 30-sep)
 
 **Modelo** (idéntico al nuestro): `sorokin/qwen3_4b_grids15_sft139` — Qwen3-4B con vocabulario de
 16 tokens de rejilla, SFT de NVARC sobre sus datos sintéticos. Misma imagen Docker que el campeón.
@@ -165,4 +165,7 @@ detector de vacuidad primero (lección `sft-outenv`).
 |---|---|---|
 | 29-sep | indagación de baseline (LB, 490 kernels, modelos, web) | NVARC+ v2 + Qwen3-8B-Nemotron77K |
 | 29-sep | commit `nvplus` v1 (sin cambios): 36 min de pared ≈ 1,2 h-cuota; submission 120/120 válida | submit `56688393` PENDING (rerun ~12 h) |
-| 30-sep | leer `nvplus` contra la banda 29,86–31,52 | → lanzar `nvplus-a1` si se adopta |
+| 30-sep | **`nvplus` = 29,44** < 29,86 | ❌ **DESCARTADO** por prerreg (−3 tareas vs 30,69). A1-A3 sin objeto; campeón sigue `lb33-det` |
+| 30-sep | apuesta C: aritmética de reloj | ❌ no cabe: ≥15% del reloj (≈ −9 tareas) para un 8B sin medir; queda solo como fuente de DATOS |
+| 30-sep | puerta gratis Nemotron (`scripts/nemotron_puerta.py`) | 89% puzzles nuevos, 0 eval; escala AGI-1 (mediana 88 celdas), 15,8% ≥400 |
+| 30-sep | `nemvac` (detector de vacuidad, PREREG_nemvac.md) | lanzado 23:18 |
