@@ -69,3 +69,23 @@ Sanidad OK: M = 0,0001 (≤0,01) y E = 0,036 (≈0,05). Cero OOM. Datos crudos e
 **Lectura de fondo:** el déficit no es "falta de puzzles", es que el eval cae **fuera** de lo que el
 modelo vio: los grandes de Nemotron son grandes pero **dentro** de su distribución (greedy 74%), el eval
 es grande y **fuera** (greedy 10%). Más datos de la misma fábrica no mueven eso.
+
+---
+
+# PREREG `rearcvac` (30-sep): ¿falla sft139 al llevar una regla CONOCIDA a una escala NO vista?
+
+`nemvac` enseñó que el eval es grande **y fuera de distribución**, mientras que los grandes de Nemotron
+son grandes **dentro**. Esta puerta separa los dos factores. Por cada tarea AGI-1 de training
+(memorizada por sft139): **demos = las originales**, **test = instancia NUEVA de re-ARC** verificada.
+- `rearc_grande`: salida ≥ max(400, 1,3× la mayor salida demo) — fuera de la envolvente de escala
+  (mediana 609 celdas, 5,75× la envolvente). 150 tareas.
+- `rearc_chico`: salida ≤ la mayor demo — misma regla dentro de escala. 150; **136 pareadas**.
+Mismo kernel y mismos controles que `nemvac` (`scripts/rearc_puerta.py` genera los datos).
+
+| resultado | lectura | siguiente paso |
+|---|---|---|
+| r(grande) ≥ 0,5 **y** grande > chico en ≥70% de los pares | la ESCALA es el déficit aun con reglas conocidas | SFT con re-ARC grande (datos ilimitados, dirigidos) |
+| r(grande) ≤ 0,2 | la escala sola no rompe al modelo: el déficit es la NOVEDAD de la regla | no hay datos fabricables que lo cubran ⇒ consolidar + Paper Track |
+| intermedio | escala explica parte | SFT solo con las instancias de NLL alta |
+
+Sanidad: r(chico) debe salir bajo (≲0,3): misma regla memorizada, misma escala.
