@@ -169,3 +169,4 @@ detector de vacuidad primero (lección `sft-outenv`).
 | 30-sep | apuesta C: aritmética de reloj | ❌ no cabe: ≥15% del reloj (≈ −9 tareas) para un 8B sin medir; queda solo como fuente de DATOS |
 | 30-sep | puerta gratis Nemotron (`scripts/nemotron_puerta.py`) | 89% puzzles nuevos, 0 eval; escala AGI-1 (mediana 88 celdas), 15,8% ≥400 |
 | 30-sep | `nemvac` (detector de vacuidad, ~0,3 h-cuota) | ❌ grandes r=0,08: sft139 ya los resuelve sin TTT (74% greedy exacto); resto r=0,43 pero pequeños. Fuente Nemotron muerta para el déficit de escala |
+| 30-sep | `rearcvac` (re-ARC grande vs chico, 119 pares, ~0,2 h-cuota) | escala ×5,75 sobre regla conocida: greedy 78→67%; regla nueva: 10%. **El déficit es la NOVEDAD de la regla, no la escala** ⇒ ningún dato fabricable lo cubre; Plan A cerrado |

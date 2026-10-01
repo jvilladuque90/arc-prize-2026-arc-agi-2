@@ -89,3 +89,24 @@ Mismo kernel y mismos controles que `nemvac` (`scripts/rearc_puerta.py` genera l
 | intermedio | escala explica parte | SFT solo con las instancias de NLL alta |
 
 Sanidad: r(chico) debe salir bajo (≲0,3): misma regla memorizada, misma escala.
+
+## RESULTADO `rearcvac` (30-sep, ~0,2 h-cuota: 3 min de pared)
+
+| grupo | n | nll/celda mediana | greedy exacto sin TTT | celdas | r |
+|---|---|---|---|---|---|
+| re-ARC chico (regla conocida, escala conocida) | 150 | 0,0040 | 75% (78% pareado) | 60 | 0,62 |
+| re-ARC **grande** (misma regla, 5,75× la envolvente) | 150 | **0,0005** | 67% (pareado) | 609 | **0,24** |
+| eval (regla NUEVA) | 40 | 0,0363 | **10%** | 441 | 1 |
+
+Pareado (119 tareas con ambos brazos): el grande es peor por celda en **27/119 (23%)**; NLL total
+mediana 0,12 → 0,26.
+
+**Fallo de sanidad que hay que decir**: r(chico) = 0,62 > 0,3. No es el banco, es la **métrica**: la
+NLL por celda penaliza a las rejillas pequeñas (pocas celdas para repartir los mismos tokens de
+decisión). La medida limpia para comparar escalas es el **greedy exacto**: 78% → 67% pareado.
+
+**Veredicto (fila 2 del prerreg en sustancia; r=0,24 queda en la frontera, el criterio pareado falla
+con claridad):** llevar una regla CONOCIDA a 5,75× su escala cuesta ~11 puntos de resolución exacta;
+una regla NUEVA cuesta ~65 (75% → 10%). **El déficit es la novedad de la regla, no la escala.**
+No hay datos que podamos fabricar (Nemotron, re-ARC, training de ARC) que lo cubran: todos son reglas
+que sft139 ya domina. Esto cierra el Plan A tal como estaba planteado.
