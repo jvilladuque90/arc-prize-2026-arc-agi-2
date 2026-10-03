@@ -41,7 +41,7 @@ Campeón vigente: **`lb33-det` 30,69 ± 0,415** (n=3). Reglas de cuota y reloj: 
 
 ---
 
-## 2. El baseline candidato: NVARC+ v2 — ❌ DESCARTADO (29,44, 30-sep)
+## 2. El baseline candidato: NVARC+ v2 — EMPATE en nivel con `lb33-det`, pero σ≈2,6× mayor ⇒ NO se adopta (29,44 y 30,97; 3-oct)
 
 **Modelo** (idéntico al nuestro): `sorokin/qwen3_4b_grids15_sft139` — Qwen3-4B con vocabulario de
 16 tokens de rejilla, SFT de NVARC sobre sus datos sintéticos. Misma imagen Docker que el campeón.
@@ -170,4 +170,5 @@ detector de vacuidad primero (lección `sft-outenv`).
 | 30-sep | puerta gratis Nemotron (`scripts/nemotron_puerta.py`) | 89% puzzles nuevos, 0 eval; escala AGI-1 (mediana 88 celdas), 15,8% ≥400 |
 | 30-sep | `nemvac` (detector de vacuidad, ~0,3 h-cuota) | ❌ grandes r=0,08: sft139 ya los resuelve sin TTT (74% greedy exacto); resto r=0,43 pero pequeños. Fuente Nemotron muerta para el déficit de escala |
 | 30-sep | `rearcvac` (re-ARC grande vs chico, 119 pares, ~0,2 h-cuota) | escala ×5,75 sobre regla conocida: greedy 78→67%; regla nueva: 10%. **El déficit es la NOVEDAD de la regla, no la escala** ⇒ ningún dato fabricable lo cubre; Plan A cerrado |
-| 30-sep | `nvplus` muestra 2 de varianza (rerun v1, 0 h-cuota), submit `56742827` | PENDING. ≥30,69 → muestra 1 fue ruido, tercera muestra · ≤29,86 → confirmado por debajo, cerrar · entre medias → más varianza, no mejor nivel |
+| 30-sep | `nvplus` muestra 2 de varianza (rerun v1, 0 h-cuota), submit `56742827` | **30,97** (≥30,69 ⇒ la muestra 1 era en parte ruido; lectura en la fila siguiente) |
+| 3-oct | **`nvplus` n=2: 29,44 · 30,97** (media 30,21, s 1,08, rango 1,53 = 3,7 tareas) frente a `lb33-det` n=3 (media 30,69, s 0,415, rango 0,83 = 2,0 tareas) | **Empate en nivel** (−0,49 pt = −1,2 tareas = 0,6 errores estándar). **σ ≈2,6× mayor**: NVARC+ conserva el tope por tarea (`task_cap` 800/700 s, evaluado al inicio de cada lote) cuya eliminación estrechó el canal del campeón el 2-sep (hipótesis respaldada por el código y por esa medición; NO medida en NVARC+). **No se adopta**: mismo nivel, menos consistencia y, sobre todo, un canal ancho **ciega** los A/B (con σ≈1,1, estimación gruesa de n=2, un injerto tendría que valer ≥2,2 pt para leerse con una sola muestra; con el campeón basta ~1 pt). A1-A3 se aparcan. **Tercera muestra: no** (el prerreg decía «tercera muestra»; con esta σ ya no cambia la decisión: para que la media de 3 superase al campeón en +1 pt la 3ª tendría que dar 34,7, >4σ) |
