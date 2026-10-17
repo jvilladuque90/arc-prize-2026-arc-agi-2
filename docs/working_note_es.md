@@ -163,7 +163,7 @@ re-scoring, TTT, seeds, selección) se mantiene verbatim del baseline auditado.
 - **Nuestro SFT con 8K sintéticos (train v10/v11).** Cero soluciones exactas. Data muy por debajo de
   la escala 266K de NVARC; **el SFT es nuestra capacidad más débil.**
 
-**Un gap fantasma, resuelto.** Somos **byte-idénticos** (los 4 ficheros core + config + imagen
+**Un gap fantasma, NO resuelto (abandonado).** Somos **byte-idénticos** (los 4 ficheros core + config + imagen
 Docker + modelo + sources, verificado) al notebook público del pelotón de 33.89%, pero sacamos
 ~30%. Tres tiradas frescas (28.47/30.14/29.72) quedan por debajo de la banda apretada del pelotón —
 un gap **sistémico**, no varianza, cuya causa no pudimos identificar en remoto (probables versiones

@@ -1,5 +1,7 @@
 # Arquitectura del campeón y mapa de intervención
 
+> ⚠️ **SUPERADO (17-oct-2026).** Este documento describe el 30,14 de agosto. Cifras que ya no valen: «cobertura 0,80 / ~20% de tareas jamás procesadas» (hoy cobertura 100%: se quitó el tope por tarea), «GT-en-pool 0,42» (medido 20–31% en dificultad real), y toda la §6 «Abierto y sin medir» (se midió o murió: ver `PANORAMA.md` §3). La descripción del tokenizador, del modelo y del pipeline sigue siendo correcta. **Referencia vigente: [PANORAMA.md](PANORAMA.md).**
+
 Qué es exactamente el modelo que corre en el kernel de 30.14%, dónde inyecta nuestra data de
 entrenamiento, y qué superficie queda sin tocar. Documento de análisis — todos los números
 salen de artefactos verificables, no de memoria.

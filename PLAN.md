@@ -1,5 +1,7 @@
 # PLAN — nuevo baseline y campaña final (desde 2026-09-29)
 
+> **Estado a 17-oct y panorama completo (qué hace el sistema, diagramas, probado/no probado, próximos pasos): [docs/PANORAMA.md](docs/PANORAMA.md).** Este fichero queda como bitácora.
+
 Deadline de submissions: **2026-11-02** (quedan ~5 semanas). Paper Track: 2026-11-09 (inscritos).
 Campeón vigente: **`lb33-det` 30,69 ± 0,415** (n=3). Reglas de cuota y reloj: ver `CLAUDE.md`.
 
@@ -81,7 +83,7 @@ después), así que **no es concluyente**. El LB es n=240: la pregunta se contes
 | palanca | efecto | ¿ya está en NVARC+? |
 |---|---|---|
 | semilla de scoring estable (md5) | σ 1,27 → 0,415 | **sí** (`stable_seed`) |
-| **quitar el tope de reloj por tarea** | **+4 tareas** (29,03 → 30,69) | **NO**: tiene 800/700 s |
+| quitar el tope de reloj por tarea **+ semilla md5** (un solo submit, dos injertos) | +4 tareas (29,03 → 30,69), **no atribuible a cada uno** | tope: **NO** (800/700 s); semilla: sí |
 | orden cheap-first | incluido en el campeón | sí |
 | perfpatch (logits en GPU) | throughput | sí |
 | snapshot del adaptador en RAM | −1 GB de GPU, 0 puntos | no (robustez, no se injerta) |

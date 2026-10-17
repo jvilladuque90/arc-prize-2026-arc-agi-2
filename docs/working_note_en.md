@@ -159,7 +159,7 @@ re-scoring, TTT, seeds, selection) is kept verbatim from the audited baseline.
 - **Our own SFT with 8K synthetic (train v10/v11).** Zero exact solutions. Data far below the
   266K NVARC scale; **SFT is our weakest capability.**
 
-**A phantom gap, resolved.** We are **byte-identical** (all four core files + config + Docker image
+**A phantom gap, NOT resolved (abandoned).** We are **byte-identical** (all four core files + config + Docker image
 + model + sources, verified) to the public 33.89% pelotón notebook, yet draw ~30%. Three fresh
 draws (28.47/30.14/29.72) stay below the tight pelotón band — a **systematic**, not variance, gap,
 whose cause we could not identify remotely (likely exact source-version differences or unpublished
