@@ -27,3 +27,19 @@ mal*, *sin respuesta (truncada/sin cierre)* y *no lanzada por reloj*.
 si no, el formato no está identificado y no se lee nada.
 
 **Coste previsto:** ~60–75 min de pared ≈ **2–2,5 h-cuota** (peor caso ~76 min). Un solo banco.
+
+---
+
+## RESULTADO (23-oct): BANCO NO VÁLIDO — el modelo ya no existe en Kaggle
+
+Los 4 workers abortaron en 2 min con `assert MDIR` (no se montó ningún modelo). Causa: Kaggle descartó
+en silencio `model_sources` (metadata committeada `[]`, el fallo que avisa TACTICAS.md) y, al
+investigar, `GetModel`/`GetModelInstance` devuelven **403**: `nisshokuitsuki/qwen3-8b-nemotron77k-grid-direct`
+era accesible el 29-sep y **ya no lo es** (retirado o vuelto privado). Probadas ambas capitalizaciones
+del framework; no hay copia en Hugging Face ni otro espejo en Kaggle. **No hay lectura de U**: ni a favor
+ni en contra. Coste: ~0,1 h-cuota (2 min en L4×4 + un intento en T4).
+
+**Dos errores míos, dichos claro:** (1) no comprobé la metadata committeada tras el push (lo hice solo
+después de ver el fallo); (2) el 29-sep dejé la apuesta C «para después» sin copiar el modelo a un
+dataset propio, y un artefacto de un tercero puede desaparecer. Regla: si una decisión depende de un
+artefacto ajeno, **copiarlo a algo nuestro el día que se decide que importa**.

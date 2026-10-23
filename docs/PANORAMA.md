@@ -110,7 +110,7 @@ Verificado hoy contra el código (`diff` de configuración):
 | U4 | Bug de NVARC+: tarea procesada con pool vacío no escribe shard ⇒ el catch-up la repite con las mismas semillas | preparado (`nvplus-a1`), **nunca ejecutado**; suposición «mismas semillas ⇒ mismo vacío» sin comprobar (la GPU no es determinista) | 1 slot + 1,2 h-cuota |
 | U5 | **El hueco con el pelotón**: mismo modelo, notebooks públicos en 33,89–38,89 vs nuestro ~30 | es la mayor diferencia sin explicar (~3–8 pt = 7–19 tareas) | la hipótesis «imagen Docker» quedó **refutada hoy** (§5); sin hipótesis nueva |
 | U6 | **Inducción por LLM** (que el modelo escriba un programa Python y se verifique contra las demos) | los DSL a mano murieron, pero **no se ha probado un LLM generando código**; es lo que insinúan los datos de Nemotron (prompt «escribe `transform`»). Única vía con techo alto | puerta de 20 tareas (§6, P1) |
-| U7 | Generador alternativo `qwen3-8b-nemotron77k` | otro modelo, otros datos; coste ~18K tokens/respuesta | puerta de 20 tareas (§6, P1) |
+| U7 | Generador alternativo `qwen3-8b-nemotron77k` | **bloqueado 23-oct: el modelo ya no es accesible (403), sin copia en ningún sitio**; no hay lectura, ni a favor ni en contra | imposible con ese artefacto; U6 sigue abierto con otros modelos |
 | U8 | Búsqueda por tarea más profunda dentro de B (haz solo en pools vacíos) | el haz costaba +29% en UNA pasada; dentro de B el tiempo ya está pagado | depende de U2 |
 
 ## 4. Dónde se pierde el score (para orientar cualquier idea nueva)
@@ -151,7 +151,7 @@ Cuota: las últimas 1,7 h-cuota gastadas (29/30-sep) son de la semana anterior; 
 | prioridad | prueba | coste | decisión que habilita |
 |---|---|---|---|
 | **P0** | **U1**: leer el «Run time» de las dos corridas de NVARC+ en la UI de Kaggle | 0 | si la pasada B terminó con holgura, hay reloj libre real que gastar; si no, NVARC+ ya iba justo |
-| **P1** | **Puerta de inducción/8B (U6+U7)**: `qwen3-8b-nemotron77k` sobre las ~20 tareas de `strat` (ya tienen resultado del campeón ⇒ pares), `max_new_tokens` 24K, tope de pared 40 min. Prerreg: **≥3 tareas resueltas que el campeón falla** ⇒ merece ingeniería (vLLM/FP8); 1–2 ⇒ marginal; 0 ⇒ línea muerta | ~2,5 h-cuota | única vía con techo alto; si pasa, hay que diseñar su sitio en el reloj (sustituir la pasada B) |
+| ~~P1~~ | ~~**Puerta de inducción/8B (U6+U7)**~~ **BLOQUEADA 23-oct (modelo retirado; ver `PREREG_nem8b.md`)**. Texto original: `qwen3-8b-nemotron77k` sobre las ~20 tareas de `strat` (ya tienen resultado del campeón ⇒ pares), `max_new_tokens` 24K, tope de pared 40 min. Prerreg: **≥3 tareas resueltas que el campeón falla** ⇒ merece ingeniería (vLLM/FP8); 1–2 ⇒ marginal; 0 ⇒ línea muerta | ~2,5 h-cuota | única vía con techo alto; si pasa, hay que diseñar su sitio en el reloj (sustituir la pasada B) |
 | P2 | **U3/U4** con un solo brazo: NVARC+ con `nvplus-a1` (marca de procesada + B dirigida) | 1 slot + 1,2 h-cuota | si ≥ 31,5 sobre ambas muestras, A1 es real; si no, NVARC+ se cierra |
 | P3 | **Paper Track** (9-nov): esta anatomía medida (autopsia, escalera OOD, novedad vs escala, cierres) | 0 | entregable seguro |
 | — | **No probar**: más datos sintéticos de reglas conocidas, cambio de base, DSL a mano, haz como respaldo en una pasada, rangos/épocas/orden del TTT | — | cerrados con medición (§3.2) |
