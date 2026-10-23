@@ -170,6 +170,14 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # nem8b (22-oct): puerta del generador alternativo Qwen3-8B-Nemotron77K (sin TTT) sobre las 18
+    # tareas de strat. Cuenta aparte las trazas truncadas. PREREG en docs/PREREG_nem8b.md. L4.
+    "nem8b": {"notebook": "notebooks/nem8b.ipynb", "slug": "arc-agi2-nem8b",
+              "title": "arc agi2 nem8b", "gpu": True,
+              "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                         "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+              "defaults": {"kernel_source": [],
+                           "model": ["nisshokuitsuki/qwen3-8b-nemotron77k-grid-direct/Transformers/default/1"]}},
     # rearcvac (30-sep): mismo detector que nemvac; test = instancia re-ARC GRANDE (fuera de la envolvente)
     # vs CHICA de la misma regla AGI-1, demos originales. Decide si la escala es el deficit. L4.
     "rearcvac": {"notebook": "notebooks/rearcvac.ipynb", "slug": "arc-agi2-rearcvac",
