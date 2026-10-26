@@ -170,6 +170,16 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # q27strat (26-oct): Qwen3.8-27B FP8 servido por vLLM en 4xL4 (agente de madarshbb VERBATIM), modo
+    # directo xhigh, 1 muestra, sobre las 18 tareas de strat. Mide U (resueltas que el campeon falla) y
+    # tok/s reales en L4. PREREG en docs/PREREG_q27strat.md. Fuentes AJENAS (copiar a datasets propios).
+    "q27strat": {"notebook": "notebooks/q27strat.ipynb", "slug": "arc-agi2-q27strat",
+                 "title": "arc agi2 q27strat", "gpu": True,
+                 "docker": "gcr.io/kaggle-private-byod/python@sha256:57e612b484cf3df5026ee4dcc3cb176974b22b2bc0937fb1e16132a8be4cb13c",
+                 "defaults": {"kernel_source": [],
+                              "dataset": ["mirzamilanfarabi/arc3-vllm-h100-wheelhouse-v3",
+                                          "keithtyser/taaf-duck-qwen38-serving-v1"],
+                              "model": ["foysalemonshanto/qwen3-8-27b-fp8-repacked-v1/PyTorch/hf-fp8/1"]}},
     # nem8b (22-oct): puerta del generador alternativo Qwen3-8B-Nemotron77K (sin TTT) sobre las 18
     # tareas de strat. Cuenta aparte las trazas truncadas. PREREG en docs/PREREG_nem8b.md. L4.
     "nem8b": {"notebook": "notebooks/nem8b.ipynb", "slug": "arc-agi2-nem8b",
