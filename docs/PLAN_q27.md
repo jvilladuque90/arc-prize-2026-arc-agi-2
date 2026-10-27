@@ -4,8 +4,8 @@ Decisión del usuario (26-oct): *montar el 27B sobre el agente público, auditar
 medir en las 18 de `strat` (U y tok/s), un submit, y ver qué TTT o técnica similar cabe en el reloj. Sin
 defensas de posición: la mejor forma de subir el score.*
 
-Estado: banco `q27strat` lanzado 26-oct 13:49 (`docs/PREREG_q27strat.md`). Los huecos `[medir]` se llenan
-con su resultado.
+Estado: `q27strat` medido el 26-oct (`docs/PREREG_q27strat.md` §Resultado): infra OK a la primera (escalera 0: MTP+KV FP8),
+**241 tok/s de media y ~440 sostenidos** en L4×4, U inconclusa (17/18 cortadas a 41K de razonamiento). Submit `q27sub` en cola.
 
 ## 1. Las dos bases, con números
 
@@ -27,7 +27,7 @@ Lectura: el 27B tiene un techo 8–12 pt por encima del nuestro **sin ninguna pa
 | nuestra palanca (4B) | evidencia que la respalda | ¿traslada? | cómo, y coste |
 |---|---|---|---|
 | **TTT por tarea** (LoRA r=256) | +20,6 pt sobre el 4B (nottt 9,58 vs 30,14) | **NO, literal** | 27B en bf16 son 54 GB (no caben en 4×24 GB con activaciones); el FP8 de vLLM no es entrenable con peft; y el coste escala ×7 en parámetros: 63 s/tarea en el 4B ⇒ ≥7 min/tarea ⇒ 28 h para 240. Muerto por memoria y por reloj. |
-| **sustituto del TTT: escalado en tiempo de test** | ARC Prize: 1,5% → 22,8% → 42,4% según esfuerzo de razonamiento | **SÍ, es la palanca principal** | tokens por intento. Hoy el agente da ~12K (2 muestras, 240 tareas): régimen *low*. Con **1 muestra** ⇒ ~24K; con orden por coste y sin rescate ⇒ más. Lo que se mide en `q27strat`: tok/s reales `[medir]`. |
+| **sustituto del TTT: escalado en tiempo de test** | ARC Prize: 1,5% → 22,8% → 42,4% según esfuerzo de razonamiento | **SÍ, es la palanca principal** | tokens por intento. Hoy el agente da ~12K (2 muestras, 240 tareas): régimen *low*. Con **1 muestra** ⇒ ~24K; con orden por coste y sin rescate ⇒ más. Medido en `q27strat`: **~440 tok/s sostenidos** (241 de media con cola), ×3 lo que el autor asumía. |
 | **quitar el tope por tarea / presupuesto global** | 29,03 → 30,69 (con la semilla md5) | **SÍ** | el agente ya asigna `cap = oferta/n_tareas × 1,3` y respeta un deadline global: misma filosofía. Mejora: cap **por tarea según tamaño del prompt** (las grandes necesitan más tokens de salida solo para escribir la rejilla). |
 | **cheap-first** | en el campeón | **SÍ** (ya está) | `run_submit` ordena por longitud del prompt. |
 | **re-scoring con 8 augmentaciones** (hace la selección sin pérdidas) | medido en `strat` | **parcial** | con vLLM se puede pedir `logprobs` y puntuar una rejilla candidata bajo vistas transformadas, pero cada vista es un prompt de 2–8K tokens: 8 vistas × N candidatos ⇒ caro. Alternativa gratis: **verificación exacta del programa contra las demos (REPL)**, que es más fuerte que el consenso. |
@@ -61,7 +61,7 @@ ensembles de varios 27B.
 
 ## 4. El reloj: tres repartos posibles para el submit
 
-Supuestos: 240 tareas; `T` = tok/s agregados medidos en `q27strat` `[medir]`; oferta = T × 11,4 h × 3600.
+Medido: `T` ≈ 400 tok/s sostenidos (441 en el log de vLLM con 16 peticiones; 241 de media por la cola). Oferta ≈ 400 × 40.000 s ≈ **16 M tokens** en el rerun (11,4 h − ~15 min de instalación y arranque).
 
 | reparto | tokens/intento | lo que pierde |
 |---|---|---|
@@ -69,9 +69,10 @@ Supuestos: 240 tareas; `T` = tok/s agregados medidos en `q27strat` `[medir]`; of
 | B. **27B solo, 1 muestra** | oferta/240 | `attempt_2` |
 | C. híbrido: 4B TTT en las ~160 tareas «baratas» (donde el pool no sale vacío) + 27B en las ~80 restantes | 27B: oferta×(fracción de reloj)/80 | hay que recortar el 4B (hoy usa el 95%): el 4B a media carga pierde ~1 pt (NVARC+ 30,21) |
 
-Con T = 140: B da 24K tokens/intento (régimen *low/medium*: 13–23% de ARC Prize, pero aquí 1 muestra sobre
-tareas Kaggle, no comparable 1:1). Con T = 260 se llega a 45K (régimen *xhigh*). **La medición de T decide
-entre B y C, y si hay que optimizar el servidor antes del submit.**
+**Decisión: reparto B.** Con T ≈ 400, una muestra de ~57K por tarea cuesta 13,7 M ⇒ cabe, y los ~2 M sobrantes pagan
+segundas muestras en orden sample-major (el agente ya lo hace). `q27sub` = agente verbatim con `max_tokens` 57.344,
+`thinking_token_budget` 49.152, `tok_per_s` 400. Prerreg: > 30,69 + 2σ (31,52) ⇒ nueva base; 21,5–31,5 ⇒ el presupuesto
+sube el score pero no basta (siguiente: REPL / más tokens); ≤ 21,5 ⇒ el presupuesto no era el cuello en Kaggle.
 
 ## 5. Riesgos, dichos antes
 
@@ -84,7 +85,7 @@ entre B y C, y si hay que optimizar el servidor antes del submit.**
 
 ## 6. Secuencia
 
-1. `q27strat` → U, tok/s, infra. **[en curso]**
+1. `q27strat` → U, tok/s, infra. **[hecho 26-oct]**
 2. Según §4: submit B (1 muestra) o C (híbrido). Prerreg: > 30,69 + 2σ ⇒ nueva base.
 3. Segundo brazo en `strat`: modo REPL (verificación exacta). Si U_repl > U_directo ⇒ cambiar modo.
 4. Copia de artefactos a datasets propios en cuanto haya un resultado positivo.
