@@ -170,6 +170,14 @@ KERNELS = {
                               "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # q27sub (26-oct): SUBMIT del agente Qwen3.8-27B (madarshbb verbatim; corre en el rerun, ~1 min de cuota
+    # en el commit) con presupuesto ajustado a lo medido: 57K tokens/intento, thinking 49K, tok_per_s 400.
+    "q27sub": {"notebook": "notebooks/q27sub.ipynb", "slug": "arc-agi2-q27sub",
+               "title": "arc agi2 q27sub", "gpu": True,
+               "docker": "gcr.io/kaggle-private-byod/python@sha256:57e612b484cf3df5026ee4dcc3cb176974b22b2bc0937fb1e16132a8be4cb13c",
+               "defaults": {"kernel_source": [],
+                            "dataset": ["mirzamilanfarabi/arc3-vllm-h100-wheelhouse-v3", "keithtyser/taaf-duck-qwen38-serving-v1"],
+                            "model": ["foysalemonshanto/qwen3-8-27b-fp8-repacked-v1/PyTorch/hf-fp8/1"]}},
     # q27strat (26-oct): Qwen3.8-27B FP8 servido por vLLM en 4xL4 (agente de madarshbb VERBATIM), modo
     # directo xhigh, 1 muestra, sobre las 18 tareas de strat. Mide U (resueltas que el campeon falla) y
     # tok/s reales en L4. PREREG en docs/PREREG_q27strat.md. Fuentes AJENAS (copiar a datasets propios).
