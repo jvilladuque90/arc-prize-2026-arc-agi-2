@@ -224,6 +224,14 @@ KERNELS = {
                           "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                "defaults": {"kernel_source": [],
                             "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # nvbeam (28-oct): nvplus_a1 + HAZ-8 (2 vistas, sin umbral) como respaldo en la pasada B para los pools
+    # vacios de A; mismo scoring/kgmon. Smoke del commit: 2 tareas, 30 min, haz forzado. LANZAR CON NvidiaL4.
+    "nvbeam": {"notebook": "notebooks/nvbeam.ipynb", "slug": "arc-agi2-nvbeam",
+               "title": "arc agi2 nvbeam", "gpu": True,
+               "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                          "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+               "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                            "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # nvplus-a1 (29-sep): nvplus + pasada B DIRIGIDA. Las tareas con pool vacio no escriben shard y
     # NVARC+ las repetia en el catch-up con las MISMAS semillas; ahora hay marcador de procesada, el
     # catch-up es solo para no alcanzadas y B va vacias -> un candidato -> resto. LANZAR CON --accelerator NvidiaL4.
