@@ -46,3 +46,35 @@ REPL acierta), turnos, llamadas a Python, tokens, tok/s.
 Coste: ~60–80 min ≈ 2–2,7 h-cuota. En paralelo (0 cuota): **`q27sub2`** = autor verbatim + `concurrency` 16
 (un cambio), para medir el mecanismo del §1.2 con n=240. Prerreg q27sub2: **> 24** ⇒ la concurrencia explica el
 16,94 y el directo bien configurado vale ≥ 24; 19–24 ⇒ dentro del ruido del autor; < 19 ⇒ hay otro factor.
+
+---
+
+## RESULTADO `q27repl` (28-oct, 79 min de pared ≈ 2,6 h-cuota)
+
+Infra OK (instalación 163 s, arranque 481 s, escalera 0). 1,09 M tokens en 4.095 s ⇒ **~266 tok/s** (las llamadas
+a herramientas y los turnos cortos bajan el throughput frente a los 440 del directo).
+
+| medida | valor |
+|---|---|
+| verificadas contra las demos | **1/18**: `58f5dbd5` (control; el campeón también la tiene). 9 turnos, 6 llamadas a Python, 39K tokens |
+| correctas en test (top-1 = top-2) | 1/18 |
+| **U** (campeón falla, REPL acierta) | **0/15** |
+| programas que reproduzcan ≥ 1 demo, en las 15 fallidas | **0** (`best_ok` = 0 en 7 con submit, −1 en 8 sin submit) |
+| presupuesto consumido | 60–71K tokens en 15/18 (`failed` = agotado), 10–35 turnos, 6–32 llamadas a Python |
+| `stopped` | 2 (`f931b4a8` 46K, `faa9f03d` 22K: cortadas por el deadline de la ventana) |
+
+**Veredicto (fila 4 del prerreg): el REPL no aporta a este presupuesto.** Con 60K tokens y hasta 35 iteraciones
+de prueba contra las demos, el modelo no escribió ni un programa que reprodujera **una** demo en ninguna de las 15
+tareas que el campeón falla. El control pasó (verificado y correcto), así que no es formato ni parseo: es capacidad
+a este presupuesto en tareas de dificultad real.
+
+## Cierre de la vía 27B dentro de los límites de Kaggle (28-oct)
+
+Tres pilotos con protocolo distinto (lección RSNA: no cerrar por uno): directo 49K/2 muestras (autor: 21,53),
+directo 57K (16,94; error de concurrencia mío), REPL 60K con herramientas (1/18 en `strat`, igual que el directo).
+Más `q27sub2` (autor + concurrencia 16) pendiente en el LB. En las 18 tareas representativas, **los aciertos del
+27B son subconjunto de los del campeón** (solo el control, más ½ de `f931b4a8` en directo): no hay complementariedad
+que justifique un híbrido, y a reloj partido ambos pierden. El 42,4% de ARC Prize es con tokens sin tope; en Kaggle
+caben ~16 M tokens por corrida (~60K/tarea), y a ese presupuesto el modelo no converge en las tareas difíciles.
+**Queda como medición publicable** (primera medición de Qwen3.8-27B dentro de los límites de Kaggle: 440 tok/s en
+L4×4, ~16 M tokens/rerun, 17–22 en el LB, 1/18 en tareas p5–p95 a 60K) y como vía cerrada para el 2-nov.
