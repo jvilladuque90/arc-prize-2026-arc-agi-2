@@ -224,6 +224,13 @@ KERNELS = {
                           "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
                "defaults": {"kernel_source": [],
                             "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # nvthr (29-oct): nvbeam con DFS a p>0,1 (en vez de haz) para los pools vacios en la pasada B.
+    "nvthr": {"notebook": "notebooks/nvthr.ipynb", "slug": "arc-agi2-nvthr",
+              "title": "arc agi2 nvthr", "gpu": True,
+              "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                         "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+              "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                           "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # nvbeam (28-oct): nvplus_a1 + HAZ-8 (2 vistas, sin umbral) como respaldo en la pasada B para los pools
     # vacios de A; mismo scoring/kgmon. Smoke del commit: 2 tareas, 30 min, haz forzado. LANZAR CON NvidiaL4.
     "nvbeam": {"notebook": "notebooks/nvbeam.ipynb", "slug": "arc-agi2-nvbeam",
