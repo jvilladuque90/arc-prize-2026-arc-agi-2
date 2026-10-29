@@ -78,3 +78,9 @@ que justifique un híbrido, y a reloj partido ambos pierden. El 42,4% de ARC Pri
 caben ~16 M tokens por corrida (~60K/tarea), y a ese presupuesto el modelo no converge en las tareas difíciles.
 **Queda como medición publicable** (primera medición de Qwen3.8-27B dentro de los límites de Kaggle: 440 tok/s en
 L4×4, ~16 M tokens/rerun, 17–22 en el LB, 1/18 en tareas p5–p95 a 60K) y como vía cerrada para el 2-nov.
+
+## `q27sub2` = 14,86 (29-oct)
+
+Autor verbatim + `concurrency` 16 ⇒ **14,86** (< 19: «hay otro factor»). Junto con 16,94 (57K, conc. 10), el 27B
+directo vale **15–17** para nosotros en el rerun de Kaggle; el 21,53 atribuido al autor no sale de su notebook
+público tal cual (2,7σ por debajo). La concurrencia no era el mecanismo. Cierre definitivo de la vía 27B.
