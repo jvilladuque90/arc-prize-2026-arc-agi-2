@@ -266,6 +266,13 @@ KERNELS = {
                         "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
              "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
                           "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # tttk2 (31-oct): segundo juego de perillas en paralelo: mask_all, lr/2, ep2 con lr/2.
+    "tttk2": {"notebook": "notebooks/tttk2.ipynb", "slug": "arc-agi2-tttk2",
+             "title": "arc agi2 tttk2", "gpu": True,
+             "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
+                        "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+             "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"],
+                          "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     # haz2 (21-sep): el haz VECTORIZADO. haz midio +2/18 tareas recuperadas pero 59 s/tarea
     # (+33,5% de reloj), artefacto de 96 .item() por paso. Aqui una ordenacion en GPU y dos
     # .tolist() por paso, prefill con lote 1 + expansion de cache. Anchos 8 y 16. Guarda los
