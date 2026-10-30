@@ -39,3 +39,19 @@ mismo re-scoring de 8 augmentaciones y `kgmon`; el tiempo sobrante va a semillas
 | < 29,5 | el haz en B rompe algo (reloj de A o selección) | revisar `passB_plan.json` y logs del smoke |
 
 **Coste:** commit = smoke de 2 tareas con haz forzado (~25–30 min ≈ 0,9 h-cuota); el resto en el rerun (0 cuota).
+
+## Resultado (30-oct)
+
+**LB = 29,31** (submission `57761130`, enviada 29-oct 06:17 UTC, puntuada ~20 h después). Rama **< 29,5**.
+
+- Contra `lb33-det` 30,69 ± 0,415: −1,38 pt (≈ −3,3 tareas), fuera de su banda.
+- Contra NVARC+ (29,44 / 30,97): la familia queda en n=3 con media 29,9 y σ ≈ 0,9; la lectura cae dentro de ella.
+  No se puede separar «el haz en B dañó» de «NVARC+ es ruidoso»; y el rerun oculto no deja evidencia
+  (`beam_log.jsonl`/`passB_plan.json` solo existen para el smoke público, que ya se revisó: haz operativo, 0 errores).
+- Lectura honesta: el haz-8 sobre pools vacíos **no convierte** a escala lo que `haz`/`haz2` insinuaban en n=6
+  (2/6 por corrida, conjuntos distintos ⇒ ya olía a azar). Las tareas con pool vacío son, en su mayoría, tareas
+  que el modelo no sabe resolver, no tareas tapadas por el umbral p>0,2.
+- `nvthr` (DFS con p>0,1 en vacías) queda **dominado**: el haz-8 devuelve el top-8 sin umbral, superconjunto
+  práctico de lo que p>0,1 admitiría. No se envía; no se gasta el smoke (~0,5 h-cuota).
+
+**Decisión:** línea «pools vacíos» cerrada. Final de la competencia = `lb33-det` (mejor media y canal más estrecho).
