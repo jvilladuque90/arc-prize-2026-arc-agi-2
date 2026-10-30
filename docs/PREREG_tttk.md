@@ -107,3 +107,30 @@ Lecturas: bajar el lr empeora, y dos épocas a lr/2 empeoran claramente en los t
 de producción (lr 5e-5, 1 época) está en su sitio; **repetir las mismas secuencias daña, la diversidad ayuda**
 (`np32`). `mask_all` es coste 0 en el reloj y apunta bien en déficit (11/18 en ambas lecturas) pero no en NLL:
 candidato secundario, no gana un slot solo. Datos: `scripts/_tttk2.json`.
+
+## Resultado de `tttk3` (31-oct, 18 tareas, ~3,5 h-cuota): k4np32 (mismo coste) y np24
+
+| variante | déficit canónico | déficit mín. de 4 vistas | NLL canónica | coste TTT |
+|---|---|---|---|---|
+| `k4np32` (4 D4 × 32 perms = 128 seqs) | 12/18, −1,75, p=0,14 | 9/18, −0,75, p=0,42 | 12/18, −0,78, p=0,24 | ×1,00 |
+| `np24` (8 D4 × 24 = 192 seqs) | 9/18, 0,00, p=1 | 5/18, 0,00, p=0,58 | 9/18, +0,70, p=1 | ×1,50 |
+
+Lectura honesta: `k4np32` apunta en la misma dirección que `np32` (12/18 en déficit canónico y en NLL) pero no
+sale de la banda de `base_s2` (11/18). `np24` es nulo (9/9), lo que debilita la historia de «dosis» de `np32`:
+juntando las tres variantes de diversidad, 33/51 pares mejoran el déficit canónico (p≈0,05) y 34/51 la NLL.
+Efecto real pero **pequeño** (mediana −0,8 a −1,7 nats), no un salto.
+
+## Decisión de injerto (31-oct)
+
+Se envía **`lb33-k4np32`** (producción con `augment(n=32, d4="rot")`: identidad + 3 rotaciones × 32 permutaciones
+= 128 secuencias, coste idéntico al campeón; única diferencia con el banco: el banco muestreaba 4 D4 al azar por
+tarea, producción fija las 4 rotaciones). Prerreg contra `lb33-det` 30,69 ± 0,415:
+
+| LB | lectura |
+|---|---|
+| ≥ 31,5 | la diversidad de permutaciones paga en producción; candidato a final (segunda lectura si hay slot) |
+| 30,3 – 31,5 | empate dentro del canal; final sigue `lb33-det` por n=3 |
+| < 30,3 | las 4 rotaciones sin transpuesta pierden cobertura de D4; descartado |
+
+`mask_all` queda como segundo candidato de coste 0 si quedara slot (no lo hay antes del 2-nov).
+Datos: `scripts/_tttk3.json`.
