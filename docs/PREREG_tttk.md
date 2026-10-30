@@ -94,3 +94,16 @@ Lecturas:
 5. `tttk2` (en curso): `mask_all`, `lr2,5e-5`, `ep2` con `lr2,5e-5`.
 
 Datos: `scripts/_tttk.json`.
+
+## Resultado de `tttk2` (31-oct, 18 tareas, ~4 h-cuota): mask_all, lr/2, ep2 con lr/2
+
+| variante | déficit canónico | déficit mín. de 4 vistas | NLL canónica |
+|---|---|---|---|
+| `mask_all` (pérdida también sobre las entradas) | 11/18, −2,25, p=0,21 | 11/18, −1,25, **p=0,057** | 9/18, −0,28, p=1 |
+| `lr2,5e-5` | 5/18, +1,00, p=0,21 | 5/18, +0,50, p=0,30 | 6/18, +0,99, p=0,24 |
+| `ep2_lr2,5e-5` | 3/18, +2,00, **p=0,035** | 2/18, +2,50, **p=0,013** | 4/18, +1,41, **p=0,031** |
+
+Lecturas: bajar el lr empeora, y dos épocas a lr/2 empeoran claramente en los tres indicadores ⇒ el calendario
+de producción (lr 5e-5, 1 época) está en su sitio; **repetir las mismas secuencias daña, la diversidad ayuda**
+(`np32`). `mask_all` es coste 0 en el reloj y apunta bien en déficit (11/18 en ambas lecturas) pero no en NLL:
+candidato secundario, no gana un slot solo. Datos: `scripts/_tttk2.json`.
