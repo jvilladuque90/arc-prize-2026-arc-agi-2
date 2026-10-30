@@ -66,3 +66,31 @@ Lecturas:
 Siguiente: banco completo tras el reset (18 × {base, base_s2, lr1e-4, ep2, np32} ≈ 7 unidades de TTT ≈ 3,5 h
 de pared ≈ 7 h-cuota). Lanzar (el notebook ya tiene `completo` como modo por defecto; Kaggle no propaga el env local):
 `PYTHONUTF8=1 python scripts/push_kernels.py tttk --accelerator NvidiaL4`
+
+## Resultado del banco completo (31-oct, 12 399 s de pared ≈ 6,9 h-cuota; 18 tareas; `np32` solo en 15 por WALL_MAX)
+
+Pares frente a `base` (negativo = la GT se acerca al greedy), test de signo bilateral:
+
+| variante | déficit canónico | déficit mín. de 4 vistas | NLL canónica de la GT |
+|---|---|---|---|
+| `base_s2` (ruido) | 11/18 mejora, mediana −0,50, p=0,21 | 8/18, +0,00, p=0,79 | 9/18, +0,02, p=1 |
+| `lr1e-4` | 11/18, −0,75, p=0,33 | 6/18, +0,50, p=0,61 | 12/18, −0,28, p=0,24 |
+| `ep2` | 6/18, **+2,00**, p=0,33 | 6/18, +0,62, p=0,45 | 10/18, −0,29, p=0,82 |
+| **`np32`** | **12/15, −2,00, p=0,003** | 9/15, −0,50, p=0,15 | **13/15, −1,66, p=0,007** |
+
+Lecturas:
+
+1. **`np32` (256 secuencias = 8 D4 × 32 permutaciones) es la primera perilla que sale de la banda de ruido**: baja el
+   déficit canónico en 12/15 (p=0,003) y la NLL de la GT en 13/15 (p=0,007), mediana −1,66 nats (≈ ×5 en
+   probabilidad). En el mínimo de 4 vistas, 9/15 (p=0,15): la mejora es de nivel medio, no convierte tareas por sí sola.
+2. `lr1e-4` y `ep2` no se separan del ruido; `ep2` tiende a empeorar el déficit (11/18 peor): más pasadas sobre las
+   mismas 128 secuencias no ayudan. **Lo que ayuda es más diversidad, no más repetición.**
+3. Coste: `np32` dobla el TTT (+35 % del reloj total). Impagable tal cual (techo +4,8 %). Dos salidas, lanzadas en
+   `tttk3` (31-oct): **`k4np32`** = 4 D4 × 32 perms = 128 secuencias (mismo coste que producción) para saber si la
+   ganancia es la diversidad de permutaciones; y **`np24`** (+50 % del TTT) como punto intermedio de dosis.
+4. Greedy = GT en alguna de 4 vistas, en las 15 falladas: solo `53fb4810` (vacía) con `base`; `28a6681f` con
+   `lr1e-4`/`ep2`. 1–2/15: coincide con `haz` (2/18). La palanca «greedy sin umbral» vale ~1 tarea de 18 y
+   `nvbeam` ya la llevaba implícita: **cerrada**.
+5. `tttk2` (en curso): `mask_all`, `lr2,5e-5`, `ep2` con `lr2,5e-5`.
+
+Datos: `scripts/_tttk.json`.
