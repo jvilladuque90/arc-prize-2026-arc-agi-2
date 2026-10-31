@@ -132,6 +132,11 @@ KERNELS = {
     # lb33-det = CONTROL (campeon determinista). Dos submits: si dan el MISMO score, el
     # determinismo funciona y a partir de ahi los A/B son PAREADOS (§21).
     # lb33-k4np32 (31-oct): 4 D4 (identidad+3 rotaciones, sin transpuesta) x 32 permutaciones = 128 secuencias, MISMO coste que produccion
+    # lsinput (31-oct): lista /kaggle/input (CPU, 0 cuota) para diagnosticar montajes de la competicion.
+    "lsinput": {"notebook": "notebooks/lsinput.ipynb", "slug": "arc-agi2-lsinput", "title": "arc agi2 lsinput", "gpu": False},
+    "lsinput-gpu": {"notebook": "notebooks/lsinput.ipynb", "slug": "arc-agi2-lsinput-gpu", "title": "arc agi2 lsinput gpu", "gpu": True,
+                    "docker": ("gcr.io/kaggle-private-byod/python@sha256:" "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
+                    "defaults": {"kernel_source": ["sorokin/pip-install-unsloth-flash-patch"], "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
     "lb33-k4np32": {"notebook": "notebooks/lb33_k4np32.ipynb", "slug": "arc-agi2-lb33-k4np32",
                  "title": "arc agi2 lb33 k4np32", "gpu": True,
                  "docker": ("gcr.io/kaggle-private-byod/python@sha256:"
