@@ -148,6 +148,18 @@ KERNELS = {
                              "kernel_source": ["juliancamilovilla/arc-agi2-q35base-dl"],
                              "model": ["qwen-lm/qwen-3/transformers/4b-base/1",
                                        "qwen-lm/qwen-3/transformers/4b/1"]}},
+    # sft35-data (31-oct): CPU, 0 cuota GPU. Muestra ~12K puzzles NVARC a un JSON (kernel_source de sft35).
+    "sft35-data": {"notebook": "notebooks/sft35_data.ipynb", "slug": "arc-agi2-sft35-data",
+                   "title": "arc agi2 sft35 data", "gpu": False, "docker": "",
+                   "defaults": {"dataset": ["sorokin/nvarc-synthetic-puzzles"]}},
+    # sft35 (31-oct): SFT PAREADO Qwen3-4B-Base vs Qwen3.5-4B-Base, mismos datos NVARC, vocab 16, x2 semillas
+    # (4 GPUs = 4 corridas independientes). ~3,7 h pared ~7,5 h-cuota. LANZAR CON --accelerator NvidiaL4.
+    "sft35": {"notebook": "notebooks/sft35.ipynb", "slug": "arc-agi2-sft35",
+              "title": "arc agi2 sft35", "gpu": True, "docker": "",
+              "defaults": {"dataset": ["juliancamilovilla/tf52-wheels"],
+                           "kernel_source": ["juliancamilovilla/arc-agi2-q35base-dl",
+                                             "juliancamilovilla/arc-agi2-sft35-data"],
+                           "model": ["qwen-lm/qwen-3/transformers/4b-base/1"]}},
     "lsinput": {"notebook": "notebooks/lsinput.ipynb", "slug": "arc-agi2-lsinput", "title": "arc agi2 lsinput", "gpu": False},
     "lsinput-gpu": {"notebook": "notebooks/lsinput.ipynb", "slug": "arc-agi2-lsinput-gpu", "title": "arc agi2 lsinput gpu", "gpu": True,
                     "docker": ("gcr.io/kaggle-private-byod/python@sha256:" "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
