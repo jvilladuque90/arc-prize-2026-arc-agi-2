@@ -133,6 +133,21 @@ KERNELS = {
     # determinismo funciona y a partir de ahi los A/B son PAREADOS (§21).
     # lb33-k4np32 (31-oct): 4 D4 (identidad+3 rotaciones, sin transpuesta) x 32 permutaciones = 128 secuencias, MISMO coste que produccion
     # lsinput (31-oct): lista /kaggle/input (CPU, 0 cuota) para diagnosticar montajes de la competicion.
+    # q35base-dl (31-oct): CPU + INTERNET (0 cuota GPU). Baja Qwen3.5-4B-Base, Qwen3.5-2B-Base y las
+    # wheels puras de flash-linear-attention a /kaggle/working; gate35b lo consume como kernel_source.
+    # LANZAR CON --internet (y sin --accelerator: CPU).
+    "q35base-dl": {"notebook": "notebooks/q35base_dl.ipynb", "slug": "arc-agi2-q35base-dl",
+                   "title": "arc agi2 q35base dl", "gpu": False, "docker": ""},
+    # gate35b (31-oct): auditoria de gate35 => re-medicion LIMPIA del prior 3.5: BASE vs BASE
+    # (Qwen3-4B-Base titular), kernels FLA instalados y verificados, control absoluto de texto plano,
+    # Qwen3-4B post como ancla. 24 baratas + 12 medias, L4x4 shard x4 (~0,5 h pared ~1 h-cuota).
+    # PRERREG: q35_4b_base vive si ratio <= 0,85 Y gana >= 2/3. LANZAR CON --accelerator NvidiaL4.
+    "gate35b": {"notebook": "notebooks/gate35b.ipynb", "slug": "arc-agi2-gate35b",
+                "title": "arc agi2 gate35b", "gpu": True, "docker": "",
+                "defaults": {"dataset": ["juliancamilovilla/tf52-wheels"],
+                             "kernel_source": ["juliancamilovilla/arc-agi2-q35base-dl"],
+                             "model": ["qwen-lm/qwen-3/transformers/4b-base/1",
+                                       "qwen-lm/qwen-3/transformers/4b/1"]}},
     "lsinput": {"notebook": "notebooks/lsinput.ipynb", "slug": "arc-agi2-lsinput", "title": "arc agi2 lsinput", "gpu": False},
     "lsinput-gpu": {"notebook": "notebooks/lsinput.ipynb", "slug": "arc-agi2-lsinput-gpu", "title": "arc agi2 lsinput gpu", "gpu": True,
                     "docker": ("gcr.io/kaggle-private-byod/python@sha256:" "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
