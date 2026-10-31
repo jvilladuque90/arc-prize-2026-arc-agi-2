@@ -403,3 +403,35 @@ generación 3.5 tenga peor prior a igual talla. Re-medición limpia = `Qwen3.5-4
 `Qwen3-4B-Base`, kernels FLA instalados, control de texto plano, ~0,5 h-cuota + subir 9 GB.
 **Aun con ratio ≤0,85, la vía exige rehacer el SFT de NVARC (266K secuencias, 10–20 h-cuota,
 historial 0/2)** ⇒ no es para el 2-nov; es la primera pregunta de la próxima temporada.
+
+## RESULTADO `gate35b` (2026-10-31, 388 s de pared ≈ 0,22 h-cuota, 36 tareas, 4 modelos, carga limpia 0 claves ausentes)
+
+| candidato vs `Qwen3-4B-Base` | n | ratio mediano | gana | p(signo) | fwd |
+|---|---|---|---|---|---|
+| **`Qwen3.5-4B-Base`** (baratas) | 24 | **1,012** | 11/24 | 0,73 | ×1,25 |
+| `Qwen3.5-4B-Base` (medias) | 11 | 1,084 | 1/11 | 1,00 | ×1,17 |
+| `Qwen3.5-4B-Base` (todas) | 35 | **1,044** | 12/35 | 0,98 | — |
+| `Qwen3.5-2B-Base` (todas) | 36 | 1,293 | 3/36 | 1,00 | ×0,52 |
+| `Qwen3-4B` post-entrenado (todas) | 36 | **1,444** | 1/36 | 1,00 | ×1,08 |
+
+Control absoluto (nats/token, inglés / python): 4B-Base 1,77/0,49 · 3.5-4B-Base 1,77/0,41 ·
+3.5-2B-Base 1,83/0,47 · 4B-post 2,23/0,52 ⇒ las cuatro rutas de carga están sanas.
+
+**Lectura.**
+1. **La auditoría tenía razón en el mecanismo**: el post-training castiga el completado crudo
+   (Qwen3-4B post/base = 1,444). El 1,299 de `gate35` era en gran parte formato, no prior.
+2. **Pero corregido el protocolo, la generación 3.5 NO es mejor a igual talla**: 3.5-4B-Base
+   empata con Qwen3-4B-Base en baratas (1,012, 11/24) y pierde en medias (1,084, 1/11).
+   Ratio global 1,044, gana 12/35. Falla el prerreg (≤0,85 y ≥2/3) por el lado del empate.
+3. El 3.5-2B-Base es claramente peor (1,293, 3/36); el 0,989 de septiembre era el post-entrenado
+   contra un post-entrenado, es decir, dos castigos que se cancelaban.
+4. fwd ×1,17-1,25 con FLA disponible (`is_flash_linear_attention_available()=True`); no se
+   pudo confirmar por introspección que las capas usaran el kernel (el detector no encontró el
+   atributo), así que el coste real queda entre ×1,0 y ×1,25. El 2B es ×0,52.
+
+**Veredicto corregido y definitivo para esta temporada:** Qwen3.5-4B-Base tiene el MISMO prior de
+rejilla que Qwen3-4B-Base. Cambiar de base no da ventaja de partida; lo único que podría darla es
+que el 3.5 se entrene mejor en el SFT, y eso solo se sabe haciendo el SFT (10–20 h-cuota, 0/2).
+Con un prior empatado y un coste ≥×1,0, no hay caso alcista medible: **vía cerrada con medición
+limpia.** Datos: `scripts/_gate35b.json`. La versión «3.5-4B es peor» queda sustituida por «3.5-4B
+empata».
