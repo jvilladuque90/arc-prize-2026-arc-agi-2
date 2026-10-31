@@ -177,6 +177,14 @@ for p_ in list(emb.parameters()) + list(head.parameters()): p_.requires_grad_(Tr
 params = [p for p in model.parameters() if p.requires_grad]
 n_tr = sum(p.numel() for p in params)
 log("parametros entrenables: %.1fM" % (n_tr / 1e6))
+# v3: checkpointing de gradiente DESDE EL INICIO en todos los brazos. En v2 los brazos q3 saltaron a
+# checkpointing tras el primer OOM (torch) y los q35 murieron con un OOM de Triton (kernels FLA en el
+# backward) que no es torch.cuda.OutOfMemoryError. Mismo regimen para ambos = comparacion justa.
+ck = bool(int(os.environ.get("CKPT", "1")))
+if ck:
+    model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+    model.enable_input_require_grads()
+    log("gradient checkpointing activo desde el inicio")
 model.train()
 
 def forward_logits(ids):
@@ -263,7 +271,6 @@ def lr_en(paso):
     pr = (paso - warm) / max(1, pasos_plan - warm)
     return LR * 0.5 * (1 + math.cos(math.pi * min(1.0, pr)))
 curva = []; t_tr = time.time(); tok_vistos = 0; lab_vistos = 0; paso = 0; acc_loss = 0.0; acc_n = 0
-ck = False
 i = 0
 while i < len(SEQS):
     if time.time() - t_tr > TRAIN_SECONDS:
@@ -274,8 +281,8 @@ while i < len(SEQS):
         lg = forward_logits(t)[0, :-1].float()
         loss = F.cross_entropy(lg[mm], t[0, 1:][mm])
         (loss / ACCUM).backward()
-    except torch.cuda.OutOfMemoryError:
-        if ck: raise
+    except (torch.cuda.OutOfMemoryError, RuntimeError) as e:
+        if not ("out of memory" in str(e).lower()) or ck: raise
         log("OOM: activo gradient checkpointing y reintento"); ck = True
         opt.zero_grad(set_to_none=True); gc.collect(); torch.cuda.empty_cache()
         model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
@@ -332,7 +339,8 @@ print("pip uninstall torchao rc=%d" % r.returncode, (r.stdout + r.stderr)[-200:]
 r = subprocess.run([sys.executable, "-c", "import transformers, peft;from transformers.utils.import_utils import is_flash_linear_attention_available as f;print(transformers.__version__, 'peft', peft.__version__, 'FLA', f())"], capture_output=True, text=True)
 print("entorno:", (r.stdout + r.stderr).strip()[-400:], flush=True)
 
-BRAZOS = [("q3", 1), ("q35", 1), ("q3", 2), ("q35", 2)]
+# v3: los brazos q3 (s1, s2) ya estan medidos en v2 (sft35.json v2); ahora solo q35, 4 semillas
+BRAZOS = json.loads(os.environ.get("BRAZOS", '[["q35", 1], ["q35", 2], ["q35", 3], ["q35", 4]]'))
 procs = []
 for i, (arm, seed) in enumerate(BRAZOS):
     env = dict(os.environ)
@@ -344,7 +352,7 @@ for arm, seed, p, fh in procs:
     p.wait(); fh.close()
     print("worker %s_s%d rc=%d a los %.0fs" % (arm, seed, p.returncode, time.time() - T0), flush=True)
 
-R = {}
+R = json.loads(__R_PREVIO__)  # brazos q3 medidos en v2 (scripts/_sft35_v2_q3.json)
 for arm, seed, p, fh in procs:
     f = "/kaggle/working/%s_s%d/res.json" % (arm, seed)
     if os.path.exists(f): R["%s_s%d" % (arm, seed)] = json.load(open(f))
@@ -380,14 +388,14 @@ for tag, r in R.items():
         tag, r["clase"][:28], tr.get("seq_hechas", 0), tr.get("tok", 0), tr.get("tok_s", 0), (tr.get("curva") or [{}])[-1].get("loss", float("nan")), tr.get("ckpt"),
         med(pre), med(post), sum(1 for f in r["eval_pre"] if f.get("exacta")), sum(1 for f in r["eval_post"] if f.get("exacta"))), flush=True)
 print("\nPAREADO post-SFT (ratio = q35 / q3 de NLL/celda; <1 = gana 3.5):", flush=True)
-for a, b in (("q3_s1", "q35_s1"), ("q3_s2", "q35_s2"), ("q3_s1", "q3_s2"), ("q35_s1", "q35_s2")):
+for a, b in (("q3_s1", "q35_s1"), ("q3_s2", "q35_s2"), ("q3_s1", "q35_s3"), ("q3_s2", "q35_s4"), ("q3_s1", "q3_s2"), ("q35_s1", "q35_s2"), ("q35_s3", "q35_s4")):
     print("  %s vs %s:" % (a, b), json.dumps(tabla(a, b)), flush=True)
 print("  mediana de 3 vistas, s1:", json.dumps(tabla("q3_s1", "q35_s1", campo="nll_celda_med3")), flush=True)
 print("  mediana de 3 vistas, s2:", json.dumps(tabla("q3_s2", "q35_s2", campo="nll_celda_med3")), flush=True)
 print("PAREADO pre-SFT (enlace con gate35b):", json.dumps(tabla("q3_s1", "q35_s1", fase="eval_pre")), flush=True)
 print("\nPRERREG: la via 3.5 se REABRE si ratio post <= 0,85 en AMBAS semillas y gana >= 2/3 (p<0,05), con la banda s1-vs-s2 del mismo brazo mas estrecha que el efecto.", flush=True)
 print("RESULT_JSON:" + json.dumps({"brazos": list(R), "wall_s": round(time.time() - T0)}), flush=True)
-'''.replace("__SUCIAS__", json.dumps(SUCIAS))
+'''.replace("__SUCIAS__", json.dumps(SUCIAS)).replace("__R_PREVIO__", json.dumps(json.dumps(json.load(open("scripts/_sft35_v2_q3.json")))))
 
 MD = """# sft35: SFT pareado Qwen3-4B-Base vs Qwen3.5-4B-Base sobre los mismos puzzles NVARC (vocab 16)
 
