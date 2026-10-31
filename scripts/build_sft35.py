@@ -326,6 +326,9 @@ if W_FLA:
     r = subprocess.run([sys.executable, "-m", "pip", "install", "-q", "--no-index", "--no-deps", "--find-links", W_FLA,
                         "flash-linear-attention", "fla-core", "einops"], capture_output=True, text=True)
     print("pip fla rc=%d" % r.returncode, (r.stdout + r.stderr)[-500:], flush=True)
+# peft 0.20 aborta la inyeccion de LoRA si ve torchao < 0.16 (la imagen trae 0.10): sin torchao, peft lo ignora
+r = subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "-q", "torchao"], capture_output=True, text=True)
+print("pip uninstall torchao rc=%d" % r.returncode, (r.stdout + r.stderr)[-200:], flush=True)
 r = subprocess.run([sys.executable, "-c", "import transformers, peft;from transformers.utils.import_utils import is_flash_linear_attention_available as f;print(transformers.__version__, 'peft', peft.__version__, 'FLA', f())"], capture_output=True, text=True)
 print("entorno:", (r.stdout + r.stderr).strip()[-400:], flush=True)
 
