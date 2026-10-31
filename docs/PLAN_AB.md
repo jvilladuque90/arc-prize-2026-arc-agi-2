@@ -370,3 +370,36 @@ bloqueada.** Sensibilidad (no veredicto): sin la tarea memorizada con denominado
 
 **Campeón intacto: `lb33-det` 30,69 ± 0,415.** Lo que la campaña ha producido es un mapa de lo
 que NO funciona, con mediciones en las que se puede confiar, y un instrumento 10× más barato.
+
+---
+
+# AUDITORÍA de `gate35` (2026-10-31, a petición del usuario): el veredicto «peor de verdad» está SOBREAFIRMADO
+
+Lo que se midió bien: carga con 0 claves ausentes, dos espejos bit a bit iguales, misma población y
+mismo prompt para ambos brazos, NLL solo sobre los tokens de la GT. Lo que NO se controló:
+
+1. **Variante.** Los espejos (`limamateus`, `thanhduc1102`) son `Qwen/Qwen3.5-4B`, el modelo
+   **post-entrenado** (piensa por defecto, `<think>`). Se midió completado crudo sin plantilla de
+   chat. El post-training de 3.5 es más agresivo que el de Qwen3, así que el ratio 1,299 mezcla
+   «prior de rejillas» con «castigo por sacar a un modelo de chat de su formato». Existe
+   `Qwen/Qwen3.5-4B-Base` (y `qwen-lm/qwen-3/4b-base` como titular justo) y **no se probó**. Para
+   un SFT tipo NVARC lo que importa es la Base.
+2. **Kernels.** El config oficial tiene 24 de 32 capas `linear_attention` (Gated DeltaNet) y 8 de
+   atención completa. Sin `flash-linear-attention` y `causal-conv1d` (no están en la imagen ni en
+   `tf52-wheels`), transformers cae al fallback de torch: numéricamente correcto (diferencia media
+   de logits ~3e-4 según el test de paridad de OLMo-core) pero **lento**. El `fwd ×1,43` es muy
+   probablemente artefacto del fallback: un híbrido 3:1 con kernels debería igualar o batir al
+   Qwen3-4B denso. **La puerta de reloj NO está medida limpia.** La de prior (1,299) no se
+   explica por esto.
+3. **Sin control absoluto.** Ninguna NLL sobre texto conocido para validar la ruta de carga; el
+   control entre espejos solo prueba que son los mismos bytes.
+4. **Vocabulario 248K** (vs 151K): 0,64B de parámetros en embeddings atados; recortable a 16 filas
+   como hizo Sorokin, igual que planeamos para el 2B.
+5. Población = 24 tareas más baratas (percentil 11), ya anotado el 10-sep.
+
+**Veredicto corregido:** «Qwen3.5-4B post-entrenado, en completado crudo y con fallback de
+kernels, tiene peor NLL de rejilla que Qwen3-4B post-entrenado». NO está establecido que la
+generación 3.5 tenga peor prior a igual talla. Re-medición limpia = `Qwen3.5-4B-Base` vs
+`Qwen3-4B-Base`, kernels FLA instalados, control de texto plano, ~0,5 h-cuota + subir 9 GB.
+**Aun con ratio ≤0,85, la vía exige rehacer el SFT de NVARC (266K secuencias, 10–20 h-cuota,
+historial 0/2)** ⇒ no es para el 2-nov; es la primera pregunta de la próxima temporada.
