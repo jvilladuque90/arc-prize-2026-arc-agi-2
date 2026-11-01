@@ -305,6 +305,12 @@ log("entrenamiento: %d seq, %d pasos, %d tok, %.0f s, %.0f tok/s" % (i, paso, to
 
 # ---------------- evaluacion post y guardado ----------------
 res["eval_post"] = evaluar("post-SFT")
+# v3 murio AQUI en los 4 brazos q35: get_peft_model_state_dict lee config.vocab_size y Qwen3_5Config no lo
+# expone a nivel raiz (vive en text_config). Guardar res.json ANTES del adapter y blindar el atributo.
+json.dump(res, open(os.path.join(OUTDIR, "res.json"), "w"))
+try:
+    if not hasattr(model.config, "vocab_size"): model.config.vocab_size = 16
+except Exception: pass
 from peft import get_peft_model_state_dict
 sd = {k: v.detach().cpu() for k, v in get_peft_model_state_dict(model).items()}
 sd["__emb16__"] = emb.weight.detach().cpu(); sd["__head16__"] = head.weight.detach().cpu()

@@ -37,3 +37,34 @@ secuencias, no hay mecanismo por el que lo haga en 266K.
 
 ~3,7 h de pared en L4×4 ≈ **7,5 h-cuota** (tope de entrenamiento 3 h + carga + 2 evaluaciones).
 Ledger semanal antes de lanzar: ~1,5 h-cuota gastadas desde el reset. `sft35-data` es CPU (0 cuota).
+
+## RESULTADO (1-nov-2026, kernels v2 + v3, ~18 h-cuota en total)
+
+| brazo | pre-SFT med / media | post-SFT med / media | loss @600 pasos (tokens iguales) | tok/s | exactas |
+|---|---|---|---|---|---|
+| q3_s1 (Qwen3-4B-Base) | 0,275 / 0,389 | **0,176 / 0,237** | 0,206 | 849 | 0/36 → 0/36 |
+| q3_s2 | 0,275 / 0,389 | **0,177 / 0,237** | 0,216 | 852 | 0 → 0 |
+| q35_s1 (Qwen3.5-4B-Base) | 0,262 / 0,347 | 0,177 / 0,249 | 0,209 | 772 | 0 → 0 |
+| q35_s2 | 0,262 / 0,347 | 0,179 / 0,246 | 0,217 | 786 | 0 → 0 |
+| q35_s3 | 0,262 / 0,347 | 0,160 / 0,241 | 0,223 | 784 | 0 → 0 |
+| q35_s4 | 0,262 / 0,347 | 0,170 / 0,242 | 0,212 | 780 | 0 → 0 |
+
+NLL/celda de la GT sobre las 36 tareas (24 baratas + 12 medias), vista canónica. Ratios post q35/q3 por
+mediana: 1,00 · 1,01 · 0,91 · 0,97; por media: 1,05 · 1,04 · 1,02 · 1,02. Banda semilla-a-semilla del q3:
+ratio 0,996 (12/24 baratas). Loss de entrenamiento a tokens iguales: indistinguible (0,21–0,22 en ambos).
+Prior pre-SFT: q35 0,95× (mediana) / 0,89× (media) — coherente con el empate de `gate35b`.
+
+**Veredicto: EMPATE ⇒ la vía 3.5 queda cerrada definitivamente.** La prerreg exigía ratio ≤ 0,85 en TODAS
+las semillas; ninguna lo cumple y las medias van 2–5 % en contra. La generación 3.5 ni parte mejor (gate35b) ni
+aprende la rejilla más rápido a datos y receta iguales. Además es un 8 % más lenta (780 vs 850 tok/s con FLA
+y checkpointing en ambos) y exigiría portar el TTT fuera de unsloth.
+
+Limitación honesta: el test de signo por tarea NO se pudo calcular. Los 4 brazos q35 murieron al guardar
+(`get_peft_model_state_dict` lee `config.vocab_size`, que `Qwen3_5Config` no expone en la raíz) DESPUÉS de
+imprimir los resúmenes y ANTES de escribir `res.json`. El veredicto se apoya en medianas y medias, que están
+lejos del umbral en las 4 semillas; no se relanza (≈9 h-cuota) para recuperar un test que no puede cambiarlo.
+
+Lecciones de fontanería pagadas: (1) peft 0.20 aborta la inyección de LoRA con torchao 0.10 (desinstalar);
+(2) el OOM de los kernels FLA en el backward es `RuntimeError` de Triton, no `torch.cuda.OutOfMemoryError`;
+(3) escribir el JSON de resultados ANTES de cualquier paso de guardado de pesos; (4) la evaluación greedy
+de 36 tareas cuesta ~25–30 min por brazo: presupuestarla.

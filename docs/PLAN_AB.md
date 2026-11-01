@@ -435,3 +435,8 @@ que el 3.5 se entrene mejor en el SFT, y eso solo se sabe haciendo el SFT (10–
 Con un prior empatado y un coste ≥×1,0, no hay caso alcista medible: **vía cerrada con medición
 limpia.** Datos: `scripts/_gate35b.json`. La versión «3.5-4B es peor» queda sustituida por «3.5-4B
 empata».
+
+
+## RESULTADO sft35 (1-nov-2026): la generación 3.5 tampoco APRENDE mejor
+
+SFT pareado (9K seq NVARC, vocab 16, LoRA r=64 todas las lineales, 3 h, L4) de Qwen3-4B-Base (2 semillas) vs Qwen3.5-4B-Base (4 semillas): NLL/celda post-SFT mediana 0,176–0,177 vs 0,160–0,179, medias 0,237 vs 0,241–0,249, loss a tokens iguales idéntica, 0 exactas greedy en todos, 3.5 un 8 % más lenta. **Empate ⇒ vía cerrada definitivamente** junto a gate35b (prior). Detalle y limitaciones en `docs/PREREG_sft35.md`.
