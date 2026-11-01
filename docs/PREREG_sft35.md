@@ -68,3 +68,25 @@ Lecciones de fontanería pagadas: (1) peft 0.20 aborta la inyección de LoRA con
 (2) el OOM de los kernels FLA en el backward es `RuntimeError` de Triton, no `torch.cuda.OutOfMemoryError`;
 (3) escribir el JSON de resultados ANTES de cualquier paso de guardado de pesos; (4) la evaluación greedy
 de 36 tareas cuesta ~25–30 min por brazo: presupuestarla.
+
+## RESULTADO v4 (1-nov-2026, relanzado a petición del usuario, 8,5 h-cuota): pareado por tarea recuperado
+
+`res.json` se escribió antes del guardado de pesos (que volvió a fallar por `vocab_size`; irrelevante). Ratios
+q35/q3 de NLL/celda post-SFT, 36 tareas, vista canónica (test de signo, nº de tareas que gana el 3.5):
+
+| par | ratio mediano | gana 3.5 | p signo |
+|---|---|---|---|
+| q3_s1 vs q35_s1 | 0,997 | 19/36 | 0,43 |
+| q3_s2 vs q35_s2 | 1,031 | 12/36 | 0,99 |
+| q3_s1 vs q35_s3 | 1,008 | 17/36 | 0,69 |
+| q3_s2 vs q35_s4 | 0,984 | 22/36 | 0,12 |
+| mediana de 3 vistas (s1 / s2) | 1,032 / 1,030 | 12 / 14 | 0,99 / 0,93 |
+| banda q3_s1 vs q3_s2 | 1,010 | 15/36 | 0,88 |
+| banda q35 s1-s2 / s3-s4 | 1,007 / 0,997 | 17 / 21 | 0,69 / 0,20 |
+
+Pre-SFT (enlace con gate35b): 0,945, gana 28/36, p=0,0006 — el prior del 3.5-Base ES ligeramente mejor
+(5 %, real) pero **desaparece por completo tras 9K secuencias de SFT**: todos los pares post quedan dentro de
+la banda semilla-a-semilla, y con 3 vistas el 3.5 va un 3 % en contra. Cero exactas greedy en los 6 brazos.
+
+**Veredicto definitivo: EMPATE.** Prerreg (≤0,85 en todas las semillas, ≥2/3): no se cumple en ninguna.
+Eje del modelo base agotado con prior y aprendizaje medidos limpios y pareados. Datos: `scripts/_sft35_v4.json`.
