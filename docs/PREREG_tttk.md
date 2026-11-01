@@ -134,3 +134,14 @@ tarea, producción fija las 4 rotaciones). Prerreg contra `lb33-det` 30,69 ± 0,
 
 `mask_all` queda como segundo candidato de coste 0 si quedara slot (no lo hay antes del 2-nov).
 Datos: `scripts/_tttk3.json`.
+
+## RESULTADO LB de `lb33-k4np32` (1-nov-2026)
+
+Submission 57824458: **26,39** (prerreg: ≥31,5 paga / 30,3–31,5 empate / <30,3 descartar) ⇒ **descartado**,
+−4,3 pt (≈ −10 tareas) frente a `lb33-det` 30,69 ± 0,415. El banco (`tttk3`, 18 tareas, instrumento de
+déficit/NLL) lo tenía dentro de la banda de ruido (12/18, p=0,14) y la señal de `np32` (8 D4 × 32 perms,
+p=0,003) no se transfiere a 4 D4 × 32 perms: la diversidad **geométrica** del TTT no es intercambiable por
+diversidad de color. Coincide con el orden fijo de demos (−5,0): el TTT de producción vive de la diversidad de
+sus 128 secuencias y cualquier recorte de un eje la paga en el LB aunque el banco de 18 no lo vea.
+Lección: un banco de n=18 con p≈0,14 no autoriza un injerto al LB; «dentro de la banda» no es «coste 0».
+Final del 2-nov: `lb33-det`.
