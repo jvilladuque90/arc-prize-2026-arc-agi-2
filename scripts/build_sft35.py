@@ -262,6 +262,7 @@ res = {"arm": ARM, "seed": SEED, "modelo": MDIR, "clase": clase, "ids16": IDS16,
        "cfg": {"lr": LR, "accum": ACCUM, "r": LORA_R, "alpha": LORA_ALPHA, "max_len": MAX_LEN, "train_seconds": TRAIN_SECONDS},
        "fla": bool(is_flash_linear_attention_available()), "transformers": transformers.__version__}
 res["eval_pre"] = evaluar("pre-SFT")
+json.dump(res, open(os.path.join(OUTDIR, "res.json"), "w"))  # parcial: nunca mas perder filas
 
 # ---------------- entrenamiento ----------------
 opt = torch.optim.AdamW(params, lr=LR, weight_decay=0.0, betas=(0.9, 0.99))
