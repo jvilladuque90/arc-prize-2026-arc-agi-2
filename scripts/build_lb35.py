@@ -33,7 +33,7 @@ S = src(det[5])
 S = rep(S, "%%writefile arc_solver.py\n", "%%writefile arc_solver.py\n" + RUTA)
 S = rep(S, "from unsloth import FastLanguageModel, UnslothTrainingArguments, UnslothTrainer\n", "")
 S = rep(S, "from datasets import Dataset\n", "")
-S = rep(S, "import gc\n", "import gc\nimport math\nimport torch.nn as nn\nimport torch.nn.functional as F\nfrom types import SimpleNamespace\n")
+S = rep(S, "import gc\n", "import gc\nimport json\nimport math\nimport torch.nn as nn\nimport torch.nn.functional as F\nfrom types import SimpleNamespace\n")
 i0 = S.index("class UnslothFixedTrainer"); i1 = S.index("class QwenDataCollatorForCompletionOnlyLM")
 AYUDA = r'''
 class TextLM(nn.Module):
@@ -93,6 +93,31 @@ def _labels_mask(ids):
     return m
 
 
+class ManualTokenizer:
+    """Tokenizador a mano con los 16 ids de sft139. El tokenizador de sft139 bajo transformers 5.x DESCARTA
+    'user'/'assistant' (ids 11/12) - leccion pagada D1/D2/D4 - asi que no se usa."""
+    _ESP = (("<|im_start|>", 14), ("<|im_end|>", 15), ("<|endoftext|>", 13), ("assistant", 12), ("user", 11))
+    _INV = dict([(i, str(i)) for i in range(10)] + [(10, chr(10)), (11, "user"), (12, "assistant"), (13, "<|endoftext|>"), (14, "<|im_start|>"), (15, "<|im_end|>")])
+    def encode(self, text, **kw):
+        out = []
+        i = 0
+        n = len(text)
+        while i < n:
+            ch = text[i]
+            if "0" <= ch <= "9":
+                out.append(ord(ch) - 48); i += 1; continue
+            if ch == chr(10):
+                out.append(10); i += 1; continue
+            for s_, t_ in self._ESP:
+                if text.startswith(s_, i):
+                    out.append(t_); i += len(s_); break
+            else:
+                raise ValueError("caracter inesperado %r en la posicion %d" % (ch, i))
+        return out
+    def decode(self, ids, **kw):
+        return "".join(self._INV[int(t)] for t in ids)
+
+
 def _es_oom(e):
     return isinstance(e, torch.cuda.OutOfMemoryError) or "out of memory" in str(e).lower()
 
@@ -144,7 +169,7 @@ CARGA = r'''    import transformers
     assert mdir, "sin q35_merged"
     print(f"[Rank {rank}] modelo {mdir} | transformers {transformers.__version__}")
 
-    tokenizer = AutoTokenizer.from_pretrained(mdir)
+    tokenizer = ManualTokenizer()
     _p = tokenizer.encode("<|im_start|>user\n01\n2<|im_end|><|im_start|>assistant\n3<|im_end|>")
     assert _p == [14, 11, 10, 0, 1, 10, 2, 15, 14, 12, 10, 3, 15], _p
 
@@ -159,6 +184,37 @@ CARGA = r'''    import transformers
     gc.collect()
     torch.cuda.empty_cache()
     model = TextLM(lm, head)
+
+    if not os.getenv("KAGGLE_IS_COMPETITION_RERUN") and rank == 0:
+        # NLL/celda medida en memoria al final de sft35-train (antes de fusionar y guardar)
+        ESPERADO = {"d35bdbdc": 0.1292, "dbff022c": 0.1183, "4c3d4a41": 0.1115, "446ef5d2": 0.0949, "136b0064": 0.4515, "dd6b8c4b": 0.1275}
+        _ch = json.load(open(_ruta_arc("arc-agi_evaluation_challenges.json")))
+        _so = json.load(open(_ruta_arc("arc-agi_evaluation_solutions.json")))
+        def _g(g):
+            o = []
+            for r_, fila in enumerate(g):
+                if r_: o.append(10)
+                o.extend(int(c) for c in fila)
+            return o
+        _rat = {}
+        with torch.no_grad():
+            for k_, esp in ESPERADO.items():
+                t_ = _ch[k_]
+                pares = t_["train"] + [{"input": t_["test"][0]["input"], "output": _so[k_][0]}]
+                ids, m = [], []
+                for pp in pares:
+                    a_ = [14, 11, 10] + _g(pp["input"]) + [15, 14, 12, 10]
+                    b_ = _g(pp["output"]) + [15]
+                    ids += a_ + b_; m += [0] * len(a_) + [1] * len(b_)
+                x_ = torch.tensor([ids], device=model.device)
+                lg_ = model(input_ids=x_).logits[0, :-1].float()
+                lp_ = lg_.log_softmax(-1).gather(-1, x_[0, 1:].unsqueeze(-1)).squeeze(-1)
+                mm_ = torch.tensor(m[1:], device=model.device, dtype=torch.bool)
+                cel = int(((x_[0, 1:] < 10) & mm_).sum().item())
+                _rat[k_] = round(float(-lp_[mm_].sum().item()) / max(1, cel) / esp, 4)
+        print(f"[Rank {rank}] VERIFICACION del modelo guardado (disco/memoria): {_rat}")
+        assert all(0.97 < v < 1.03 for v in _rat.values()), f"modelo guardado NO coincide: {_rat}"
+        print(f"[Rank {rank}] VERIFICACION OK")
 
     nombres = sorted({n.split(".")[-1] for n, mod in lm.named_modules() if isinstance(mod, nn.Linear)})
     objetivo = [x for x in nombres if x not in ("in_proj_a", "in_proj_b")]
