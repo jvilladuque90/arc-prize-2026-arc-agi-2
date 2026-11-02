@@ -160,6 +160,21 @@ KERNELS = {
                            "kernel_source": ["juliancamilovilla/arc-agi2-q35base-dl",
                                              "juliancamilovilla/arc-agi2-sft35-data"],
                            "model": ["qwen-lm/qwen-3/transformers/4b-base/1"]}},
+    # sft35-train (1-nov, pedido del usuario): UN Qwen3.5-4B-Base con la receta sft35 en 4 GPUs datos-paralelo
+    # (gloo), guardado fusionado con vocab 16 + tokenizador de sft139. Lo consume lb35. --accelerator NvidiaL4.
+    "sft35-train": {"notebook": "notebooks/sft35_train.ipynb", "slug": "arc-agi2-sft35-train",
+                    "title": "arc agi2 sft35 train", "gpu": True, "docker": "",
+                    "defaults": {"dataset": ["juliancamilovilla/tf52-wheels"],
+                                 "kernel_source": ["juliancamilovilla/arc-agi2-q35base-dl",
+                                                   "juliancamilovilla/arc-agi2-sft35-data"],
+                                 "model": ["sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1"]}},
+    # lb35 (1-nov, pedido del usuario): pipeline COMPLETO del campeon sobre el Qwen3.5 de sft35-train (sin unsloth,
+    # TTT propio con el mismo calendario, instantaneas de cache en el DFS). --accelerator NvidiaL4.
+    "lb35": {"notebook": "notebooks/lb35.ipynb", "slug": "arc-agi2-lb35",
+             "title": "arc agi2 lb35", "gpu": True, "docker": "",
+             "defaults": {"dataset": ["juliancamilovilla/tf52-wheels"],
+                          "kernel_source": ["juliancamilovilla/arc-agi2-sft35-train",
+                                            "juliancamilovilla/arc-agi2-q35base-dl"]}},
     "lsinput": {"notebook": "notebooks/lsinput.ipynb", "slug": "arc-agi2-lsinput", "title": "arc agi2 lsinput", "gpu": False},
     "lsinput-gpu": {"notebook": "notebooks/lsinput.ipynb", "slug": "arc-agi2-lsinput-gpu", "title": "arc agi2 lsinput gpu", "gpu": True,
                     "docker": ("gcr.io/kaggle-private-byod/python@sha256:" "320043e14c68293f1c946585b9257123385205a58af4b94b17d31868cae4e868"),
