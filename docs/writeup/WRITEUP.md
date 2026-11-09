@@ -10,22 +10,22 @@ from `scripts/push_kernels.py`.
 
 ## Summary
 
-We started from the strongest public ARC-AGI-2 pipeline, the NVARC model (`sft139`, 1st place 2025) with
-per-task test-time training (TTT) and depth-first decoding. Then we spent the competition on one question:
+I started from the strongest public ARC-AGI-2 pipeline, the NVARC model (`sft139`, 1st place 2025) with
+per-task test-time training (TTT) and depth-first decoding. Then I spent the competition on one question:
 **which changes really move the hidden-test score, and which only look like they do?**
 
 Three findings shaped everything:
 
-1. **The leaderboard was noisier than the effects we were chasing.** Three reruns of one unchanged
-   notebook scored 30.14, 29.31 and 27.64. We traced the noise to two causes in the code and removed both.
+1. **The leaderboard was noisier than the effects I was chasing.** Three reruns of one unchanged
+   notebook scored 30.14, 29.31 and 27.64. I traced the noise to two causes in the code and removed both.
    That gave the final pipeline: **+1.66 points and a 3× narrower spread**, at zero extra compute.
 2. **Test-time training is the engine, and its recipe is already at a local optimum.** Removing TTT
-   costs 21 points. All five changes to its recipe that we sent to the leaderboard lost, by 1 to 6 points.
+   costs 21 points. All five changes to its recipe that I sent to the leaderboard lost, by 1 to 6 points.
 3. **The remaining gap is about generalization to new rules, not data, scale or decoding.** A handful of
    cheap measurements, most of them with no GPU at all, locate the difficulty precisely. They also explain why
    larger models, more synthetic data and program search did not help within the 12-hour budget.
 
-We report every leaderboard experiment, including the many negative ones (Figure 3), because we believe
+I report every leaderboard experiment, including the many negative ones (Figure 3), because I believe
 they are the most useful part of this work for the next team.
 
 ---
@@ -34,10 +34,10 @@ they are the most useful part of this work for the next team.
 
 ![Pipeline](figs/fig1_pipeline.png)
 
-The final pipeline is the public LB33/NVARC notebook with three changes of ours. Every other part is
+The final pipeline is the public LB33/NVARC notebook with three changes of mine. Every other part is
 unchanged:
 
-| Stage | What it does | Our change |
+| Stage | What it does | My change |
 |---|---|---|
 | Base model | Qwen3-4B with the vocabulary cut to 16 tokens (10 colors, newline, role and turn markers), SFT by NVARC on 266K synthetic puzzles | none |
 | Test-time training | For each task, a fresh LoRA adapter (rank 256, all linear layers plus embeddings and output head) trained for 1 epoch on 128 augmented copies of the demos: 8 rotations/reflections × 16 color permutations, random demo order | none |
@@ -54,35 +54,35 @@ The 4 L4 GPUs run one worker each. The full pipeline uses about 95 % of the 12-h
 ![Variance](figs/fig2_variance.png)
 
 Early in the competition, a change that gained 1.7 points looked like a clear win. Rerunning the
-*unchanged* notebook showed a spread of 2.5 points (σ = 1.27). Most A/B tests we had read until then were
+*unchanged* notebook showed a spread of 2.5 points (σ = 1.27). Most A/B tests I had read until then were
 inside that band, and some "failures" were real effects hidden by it.
 
-Reading the logs of the champion run, we found two mechanical sources of noise:
+Reading the logs of the champion run, I found two mechanical sources of noise:
 
 - **Salted seeds.** Re-scoring drew its augmentations with `hash(task_key)`. Python salts string hashes
-  per process, so every run scored candidates under different views. We replaced it with an md5 hash,
+  per process, so every run scored candidates under different views. I replaced it with an md5 hash,
   which is stable across processes.
 - **A per-task clock cap that tasks barely cleared.** One task started its last decoding batch 40 seconds
   before its 20-minute limit. A 3.5 % change in machine speed decided whether it decoded 16 views or 12.
-  The global deadline already protects the submission, so we removed the per-task cap.
+  The global deadline already protects the submission, so I removed the per-task cap.
 
 With both fixes (`lb33-det`) three reruns scored **31.11, 30.69 and 30.28**. The worst rerun beats the
 best rerun of the old version (Mann-Whitney p = 0.05). The quantum of the leaderboard is 1/240 of a task;
 the new spread is about 2 tasks.
 
 From then on, every experiment had a **pre-registered prediction** with three bands: adopt, tie, discard.
-We wrote the bands down before reading the score. We compared paired runs where possible and reported
+I wrote the bands down before reading the score. I compared paired runs where possible and reported
 median and sign tests next to the mean. In one sweep the mean said "no change" while 10 of 12 tasks
 got worse.
 
 ---
 
-## 3. What we tried on the leaderboard
+## 3. What I tried on the leaderboard
 
 ![Leaderboard map](figs/fig3_leaderboard_map.png)
 
 Each bar is one submission to the hidden test set. The shaded band is ±2 standard deviations of the final
-pipeline. Nothing we sent landed above it.
+pipeline. Nothing I sent landed above it.
 
 **Test-time training is the engine.** With TTT turned off, the same model scores 9.58. TTT is worth
 **+21 points for 35 % of the compute**, the best trade in the pipeline. Its recipe also proved to be a narrow
@@ -119,22 +119,22 @@ three points gives the budget: **any change must cost less than about 4.8 % per 
 - **Wider search on tasks with no candidate** (beam of 8): 29.31. An empty pool almost always means the
   model does not know the answer, not that the 0.2 threshold hid it.
 - **A 27B reasoning model** (Qwen3.8-27B, FP8, 440 tokens/s on 4 L4s) with a public agent scored 16.94 and
-  14.86. Every task it solved was already solved by our pipeline.
+  14.86. Every task it solved was already solved by my pipeline.
 
 ---
 
 ## 4. Why it is hard to climb: measuring the difficulty cheaply
 
-Before spending GPU time, we asked whether arithmetic on the task files, or a one-hour bench, could answer
+Before spending GPU time, I asked whether arithmetic on the task files, or a one-hour bench, could answer
 the question. These checks decided where not to go.
 
 ![Why it is hard](figs/fig5_why_hard.png)
 
-- **Rule novelty dominates scale** (left). We paired 119 AGI-1 tasks with larger re-ARC test inputs. The
+- **Rule novelty dominates scale** (left). I paired 119 AGI-1 tasks with larger re-ARC test inputs. The
   model solves 78 % of known rules at known size, still 67 % at 5.75× the size, and only 10 % of new rules
   from the AGI-2 evaluation set. Synthetic data can only add rules the model already knows. That ended
-  our plan to train against a "scale deficit".
-- **Test inputs fall outside the demonstrations** (middle). We measured how far each test input sits
+  my plan to train against a "scale deficit".
+- **Test inputs fall outside the demonstrations** (middle). I measured how far each test input sits
   outside the range of its demos on 7 grid features. The median distance grows from 0.50 on AGI-1 to
   1.16 on AGI-2 eval (p = 2·10⁻⁸). The excess is *content*: 1.43× the area, 1.45× the ink, the same
   number of objects. The true output also falls outside the range of demo outputs in 95 % of tasks.
@@ -155,7 +155,7 @@ Together these say that the pipeline's ~31 % is not short of data, decoding or c
 
 ![Base swap](figs/fig6_base_swap.png)
 
-A newer base at the same size should raise the ceiling without costing coverage. We tested Qwen3.5-4B
+A newer base at the same size should raise the ceiling without costing coverage. I tested Qwen3.5-4B
 (hybrid: 24 Gated DeltaNet layers + 8 attention layers) against Qwen3-4B with a clean protocol: *Base*
 against *Base* checkpoints, the fast kernels installed, and a plain-text control to confirm that
 loading worked. A first, naive comparison against the chat model had overstated the gap by 44 %.
@@ -165,7 +165,7 @@ loading worked. A first, naive comparison against the chat model had overstated 
   the advantage disappears. The four Qwen3.5 seeds win 19, 12, 17 and 22 of 36 tasks against Qwen3
   (sign test p ≥ 0.12), inside the seed-to-seed band. Qwen3.5 is also 8 % slower.
 
-**The newer generation has a slightly better prior for grids, but does not learn them faster.** We trained a
+**The newer generation has a slightly better prior for grids, but does not learn them faster.** I trained a
 full Qwen3.5 model on 18K sequences and ported the whole pipeline to it (unsloth does not support its
 layers, and its recurrent cache cannot be rewound, so the DFS snapshots and restores it at every branch).
 Kaggle's weekly GPU quota ran out before it could be submitted. The code is in the repository
@@ -175,13 +175,13 @@ Kaggle's weekly GPU quota ran out before it could be submitted. The code is in t
 
 ## 6. Lessons
 
-1. **Measure the noise of your leaderboard before you trust an A/B.** Our biggest gain came from removing
+1. **Measure the noise of your leaderboard before you trust an A/B.** My biggest gain came from removing
    two sources of randomness, not from a new idea.
-2. **Pre-register.** Writing "adopt above X, discard below Y" before the score arrived kept us from
+2. **Pre-register.** Writing "adopt above X, discard below Y" before the score arrived kept me from
    reading noise as progress, in both directions.
 3. **Budget the clock before designing.** At 95 % utilization, a good idea that costs 12 % is worse than
    no idea.
-4. **The bench must match production** in model, format and population. A 2B bench told us TTT was
+4. **The bench must match production** in model, format and population. A 2B bench told me TTT was
    worthless, because the 2B model had memorized the evaluation set. Dropped role tokens (a tokenizer
    change between library versions) silently turned a family of experiments into a format-repair study.
 5. **Ask the data first.** Analyses that ran on a laptop (the demo-envelope distance and two DSL coverage
