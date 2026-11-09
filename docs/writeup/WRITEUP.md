@@ -44,8 +44,7 @@ does not have to pay for them again.
 
 **Why it works.** A single model cannot know every rule. Training on the examples of one puzzle turns
 "guess a new rule" into "repeat a rule just learned". Rotations and color swaps teach the model what in
-the rule is essential and what is incidental. Scoring under many versions rewards answers that stay
-consistent when the puzzle is viewed differently, which is a cheap test of whether the answer follows a rule.
+the rule is essential and what is incidental.
 
 ---
 
@@ -63,9 +62,8 @@ smaller than that, so their results meant nothing. The logs showed two causes:
   overall 12-hour limit already protects the submission, so I removed the per-puzzle one.
 
 With both fixes three reruns scored **31.11, 30.69 and 30.28**: the worst beats the best of the old
-version. From then on, before each submission I **wrote down the score that would mean "adopt" and
-"discard"**, compared runs puzzle by puzzle, and looked at medians, not just means. In one test the mean
-said "no change" while 10 of 12 puzzles got worse.
+version. From then on I **wrote down the adopt/discard score before each
+submission** and compared runs puzzle by puzzle, not just by the mean.
 
 ---
 
@@ -102,13 +100,10 @@ excludes "thinking" models, more search and longer training.
 - **More training data for the 4B model** gave 27.08 / 28.33: it produced more candidate answers, which
   took longer to check, so fewer puzzles finished. The same data *helped* a smaller, faster 2B model (+2.2).
 - **Searching harder when no answer was found**: 29.31. If the model has no candidate, it does not know the rule.
-- **A 27B reasoning model** scored 16.94; every puzzle it solved was already solved by my pipeline.
 
 ---
 
 ## 4. Why it is hard to climb
-
-Before spending GPU time, I asked whether the puzzle files themselves could answer the question.
 
 ![Why it is hard](figs/fig5_why_hard.png)
 
